@@ -36,14 +36,28 @@ developing applications that use %{name}.
 %prep
 %setup -q -n %{name}-%{version}
 
-%build
-%ifarch %arm
-export RPM_ARCH=armeabi-v7a
-%else
-export RPM_ARCH=x86
+%define RPM_ARCH %{_arch}
+
+%ifarch armv7l armv7l armv7hl armv7nhl armv7tnhl armv7thl
+%define RPM_ARCH "armeabi-v7a"
 %endif
 
-scons -j 4 TARGET_OS=tizen TARGET_ARCH=$RPM_ARCH RELEASE=%{release_mode}
+%ifarch aarch64
+%define RPM_ARCH "arm64"
+%endif
+
+%ifarch x86_64
+%define RPM_ARCH "x86_64"
+%endif
+
+%ifarch %{ix86}
+%define RPM_ARCH "x86"
+%endif
+
+
+%build
+
+scons -j 4 TARGET_OS=tizen TARGET_ARCH=%{RPM_ARCH} RELEASE=%{release_mode}
 
 %install
 rm -rf %{buildroot}
