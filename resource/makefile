@@ -36,6 +36,7 @@ CEREAL_DIR:= $(DEPEND_DIR)/cereal
 
 OUT_DIR	  := $(ROOT_DIR)/$(BUILD)
 OBJ_DIR	  := $(OUT_DIR)/obj
+DEST_LIB_DIR?=${DESTDIR}/opt/iotivity
 
 CXX_FLAGS.debug     := -g3 -std=c++0x -Wall -pthread -O0
 CXX_FLAGS.release   := -std=c++0x -Wall -pthread -O3
@@ -127,3 +128,9 @@ clean_legacy:
 	-rm -f -v $(OBJ_DIR)/liboc.a $(OBJ_DIR)/*.o
 	cd csdk && $(MAKE) clean
 	cd csdk && $(MAKE) deepclean
+
+install: examples/$(BUILD)
+	for file in $</* ; do \
+	install -d $(DEST_LIB_DIR)/examples ; \
+	install $${file} $(DEST_LIB_DIR)/examples/ ; \
+	done
