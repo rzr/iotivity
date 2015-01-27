@@ -25,6 +25,9 @@ BUILD := release
 LIB_DIR=./lib/
 BIN_DIR=./bin/
 
+NAMESPACE?=iotivity
+HEADERS?=$(wildcard include/*.h*)
+
 .PHONY: c_lib cpp_lib static_libs examples samples
 
 all: dirs c_lib cpp_lib static_libs examples samples
@@ -54,3 +57,12 @@ clean:
 	rm -rf $(BIN_DIR)/targets/*.o
 	cd cpp && $(MAKE) clean
 	cd c && $(MAKE) clean
+
+
+install: ${HEADERS}
+	cd include && \
+	find . -iname "*.h*" -type f | while read file ; do \
+	dirname=$$(dirname -- "$${file}" ) ; \
+		install -d ${DESTDIR}/usr/include/${NAMESPACE}/$${dirname} ; \
+		install $${file} ${DESTDIR}/usr/include/${NAMESPACE}/$${dirname}/ ; \
+	done

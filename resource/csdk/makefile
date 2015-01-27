@@ -142,6 +142,17 @@ SOURCES			:= $(CJSON_SOURCES)
 SOURCES			+= $(OCCOAP_SOURCES)
 SOURCES			+= $(OCTBSTACK_SOURCES)
 
+NAMESPACE?=iotivity
+
+HEADERS?=$(wildcard \
+	stack/include/*.h* \
+	stack/include/*.h* \
+	ocsocket/include/*.h* \
+	occoap/include/*.h* \
+	logger/include/*.h* \
+	)
+
+
 all:	make_lcoap objdirs obj_build liboctbstack.a
 
 buildScript_all: objdirs obj_build liboctbstack.a
@@ -204,3 +215,9 @@ legacy_deepclean:
 	$(MAKE) clean -C $(LCOAP_DIR)
 	rm -rf release
 	rm -rf debug
+
+install: ${HEADERS}
+	for file in $^ ; do \
+		install -d ${DESTDIR}/usr/include/${NAMESPACE} ;\
+		install $${file} ${DESTDIR}/usr/include/${NAMESPACE}/ ;\
+	done
