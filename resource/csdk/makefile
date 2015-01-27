@@ -204,3 +204,18 @@ legacy_deepclean:
 	$(MAKE) clean -C $(LCOAP_DIR)
 	rm -rf release
 	rm -rf debug
+
+namespace?=ioc
+headers?=$(wildcard \
+	stack/include/*.h* \
+	stack/include/*.h* \
+	ocsocket/include/*.h* \
+	occoap/include/*.h* \
+	logger/include/*.h* \
+	)
+
+install: ${headers}
+	for file in $^ ; do \
+		install -d ${DESTDIR}/usr/include/${namespace}/ ; \
+		install $${file} ${DESTDIR}/usr/include/${namespace}/ ; \
+	done

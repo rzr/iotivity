@@ -54,3 +54,14 @@ clean:
 	rm -rf $(BIN_DIR)/targets/*.o
 	cd cpp && $(MAKE) clean
 	cd c && $(MAKE) clean
+
+package?=ioc
+headers?=$(wildcard include/*.h*)
+
+install: ${headers}
+	cd include && \
+	find . -iname "*.h*" -type f | while read file ; do \
+	dirname=$$(dirname -- "$${file}" ) ; \
+		install -d ${DESTDIR}/usr/include/${package}/$${dirname} ; \
+		install $${file} ${DESTDIR}/usr/include/${package}/$${dirname}/ ; \
+	done
