@@ -26,8 +26,9 @@ CXX	  := g++
 #CXX	  := clang
 OUT_DIR	  := $(BUILD)
 OIC       := ../..
+TARGET_ARCH?=x86_64
 OIC_RES   := $(OIC)/resource
-OIC_LIB   := $(OIC)/out/linux/x86_64/release
+OIC_LIB   := $(OIC)/out/linux/${TARGET_ARCH}/release
 OBJS	  := OICMiddle.o \
 				Client.o \
 				Server.o \
