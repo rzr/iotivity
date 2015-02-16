@@ -15,7 +15,7 @@ host_target_map = {
 # Map of os and allowed archs (os: allowed archs)
 os_arch_map = {
 		'linux': ['x86', 'x86_64', 'arm', 'arm64'],
-		'tizen': ['x86', 'x86_64', 'arm', 'arm64'],
+		'tizen': ['x86', 'x86_64', 'arm', 'arm64', 'armeabi-v7a'],
 		'android': ['x86', 'x86_64', 'armeabi', 'armeabi-v7a', 'armeabi-v7a-hard', 'arm64-v8a'],
 		'windows': ['x86', 'amd64', 'arm'],
 		'winrt': ['arm'],
@@ -174,8 +174,8 @@ Export('env')
 ######################################################################
 if target_os == "yocto":
     '''
-    This code injects Yocto cross-compilation tools+flags into scons' 
-    build environment in order to invoke the relevant tools while 
+    This code injects Yocto cross-compilation tools+flags into scons'
+    build environment in order to invoke the relevant tools while
     performing a build.
     '''
     import os.path
@@ -213,7 +213,7 @@ if target_os == "yocto":
     env['TARGET_OS'] = 'linux'
     '''
     We want to preserve debug symbols to allow BitBake to generate both DEBUG and
-    RELEASE packages for OIC. 
+    RELEASE packages for OIC.
     '''
     env['CCFLAGS'].append('-g')
     Export('env')
