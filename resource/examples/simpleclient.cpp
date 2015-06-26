@@ -21,18 +21,22 @@
 // OCClient.cpp : Defines the entry point for the console application.
 //
 #include <string>
+#include <map>
 #include <cstdlib>
 #include <pthread.h>
 #include <mutex>
 #include <condition_variable>
-
 #include "OCPlatform.h"
 #include "OCApi.h"
 
 using namespace OC;
 
+typedef std::map<OCResourceIdentifier, std::shared_ptr<OCResource>> DiscoveredResourceMap;
+
+DiscoveredResourceMap discoveredResources;
 std::shared_ptr<OCResource> curResource;
 static ObserveType OBSERVE_TYPE_TO_USE = ObserveType::Observe;
+std::mutex curResourceLock;
 
 class Light
 {
@@ -58,112 +62,134 @@ int observe_count()
 void onObserve(const HeaderOptions headerOptions, const OCRepresentation& rep,
                     const int& eCode, const int& sequenceNumber)
 {
-    if(eCode == OC_STACK_OK)
+    try
     {
-        std::cout << "OBSERVE RESULT:"<<std::endl;
-        std::cout << "\tSequenceNumber: "<< sequenceNumber << endl;
-
-        rep.getValue("state", mylight.m_state);
-        rep.getValue("power", mylight.m_power);
-        rep.getValue("name", mylight.m_name);
-
-        std::cout << "\tstate: " << mylight.m_state << std::endl;
-        std::cout << "\tpower: " << mylight.m_power << std::endl;
-        std::cout << "\tname: " << mylight.m_name << std::endl;
-
-        if(observe_count() > 30)
+        if(eCode == OC_STACK_OK)
         {
-            std::cout<<"Cancelling Observe..."<<std::endl;
-            OCStackResult result = curResource->cancelObserve();
+            std::cout << "OBSERVE RESULT:"<<std::endl;
+            std::cout << "\tSequenceNumber: "<< sequenceNumber << std::endl;
+            rep.getValue("state", mylight.m_state);
+            rep.getValue("power", mylight.m_power);
+            rep.getValue("name", mylight.m_name);
 
-            std::cout << "Cancel result: "<< result <<std::endl;
-            sleep(10);
-            std::cout << "DONE"<<std::endl;
-            std::exit(0);
+            std::cout << "\tstate: " << mylight.m_state << std::endl;
+            std::cout << "\tpower: " << mylight.m_power << std::endl;
+            std::cout << "\tname: " << mylight.m_name << std::endl;
+
+            if(observe_count() > 10)
+            {
+                std::cout<<"Cancelling Observe..."<<std::endl;
+                OCStackResult result = curResource->cancelObserve();
+
+                std::cout << "Cancel result: "<< result <<std::endl;
+                sleep(10);
+                std::cout << "DONE"<<std::endl;
+                std::exit(0);
+            }
+        }
+        else
+        {
+            std::cout << "onObserve Response error: " << eCode << std::endl;
+            std::exit(-1);
         }
     }
-    else
+    catch(std::exception& e)
     {
-        std::cout << "onObserve Response error: " << eCode << std::endl;
-        std::exit(-1);
+        std::cout << "Exception: " << e.what() << " in onObserve" << std::endl;
     }
+
 }
 
 void onPost2(const HeaderOptions& headerOptions, const OCRepresentation& rep, const int eCode)
 {
-    if(eCode == OC_STACK_OK || eCode == OC_STACK_RESOURCE_CREATED)
+    try
     {
-        std::cout << "POST request was successful" << std::endl;
-
-        if(rep.hasAttribute("createduri"))
+        if(eCode == OC_STACK_OK || eCode == OC_STACK_RESOURCE_CREATED)
         {
-            std::cout << "\tUri of the created resource: "
-                      << rep.getValue<std::string>("createduri") << std::endl;
+            std::cout << "POST request was successful" << std::endl;
+
+            if(rep.hasAttribute("createduri"))
+            {
+                std::cout << "\tUri of the created resource: "
+                    << rep.getValue<std::string>("createduri") << std::endl;
+            }
+            else
+            {
+                rep.getValue("state", mylight.m_state);
+                rep.getValue("power", mylight.m_power);
+                rep.getValue("name", mylight.m_name);
+
+                std::cout << "\tstate: " << mylight.m_state << std::endl;
+                std::cout << "\tpower: " << mylight.m_power << std::endl;
+                std::cout << "\tname: " << mylight.m_name << std::endl;
+            }
+
+            if (OBSERVE_TYPE_TO_USE == ObserveType::Observe)
+                std::cout << std::endl << "Observe is used." << std::endl << std::endl;
+            else if (OBSERVE_TYPE_TO_USE == ObserveType::ObserveAll)
+                std::cout << std::endl << "ObserveAll is used." << std::endl << std::endl;
+
+            curResource->observe(OBSERVE_TYPE_TO_USE, QueryParamsMap(), &onObserve);
+
         }
         else
         {
-            rep.getValue("state", mylight.m_state);
-            rep.getValue("power", mylight.m_power);
-            rep.getValue("name", mylight.m_name);
-
-            std::cout << "\tstate: " << mylight.m_state << std::endl;
-            std::cout << "\tpower: " << mylight.m_power << std::endl;
-            std::cout << "\tname: " << mylight.m_name << std::endl;
+            std::cout << "onPost2 Response error: " << eCode << std::endl;
+            std::exit(-1);
         }
-
-        if (OBSERVE_TYPE_TO_USE == ObserveType::Observe)
-            std::cout << endl << "Observe is used." << endl << endl;
-        else if (OBSERVE_TYPE_TO_USE == ObserveType::ObserveAll)
-            std::cout << endl << "ObserveAll is used." << endl << endl;
-
-        curResource->observe(OBSERVE_TYPE_TO_USE, QueryParamsMap(), &onObserve);
-
     }
-    else
+    catch(std::exception& e)
     {
-        std::cout << "onPost2 Response error: " << eCode << std::endl;
-        std::exit(-1);
+        std::cout << "Exception: " << e.what() << " in onPost2" << std::endl;
     }
+
 }
 
 void onPost(const HeaderOptions& headerOptions, const OCRepresentation& rep, const int eCode)
 {
-    if(eCode == OC_STACK_OK || eCode == OC_STACK_RESOURCE_CREATED)
+    try
     {
-        std::cout << "POST request was successful" << std::endl;
-
-        if(rep.hasAttribute("createduri"))
+        if(eCode == OC_STACK_OK || eCode == OC_STACK_RESOURCE_CREATED)
         {
-            std::cout << "\tUri of the created resource: "
-                      << rep.getValue<std::string>("createduri") << std::endl;
+            std::cout << "POST request was successful" << std::endl;
+
+            if(rep.hasAttribute("createduri"))
+            {
+                std::cout << "\tUri of the created resource: "
+                    << rep.getValue<std::string>("createduri") << std::endl;
+            }
+            else
+            {
+                rep.getValue("state", mylight.m_state);
+                rep.getValue("power", mylight.m_power);
+                rep.getValue("name", mylight.m_name);
+
+                std::cout << "\tstate: " << mylight.m_state << std::endl;
+                std::cout << "\tpower: " << mylight.m_power << std::endl;
+                std::cout << "\tname: " << mylight.m_name << std::endl;
+            }
+
+            OCRepresentation rep2;
+
+            std::cout << "Posting light representation..."<<std::endl;
+
+            mylight.m_state = true;
+            mylight.m_power = 55;
+
+            rep2.setValue("state", mylight.m_state);
+            rep2.setValue("power", mylight.m_power);
+
+            curResource->post(rep2, QueryParamsMap(), &onPost2);
         }
         else
         {
-            rep.getValue("state", mylight.m_state);
-            rep.getValue("power", mylight.m_power);
-            rep.getValue("name", mylight.m_name);
-
-            std::cout << "\tstate: " << mylight.m_state << std::endl;
-            std::cout << "\tpower: " << mylight.m_power << std::endl;
-            std::cout << "\tname: " << mylight.m_name << std::endl;
+            std::cout << "onPost Response error: " << eCode << std::endl;
+            std::exit(-1);
         }
-
-        OCRepresentation rep2;
-
-        std::cout << "Posting light representation..."<<std::endl;
-
-        mylight.m_state = true;
-        mylight.m_power = 55;
-
-        rep2.setValue("state", mylight.m_state);
-        rep2.setValue("power", mylight.m_power);
-
-        curResource->post(rep2, QueryParamsMap(), &onPost2);
     }
-    else
+    catch(std::exception& e)
     {
-        std::cout << "onPost Response error: " << eCode << std::endl;
-        std::exit(-1);
+        std::cout << "Exception: " << e.what() << " in onPost" << std::endl;
     }
 }
 
@@ -190,24 +216,31 @@ void postLightRepresentation(std::shared_ptr<OCResource> resource)
 // callback handler on PUT request
 void onPut(const HeaderOptions& headerOptions, const OCRepresentation& rep, const int eCode)
 {
-    if(eCode == OC_STACK_OK)
+    try
     {
-        std::cout << "PUT request was successful" << std::endl;
+        if(eCode == OC_STACK_OK)
+        {
+            std::cout << "PUT request was successful" << std::endl;
 
-        rep.getValue("state", mylight.m_state);
-        rep.getValue("power", mylight.m_power);
-        rep.getValue("name", mylight.m_name);
+            rep.getValue("state", mylight.m_state);
+            rep.getValue("power", mylight.m_power);
+            rep.getValue("name", mylight.m_name);
 
-        std::cout << "\tstate: " << mylight.m_state << std::endl;
-        std::cout << "\tpower: " << mylight.m_power << std::endl;
-        std::cout << "\tname: " << mylight.m_name << std::endl;
+            std::cout << "\tstate: " << mylight.m_state << std::endl;
+            std::cout << "\tpower: " << mylight.m_power << std::endl;
+            std::cout << "\tname: " << mylight.m_name << std::endl;
 
-        postLightRepresentation(curResource);
+            postLightRepresentation(curResource);
+        }
+        else
+        {
+            std::cout << "onPut Response error: " << eCode << std::endl;
+            std::exit(-1);
+        }
     }
-    else
+    catch(std::exception& e)
     {
-        std::cout << "onPut Response error: " << eCode << std::endl;
-        std::exit(-1);
+        std::cout << "Exception: " << e.what() << " in onPut" << std::endl;
     }
 }
 
@@ -234,25 +267,32 @@ void putLightRepresentation(std::shared_ptr<OCResource> resource)
 // Callback handler on GET request
 void onGet(const HeaderOptions& headerOptions, const OCRepresentation& rep, const int eCode)
 {
-    if(eCode == OC_STACK_OK)
+    try
     {
-        std::cout << "GET request was successful" << std::endl;
-        std::cout << "Resource URI: " << rep.getUri() << std::endl;
+        if(eCode == OC_STACK_OK)
+        {
+            std::cout << "GET request was successful" << std::endl;
+            std::cout << "Resource URI: " << rep.getUri() << std::endl;
 
-        rep.getValue("state", mylight.m_state);
-        rep.getValue("power", mylight.m_power);
-        rep.getValue("name", mylight.m_name);
+            rep.getValue("state", mylight.m_state);
+            rep.getValue("power", mylight.m_power);
+            rep.getValue("name", mylight.m_name);
 
-        std::cout << "\tstate: " << mylight.m_state << std::endl;
-        std::cout << "\tpower: " << mylight.m_power << std::endl;
-        std::cout << "\tname: " << mylight.m_name << std::endl;
+            std::cout << "\tstate: " << mylight.m_state << std::endl;
+            std::cout << "\tpower: " << mylight.m_power << std::endl;
+            std::cout << "\tname: " << mylight.m_name << std::endl;
 
-        putLightRepresentation(curResource);
+            putLightRepresentation(curResource);
+        }
+        else
+        {
+            std::cout << "onGET Response error: " << eCode << std::endl;
+            std::exit(-1);
+        }
     }
-    else
+    catch(std::exception& e)
     {
-        std::cout << "onGET Response error: " << eCode << std::endl;
-        std::exit(-1);
+        std::cout << "Exception: " << e.what() << " in onGet" << std::endl;
     }
 }
 
@@ -272,15 +312,31 @@ void getLightRepresentation(std::shared_ptr<OCResource> resource)
 // Callback to found resources
 void foundResource(std::shared_ptr<OCResource> resource)
 {
-    if(curResource)
-    {
-        std::cout << "Found another resource, ignoring"<<std::endl;
-    }
-
+    std::cout << "In foundResource\n";
     std::string resourceURI;
     std::string hostAddress;
     try
     {
+        {
+            std::lock_guard<std::mutex> lock(curResourceLock);
+            if(discoveredResources.find(resource->uniqueIdentifier()) == discoveredResources.end())
+            {
+                std::cout << "Found resource " << resource->uniqueIdentifier() <<
+                    " for the first time on server with ID: "<< resource->sid()<<std::endl;
+                discoveredResources[resource->uniqueIdentifier()] = resource;
+            }
+            else
+            {
+                std::cout<<"Found resource "<< resource->uniqueIdentifier() << " again!"<<std::endl;
+            }
+
+            if(curResource)
+            {
+                std::cout << "Found another resource, ignoring"<<std::endl;
+                return;
+            }
+        }
+
         // Do some operations with resource object.
         if(resource)
         {
@@ -323,36 +379,63 @@ void foundResource(std::shared_ptr<OCResource> resource)
     }
     catch(std::exception& e)
     {
-        //log(e.what());
+        std::cerr << "Exception in foundResource: "<< e.what() << std::endl;
     }
 }
 
-void PrintUsage()
+void printUsage()
 {
     std::cout << std::endl;
+    std::cout << "---------------------------------------------------------------------\n";
     std::cout << "Usage : simpleclient <ObserveType>" << std::endl;
     std::cout << "   ObserveType : 1 - Observe" << std::endl;
     std::cout << "   ObserveType : 2 - ObserveAll" << std::endl;
+    std::cout << "---------------------------------------------------------------------\n\n";
 }
 
-int main(int argc, char* argv[]) {
-    if (argc == 1)
+void checkObserverValue(int value)
+{
+    if (value == 1)
     {
         OBSERVE_TYPE_TO_USE = ObserveType::Observe;
+        std::cout << "<===Setting ObserveType to Observe===>\n\n";
     }
-    else if (argc == 2)
+    else if (value == 2)
     {
-        int value = atoi(argv[1]);
-        if (value == 1)
-            OBSERVE_TYPE_TO_USE = ObserveType::Observe;
-        else if (value == 2)
-            OBSERVE_TYPE_TO_USE = ObserveType::ObserveAll;
-        else
-            OBSERVE_TYPE_TO_USE = ObserveType::Observe;
+        OBSERVE_TYPE_TO_USE = ObserveType::ObserveAll;
+        std::cout << "<===Setting ObserveType to ObserveAll===>\n\n";
     }
     else
     {
-        PrintUsage();
+        std::cout << "<===Invalid ObserveType selected."
+                  <<" Setting ObserveType to Observe===>\n\n";
+    }
+}
+
+int main(int argc, char* argv[]) {
+
+    std::ostringstream requestURI;
+
+    try
+    {
+        printUsage();
+        if (argc == 1)
+        {
+            std::cout << "<===Setting ObserveType to Observe and ConnectivityType to IPv4===>\n\n";
+        }
+        else if (argc == 2)
+        {
+            checkObserverValue(std::stoi(argv[1]));
+        }
+        else
+        {
+            std::cout << "<===Invalid number of command line arguments===>\n\n";
+            return -1;
+        }
+    }
+    catch(std::exception& )
+    {
+        std::cout << "<===Invalid input arguments===>\n\n";
         return -1;
     }
 
@@ -371,8 +454,18 @@ int main(int argc, char* argv[]) {
         // makes it so that all boolean values are printed as 'true/false' in this stream
         std::cout.setf(std::ios::boolalpha);
         // Find all resources
-        OCPlatform::findResource("", "coap://224.0.1.187/oc/core?rt=core.light", &foundResource);
+        requestURI << OC_MULTICAST_DISCOVERY_URI << "?rt=core.light";
+
+        OCPlatform::findResource("", requestURI.str(),
+                OC_ALL, &foundResource);
         std::cout<< "Finding Resource... " <<std::endl;
+
+        // Find resource is done twice so that we discover the original resources a second time.
+        // These resources will have the same uniqueidentifier (yet be different objects), so that
+        // we can verify/show the duplicate-checking code in foundResource(above);
+        OCPlatform::findResource("", requestURI.str(),
+                OC_ALL, &foundResource);
+        std::cout<< "Finding Resource for second time..." << std::endl;
 
         // A condition variable will free the mutex it is given, then do a non-
         // intensive block until 'notify' is called on it.  In this case, since we
@@ -385,9 +478,10 @@ int main(int argc, char* argv[]) {
 
     }catch(OCException& e)
     {
-        //log(e.what());
+        oclog() << "Exception in main: "<<e.what();
     }
 
     return 0;
 }
+
 

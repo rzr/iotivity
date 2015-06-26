@@ -24,14 +24,23 @@
 // This file contains all the variables which can be configured/modified as
 // per platform or specific product usage scenarios.
 
+/** This would need to be updated in future as we move to support IPv6 and other
+ *  technologies.
+ */
+#define DEV_ADDR_SIZE_MAX (16)
 
 /**
  * Maximum length of the response supported by Server for any REST request.
+ * The actual repsonse length is 256 for Arduino and 1024 for other platforms.
+ * Note that the stack will add a prefix and suffix to the payload.
+ * Prefix : {"oc":[
+ * Suffix : ]}
+ * They have a combined size of 9 bytes.
  */
 #ifdef WITH_ARDUINO
-#define MAX_RESPONSE_LENGTH (256)
+#define MAX_RESPONSE_LENGTH (247)
 #else
-#define MAX_RESPONSE_LENGTH (1024)
+#define MAX_RESPONSE_LENGTH (1015)
 #endif
 
 /**
@@ -82,5 +91,15 @@
  *  Maximum Length of the vendor specific header option
  */
 #define MAX_HEADER_OPTION_DATA_LENGTH (16)
+
+/*
+ * Sets the time to live (TTL) for response callbacks.
+ * The callbacks will be up for deletion after such time but are not guaranteed
+ * to be deleted immediately and you may get responses even after timeout.
+ * This timeout will NOT apply to OBSERVE requests. OBSERVE needs an explicit cancel using OCCancel().
+ * NOTE: Changing the setting to a very long duration may lead to unsupported and untested
+ * operation. Setting this to as small a value as reasonable will reclaim memory faster.
+ */
+#define MAX_CB_TIMEOUT_SECONDS   (2 * 60 * 60)  // 2 hours = 7200 seconds.
 
 #endif //OCSTACK_CONFIG_H_

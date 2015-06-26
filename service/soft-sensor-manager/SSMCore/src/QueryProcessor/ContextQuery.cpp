@@ -28,13 +28,13 @@ CContextQuery::CContextQuery()
 {
 }
 
-SSMRESULT CContextQuery::initialize(IN Token &input_root)
+SSMRESULT CContextQuery::initialize(Token &input_root)
 {
     m_root = input_root;
     return CreateGlobalInstance(OID_IPropagationEngine, (IBase **)&m_pPropagationEngine);
 }
 
-std::string CContextQuery::search_last_modelName(IN Token *temp)
+std::string CContextQuery::search_last_modelName(Token *temp)
 {
     while (true)
     {
@@ -49,8 +49,8 @@ std::string CContextQuery::search_last_modelName(IN Token *temp)
     }
 }
 
-void CContextQuery::integrate_result(OUT std::vector<result_model> *result, IN int modelId,
-                                     IN std::vector<int> *dataid, IN std::string modelName)
+void CContextQuery::integrate_result(std::vector<result_model> *result, int modelId,
+                                     std::vector<int> *dataid, std::string modelName)
 {
     bool flag = false;
 
@@ -91,7 +91,7 @@ void CContextQuery::integrate_result(OUT std::vector<result_model> *result, IN i
 
 
 
-void CContextQuery::return_contextName(OUT std::vector<std::string> *contextName)
+void CContextQuery::return_contextName(std::vector<std::string> *contextName)
 {
     int k = m_root.child_token.at(0).child_token.size();
 
@@ -143,9 +143,10 @@ void CContextQuery::check_result_model()
 
         }
 
+        unsigned int cnt = 0;
+
         while (true)
         {
-            unsigned int cnt = 0;
             if ((unsigned int)cnt > min_cnt - 1)
             {
                 break;
@@ -202,26 +203,27 @@ void CContextQuery::check_result_model()
     }
 }
 
-void CContextQuery::return_modelID(OUT std::vector<int> *vector_int)
+void CContextQuery::return_modelID(std::vector<int> *vector_int)
 {
     int k = m_root.child_token.at(0).child_token.size();
 
+    IContextModel *pContextModel = NULL;
+    int pModel = 0;
+
     for (int i = 0; i < k; i++)
     {
-
         Token *temp = &(m_root.child_token.at(0).child_token.at(i));
-
-        int pModel = 0;
-        IContextModel *contextmodel;
-
-        m_pPropagationEngine->getContextModel(search_last_modelName(temp), &contextmodel);
-        pModel = contextmodel->getModelId();
-        vector_int->push_back(pModel);
-        SAFE_RELEASE(contextmodel);
+        if (m_pPropagationEngine->getContextModel(search_last_modelName(temp),
+                &pContextModel) == SSM_S_OK)
+        {
+            pModel = pContextModel->getModelId();
+            vector_int->push_back(pModel);
+        }
+        SAFE_RELEASE(pContextModel);
     }
 }
 
-void CContextQuery::make_QueryCondition(OUT QueryCondition *result)
+void CContextQuery::make_QueryCondition(QueryCondition *result)
 {
 
     if (m_root.child_token.size() < 2)
@@ -286,14 +288,12 @@ void CContextQuery::make_QueryCondition(OUT QueryCondition *result)
     {
         int k = m_root.child_token.at(1).child_token.size();
         std::string model_name = "";
-        ModelConditionVec modelcondition;
-        ModelCondition model_data;
 
-        for (int i = 0 ; i < k ; i++)
+        std::map<std::string, ModelConditionVec> modelConditionList;
+
+        for (int i = 0; i < k; i++)
         {
-            modelcondition.clear();
             Token *temp = &(m_root.child_token.at(1).child_token.at(i));
-
 
             if (temp->type == Context)
             {
@@ -311,16 +311,20 @@ void CContextQuery::make_QueryCondition(OUT QueryCondition *result)
                     }
                 }
 
-
-
+                ModelCondition model_data;
                 model_data.predicate = m_root.child_token.at(1).child_token.at(i + 1).condition;
                 model_data.modelProperty.propertyName = temp->model_property.propertyName;
                 model_data.modelProperty.propertyType = temp->model_property.propertyType;
                 model_data.modelProperty.propertyValue = temp->model_property.propertyValue;
-                modelcondition.push_back(model_data);
-                result->push_back(std::pair<std::string, ModelConditionVec>(model_name, modelcondition));
-                ///result->push_back(model_name[i],modelcondition);
+                modelConditionList[model_name].push_back(model_data);
             }
+        }
+
+        for (std::map<std::string, ModelConditionVec>::iterator itor = modelConditionList.begin();
+             itor != modelConditionList.end(); ++itor)
+        {
+            result->push_back(std::pair<std::string, ModelConditionVec>(itor->first,
+                              itor->second));
         }
     }
 }

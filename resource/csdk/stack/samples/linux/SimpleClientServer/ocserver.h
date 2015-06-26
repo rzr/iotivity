@@ -35,16 +35,18 @@
 //-----------------------------------------------------------------------------
 
 /* Structure to represent a Light resource */
-typedef struct LIGHTRESOURCE{
+typedef struct LIGHTRESOURCE
+{
     OCResourceHandle handle;
     bool state;
     int power;
 } LightResource;
 
 /* Structure to represent the observers */
-typedef struct {
+typedef struct
+{
     OCObservationId observationId;
-    bool            valid;
+    bool valid;
     OCResourceHandle resourceHandle;
 } Observers;
 
@@ -67,6 +69,11 @@ char* constructJsonResponse (OCEntityHandlerRequest *ehRequest);
  * and notifies the observers of new state of the resource.
  */
 void *ChangeLightRepresentation (void *param);
+
+/* This method check the validity of resourceTypeName and resource interfaces
+ * Entity Handler has to parse the query string in order to process it
+ */
+OCEntityHandlerResult ValidateQueryParams (OCEntityHandlerRequest *entityHandlerRequest);
 
 /* Following methods process the PUT, GET, POST, Delete,
  * & Observe requests */
@@ -115,3 +122,4 @@ OCEntityHandlerCb (OCEntityHandlerFlag flag,
 
 
 #endif
+

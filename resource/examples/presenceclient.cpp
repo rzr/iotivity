@@ -32,8 +32,10 @@
 using namespace OC;
 
 std::shared_ptr<OCResource> curResource;
-
+std::mutex resourceLock;
 static int TEST_CASE = 0;
+
+static OCConnectivityType connectivityType = OC_IPV4;
 
 /**
  * List of methods that can be inititated from the client
@@ -50,17 +52,20 @@ typedef enum {
 
 void printUsage()
 {
-    std::cout << "Usage : presenceclient -t <1|2>" << std::endl;
+    std::cout << "Usage : presenceclient -t <1|2|3|4|5|6> -c <0|1>" << std::endl;
     std::cout << "-t 1 : Discover Resources and Initiate Unicast Presence" << std::endl;
     std::cout << "-t 2 : Discover Resources and Initiate Unicast Presence with Filter"
               << std::endl;
     std::cout << "-t 3 : Discover Resources and Initiate Unicast Presence with Two Filters"
-            << std::endl;
+              << std::endl;
     std::cout << "-t 4 : Discover Resources and Initiate Multicast Presence" << std::endl;
     std::cout << "-t 5 : Discover Resources and Initiate Multicast Presence with Filter"
               << std::endl;
     std::cout << "-t 6 : Discover Resources and Initiate Multicast Presence with two Filters"
-                  << std::endl;
+            << std::endl;
+    std::cout<<"ConnectivityType: Default IPv4" << std::endl;
+    std::cout << "-c 0 : Send message with IPv4" << std::endl;
+    std::cout << "-c 1 : Send message with IPv6" << std::endl;
 }
 
 // Callback to presence
@@ -80,9 +85,6 @@ void presenceHandler(OCStackResult result, const unsigned int nonce, const std::
         case OC_STACK_PRESENCE_TIMEOUT:
             std::cout << "Presence Timeout\n";
             break;
-        case OC_STACK_VIRTUAL_DO_NOT_HANDLE:
-            std::cout << "Virtual do not handle\n";
-            break;
         default:
             std::cout << "Error\n";
             break;
@@ -92,9 +94,11 @@ void presenceHandler(OCStackResult result, const unsigned int nonce, const std::
 // Callback to found resources
 void foundResource(std::shared_ptr<OCResource> resource)
 {
+    std::lock_guard<std::mutex> lock(resourceLock);
     if(curResource)
     {
         std::cout << "Found another resource, ignoring"<<std::endl;
+        return;
     }
 
     std::string resourceURI;
@@ -136,7 +140,7 @@ void foundResource(std::shared_ptr<OCResource> resource)
                 if(TEST_CASE == TEST_UNICAST_PRESENCE_NORMAL)
                 {
                     result = OCPlatform::subscribePresence(presenceHandle, hostAddress,
-                            &presenceHandler);
+                            connectivityType, &presenceHandler);
                     if(result == OC_STACK_OK)
                     {
                         std::cout<< "Subscribed to unicast address: " << hostAddress << std::endl;
@@ -151,7 +155,7 @@ void foundResource(std::shared_ptr<OCResource> resource)
                         TEST_CASE == TEST_UNICAST_PRESENCE_WITH_FILTERS)
                 {
                     result = OCPlatform::subscribePresence(presenceHandle, hostAddress,
-                            "core.light", &presenceHandler);
+                            "core.light", connectivityType, &presenceHandler);
                     if(result == OC_STACK_OK)
                     {
                         std::cout<< "Subscribed to unicast address: " << hostAddress;
@@ -165,7 +169,7 @@ void foundResource(std::shared_ptr<OCResource> resource)
                 if(TEST_CASE == TEST_UNICAST_PRESENCE_WITH_FILTERS)
                 {
                     result = OCPlatform::subscribePresence(presenceHandle, hostAddress, "core.fan",
-                            &presenceHandler);
+                            connectivityType, &presenceHandler);
                     if(result == OC_STACK_OK)
                     {
                         std::cout<< "Subscribed to unicast address: " << hostAddress;
@@ -187,25 +191,71 @@ void foundResource(std::shared_ptr<OCResource> resource)
     }
     catch(std::exception& e)
     {
+        std::cerr << "Exception in foundResource: "<< e.what() << std::endl;
         //log(e.what());
     }
 }
 
 int main(int argc, char* argv[]) {
+
+    std::ostringstream requestURI;
+
     int opt;
 
-    while ((opt = getopt(argc, argv, "t:")) != -1)
+    int optionSelected;
+
+    try
     {
-        switch(opt)
+        while ((opt = getopt(argc, argv, "t:c:")) != -1)
         {
-            case 't':
-                TEST_CASE = atoi(optarg);
-                break;
-            default:
-                printUsage();
-                return -1;
+            switch(opt)
+            {
+                case 't':
+                    TEST_CASE = std::stoi(optarg);
+                    break;
+                case 'c':
+                    std::size_t inputValLen;
+                    optionSelected = std::stoi(optarg, &inputValLen);
+
+                    if(inputValLen == strlen(optarg))
+                    {
+                        if(optionSelected == 0)
+                        {
+                            connectivityType = OC_IPV4;
+                        }
+                        else if(optionSelected == 1)
+                        {
+                            // TODO: re-enable IPv4/IPv6 command line selection when IPv6
+                            // is supported
+                            //connectivityType = OC_IPV6;
+                            connectivityType = OC_IPV4;
+                            std::cout << "IPv6 not currently supported. Using default IPv4"
+                                    << std::endl;
+                        }
+                        else
+                        {
+                            std::cout << "Invalid connectivity type selected. Using default IPv4"
+                                << std::endl;
+                        }
+                    }
+                    else
+                    {
+                        std::cout << "Invalid connectivity type selected. Using default IPv4"
+                            << std::endl;
+                    }
+                    break;
+                default:
+                    printUsage();
+                    return -1;
+            }
         }
     }
+    catch(std::exception& )
+    {
+        std::cout << "Invalid input argument. Using IPv4 as connectivity type"
+            << std::endl;
+    }
+
     if(TEST_CASE >= MAX_TESTS || TEST_CASE <= 0)
     {
         printUsage();
@@ -230,10 +280,14 @@ int main(int argc, char* argv[]) {
         OCPlatform::OCPresenceHandle presenceHandle = nullptr;
         OCStackResult result = OC_STACK_OK;
 
+        std::ostringstream multicastPresenceURI;
+        multicastPresenceURI << "coap://" << OC_MULTICAST_PREFIX;
+
         if(TEST_CASE == TEST_MULTICAST_PRESENCE_NORMAL)
         {
             result = OCPlatform::subscribePresence(presenceHandle,
-                    OC_MULTICAST_IP, presenceHandler);
+                    multicastPresenceURI.str(), connectivityType, presenceHandler);
+
             if(result == OC_STACK_OK)
             {
                 std::cout << "Subscribed to multicast presence." << std::endl;
@@ -245,8 +299,8 @@ int main(int argc, char* argv[]) {
         }
         else if(TEST_CASE == TEST_MULTICAST_PRESENCE_WITH_FILTER)
         {
-            result = OCPlatform::subscribePresence(presenceHandle, OC_MULTICAST_IP, "core.light",
-                    &presenceHandler);
+            result = OCPlatform::subscribePresence(presenceHandle, multicastPresenceURI.str(), "core.light",
+                    connectivityType, &presenceHandler);
             if(result == OC_STACK_OK)
             {
                 std::cout << "Subscribed to multicast presence with resource type";
@@ -259,8 +313,8 @@ int main(int argc, char* argv[]) {
         }
         else if(TEST_CASE == TEST_MULTICAST_PRESENCE_WITH_FILTERS)
         {
-            result = OCPlatform::subscribePresence(presenceHandle, OC_MULTICAST_IP, "core.light",
-                    &presenceHandler);
+            result = OCPlatform::subscribePresence(presenceHandle, multicastPresenceURI.str(), "core.light",
+                    connectivityType, &presenceHandler);
             if(result == OC_STACK_OK)
             {
                 std::cout << "Subscribed to multicast presence with resource type";
@@ -271,8 +325,8 @@ int main(int argc, char* argv[]) {
             }
             std::cout << "\"core.light\"." << std::endl;
 
-            result = OCPlatform::subscribePresence(presenceHandle, OC_MULTICAST_IP, "core.fan",
-                    &presenceHandler);
+            result = OCPlatform::subscribePresence(presenceHandle, multicastPresenceURI.str(), "core.fan",
+                    connectivityType, &presenceHandler);
             if(result == OC_STACK_OK)
             {
                 std::cout<< "Subscribed to multicast presence with resource type";
@@ -286,7 +340,10 @@ int main(int argc, char* argv[]) {
         else
         {
             // Find all resources
-            result = OCPlatform::findResource("", "coap://224.0.1.187/oc/core", &foundResource);
+            requestURI << OC_MULTICAST_DISCOVERY_URI;
+
+            result = OCPlatform::findResource("", requestURI.str(),
+                    OC_ALL, &foundResource);
             if(result == OC_STACK_OK)
             {
                 std::cout << "Finding Resource... " << std::endl;
@@ -306,11 +363,13 @@ int main(int argc, char* argv[]) {
         std::unique_lock<std::mutex> lock(blocker);
         cv.wait(lock);
 
-    }catch(OCException& e)
+    }
+    catch(OCException& e)
     {
-        //log(e.what());
+        oclog() << "Exception in main: "<< e.what();
     }
 
     return 0;
 }
+
 

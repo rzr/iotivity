@@ -51,6 +51,10 @@ std::string OC::OCException::reason(const OCStackResult sr)
             return OC::Exception::NO_MEMORY;
         case OC_STACK_COMM_ERROR:
             return OC::Exception::COMM_ERROR;
+        case OC_STACK_TIMEOUT:
+            return OC::Exception::TIMEOUT;
+        case OC_STACK_ADAPTER_NOT_ENABLED:
+            return OC::Exception::ADAPTER_NOT_ENABLED;
         case OC_STACK_NOTIMPL:
             return OC::Exception::NOT_IMPL;
         case OC_STACK_NO_RESOURCE:
@@ -85,8 +89,13 @@ std::string OC::OCException::reason(const OCStackResult sr)
             return OC::Exception::INVALID_REQUEST_HANDLE;
         case OC_STACK_ERROR:
             return OC::Exception::GENERAL_FAULT;
+        case OC_STACK_INVALID_DEVICE_INFO:
+            return OC::Exception::INVALID_DEVICE_INFO;
+        case OC_STACK_INVALID_JSON:
+            return OC::Exception::INVALID_REPRESENTATION;
     }
 
     return OC::Exception::UNKNOWN_ERROR;
 }
+
 

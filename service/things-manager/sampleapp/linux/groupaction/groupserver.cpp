@@ -25,6 +25,8 @@
 #include <pthread.h>
 #include <iostream>
 
+#include "timer.h"
+
 #include <ThingsManager.h>
 
 using namespace std;
@@ -35,41 +37,48 @@ namespace PH = std::placeholders;
 bool isReady = false;
 
 OCResourceHandle resourceHandle;
-std::vector< OCResourceHandle > resourceHandleVector;
+std::vector<OCResourceHandle> resourceHandleVector;
 
-shared_ptr< OCResource > g_resource;
-vector< string > lights;
+shared_ptr<OCResource> g_resource;
+vector<string> lights;
 
 ThingsManager *thingsMgr = new ThingsManager();
 
-void onGet(const HeaderOptions& opt, const OCRepresentation &rep, const int eCode);
+void onGet(const HeaderOptions& opt, const OCRepresentation &rep,
+        const int eCode);
 
-void onPut(const HeaderOptions& headerOptions, const OCRepresentation& rep, const int eCode);
+void onPut(const HeaderOptions& headerOptions, const OCRepresentation& rep,
+        const int eCode);
 
-void onPost(const HeaderOptions& headerOptions, const OCRepresentation& rep, const int eCode);
+void onPost(const HeaderOptions& headerOptions, const OCRepresentation& rep,
+        const int eCode);
 
-void onObserve(const HeaderOptions headerOptions, const OCRepresentation& rep, const int& eCode,
-        const int& sequenceNumber);
+void onObserve(const HeaderOptions headerOptions, const OCRepresentation& rep,
+        const int& eCode, const int& sequenceNumber);
 
 void allBulbOn();
 void allBulbOff();
 
-void foundResources(std::vector< std::shared_ptr< OC::OCResource > > listOfResource)
+shared_ptr<OCResource> g_light;
+
+void foundResources(
+        std::vector<std::shared_ptr<OC::OCResource> > listOfResource)
 {
 
-    for (auto rsrc = listOfResource.begin(); rsrc != listOfResource.end(); ++rsrc)
+    for (auto rsrc = listOfResource.begin(); rsrc != listOfResource.end();
+            ++rsrc)
     {
         std::string resourceURI = (*rsrc)->uri();
         std::string hostAddress = (*rsrc)->host();
 
         if (resourceURI == "/a/light")
         {
-
             cout << "\tResource URI : " << resourceURI << endl;
             cout << "\tResource Host : " << hostAddress << endl;
 
             OCResourceHandle foundResourceHandle;
-            OCStackResult result = OCPlatform::registerResource(foundResourceHandle, (*rsrc));
+            OCStackResult result = OCPlatform::registerResource(
+                    foundResourceHandle, (*rsrc));
             cout << "\tresource registed!" << endl;
             if (result == OC_STACK_OK)
             {
@@ -82,21 +91,23 @@ void foundResources(std::vector< std::shared_ptr< OC::OCResource > > listOfResou
             }
 
             lights.push_back((hostAddress + resourceURI));
+
+            g_light = (*rsrc);
         }
     }
 
     isReady = true;
 }
 
-void foundResource(std::shared_ptr< OCResource > resource)
+void foundResource(std::shared_ptr<OCResource> resource)
 {
     std::string resourceURI;
     std::string hostAddress;
 
+    cout << "FOUND RESOURCE" << endl;
+
     try
     {
-        cout << "FOUND RESOURCE" << endl;
-
         if (resource)
         {
             resourceURI = resource->uri();
@@ -107,41 +118,44 @@ void foundResource(std::shared_ptr< OCResource > resource)
 
                 // g_resource->get("", DEFAULT_INTERFACE, QueryParamsMap(), onGet);
 
-                printf("\tHOST :: %s\n", resource->host().c_str());
+                cout << "FOUND " << resourceURI << endl;
+                // printf("\tHOST :: %s\n", resource->host().c_str());
             }
             else if (resourceURI == "/core/bookmark")
             {
-                resource->observe(ObserveType::Observe, QueryParamsMap(), &onObserve);
+                resource->observe(ObserveType::Observe, QueryParamsMap(),
+                        &onObserve);
             }
-
-            // p_platform.bindResource(resourceHandle, foundResourceHandle);
-
         }
     }
     catch (std::exception& e)
     {
-        std::cout << "" << std::endl;
+        std::cout << "Exception: " << e.what() << std::endl;
     }
 }
 
-void onGet(const HeaderOptions& opt, const OCRepresentation &rep, const int eCode)
+void onGet(const HeaderOptions& opt, const OCRepresentation &rep,
+        const int eCode)
 {
-    // std::vector<OCRepresentation> children = rep.getChildren();
-
-    // cout << "\n\n\nCHILD RESOURCE OF GROUP" << endl;
-    // for( auto iter = children.begin(); iter != children.end();  ++iter )
-    // {
-    //     lights.push_back((*iter).getUri());
-    //     cout << "\tURI :: " << (*iter).getUri() << endl;
-    // }
+    cout << "\nonGet" << endl;
+    if (eCode == OC_STACK_OK)
+        cout << "\tResult is OK." << endl;
+    else
+        cout << "\tInvalid parameter." << endl;
 }
 
-void onPut(const HeaderOptions& headerOptions, const OCRepresentation& rep, const int eCode)
+void onPut(const HeaderOptions& headerOptions, const OCRepresentation& rep,
+        const int eCode)
 {
-    printf("\nonPut\n");
+    cout << "\nonPut" << endl;
+    if (eCode == OC_STACK_OK)
+        cout << "\tResult is OK." << endl;
+    else
+        cout << "\tInvalid parameter." << endl;
 }
 
-void onPost(const HeaderOptions& headerOptions, const OCRepresentation& rep, const int eCode)
+void onPost(const HeaderOptions& headerOptions, const OCRepresentation& rep,
+        const int eCode)
 {
     printf("\nonPost\n");
 
@@ -154,17 +168,19 @@ void onPost(const HeaderOptions& headerOptions, const OCRepresentation& rep, con
             ActionSet *actionset = thingsMgr->getActionSetfromString(plainText);
             if (actionset != NULL)
             {
-                cout << endl << "\tACTIONSET NAME :: " << actionset->actionsetName << endl;
+                cout << endl << "\tACTIONSET NAME :: "
+                        << actionset->actionsetName << endl;
                 for (auto actIter = actionset->listOfAction.begin();
                         actIter != actionset->listOfAction.end(); ++actIter)
                 {
                     cout << "\t\tTARGET :: " << (*actIter)->target << endl;
 
                     for (auto capaIter = (*actIter)->listOfCapability.begin();
-                            capaIter != (*actIter)->listOfCapability.end(); ++capaIter)
+                            capaIter != (*actIter)->listOfCapability.end();
+                            ++capaIter)
                     {
-                        cout << "\t\t\t" << (*capaIter)->capability << " :: " << (*capaIter)->status
-                                << endl;
+                        cout << "\t\t\t" << (*capaIter)->capability << " :: "
+                                << (*capaIter)->status << endl;
                     }
                 }
             }
@@ -195,7 +211,8 @@ void allBulbOff()
 
     if (g_resource)
     {
-        g_resource->post("a.collection", GROUP_INTERFACE, rep, QueryParamsMap(), &onPost);
+        g_resource->post("a.collection", GROUP_INTERFACE, rep, QueryParamsMap(),
+                &onPost);
     }
 }
 
@@ -207,12 +224,43 @@ void allBulbOn()
 
     if (g_resource)
     {
-        g_resource->post("a.collection", GROUP_INTERFACE, rep, QueryParamsMap(), &onPost);
+        OCStackResult res = g_resource->post("a.collection", GROUP_INTERFACE,
+            rep, QueryParamsMap(), &onPost);
+
+        if( res != OC_STACK_OK )
+            cout << "failed" << endl;
     }
 }
 
-void onObserve(const HeaderOptions headerOptions, const OCRepresentation& rep, const int& eCode,
-        const int& sequenceNumber)
+void Scheduled_AllbulbOff()
+{
+    thingsMgr->executeActionSet(g_resource, "AllBulbOffScheduledCall", &onPost);
+}
+void Scheduled_AllbulbOffEx()
+{
+    thingsMgr->executeActionSet(g_resource, "AllBulbOffScheduledCall", 10, &onPost);
+}
+void CancelScheduled_AllBulbOff()
+{
+    thingsMgr->cancelActionSet(g_resource, "AllBulbOffScheduledCall", &onPost);
+}
+void Recursive_allBulbOn()
+{
+    thingsMgr->executeActionSet(g_resource, "AllBulbOnRecursiveCall", &onPost);
+}
+void Recursive_allBulbOnEx()
+{
+    thingsMgr->executeActionSet(g_resource, "AllBulbOnRecursiveCall", 10, &onPost);
+}
+
+void CancelRecursive_allBulbOn()
+{
+
+    thingsMgr->cancelActionSet(g_resource, "AllBulbOnRecursiveCall", &onPost);
+}
+
+void onObserve(const HeaderOptions headerOptions, const OCRepresentation& rep,
+        const int& eCode, const int& sequenceNumber)
 {
     if (eCode == OC_STACK_OK)
     {
@@ -259,18 +307,9 @@ void createActionSet_AllBulbOff()
         action->listOfCapability.push_back(capa);
         allBulbOff->listOfAction.push_back(action);
     }
-    // actionsetDesc = thingsMgr->getStringFromActionSet(allBulbOff);
-
-    // cout << "ActionSet :: " << actionsetDesc << endl;
-
-    // OCRepresentation rep;
-    // rep.setValue("ActionSet", actionsetDesc);
-
     if (g_resource)
     {
         thingsMgr->addActionSet(g_resource, allBulbOff, onPut);
-        // g_resource->put("a.collection", GROUP_INTERFACE, rep,
-        //     QueryParamsMap(), &onPut);
     }
 
     delete allBulbOff;
@@ -294,27 +333,97 @@ void createActionSet_AllBulbOn()
         action->listOfCapability.push_back(capa);
         allBulbOff->listOfAction.push_back(action);
     }
-    // actionsetDesc = thingsMgr->getStringFromActionSet(allBulbOff);
-
-    // cout << "ActionSet :: " << actionsetDesc << endl;
-
-    // OCRepresentation rep;
-    // rep.setValue("ActionSet", actionsetDesc);
-
     if (g_resource)
     {
         thingsMgr->addActionSet(g_resource, allBulbOff, onPut);
-        // g_resource->put("a.collection", GROUP_INTERFACE, rep,
-        //     QueryParamsMap(), &onPut);
     }
 
     delete allBulbOff;
 }
 
+void createScheduledActionSet_AllBulbOff()
+{
+    string actionsetDesc;
+    ActionSet *allBulbOff = new ActionSet();
+    allBulbOff->type = OIC::ACTIONSET_TYPE::SCHEDULED;
+    allBulbOff->actionsetName = "AllBulbOffScheduledCall";
+
+    printf("ENTER(YYYY-MM-DD hh:mm:ss) :: ");
+    int res = scanf("%d-%d-%d %d:%d:%d", &allBulbOff->mTime.tm_year,
+            &allBulbOff->mTime.tm_mon, &allBulbOff->mTime.tm_mday,
+            &allBulbOff->mTime.tm_hour, &allBulbOff->mTime.tm_min,
+            &allBulbOff->mTime.tm_sec);
+    if( res < 0 )
+    {
+        printf("Invalid Input. try again.");
+        delete allBulbOff;
+        return;
+    }
+
+    allBulbOff->setDelay(allBulbOff->getSecondsFromAbsoluteTime());
+    printf("DELAY :: %ld\n", allBulbOff->getSecondsFromAbsoluteTime());
+
+    for (auto iter = lights.begin(); iter != lights.end(); ++iter)
+    {
+        Action *action = new Action();
+        action->target = (*iter);
+
+        Capability *capa = new Capability();
+        capa->capability = "power";
+        capa->status = "off";
+
+        action->listOfCapability.push_back(capa);
+        allBulbOff->listOfAction.push_back(action);
+    }
+    if (g_resource)
+    {
+        thingsMgr->addActionSet(g_resource, allBulbOff, onPut);
+    }
+
+    delete allBulbOff;
+}
+
+void createRecursiveActionSet_AllBulbOn()
+{
+    string actionsetDesc;
+    ActionSet *allBulbOn = new ActionSet();
+    allBulbOn->type = OIC::ACTIONSET_TYPE::RECURSIVE;
+
+    allBulbOn->actionsetName = "AllBulbOnRecursiveCall";
+    allBulbOn->mTime.tm_year = 0;
+    allBulbOn->mTime.tm_mon = 0;
+    allBulbOn->mTime.tm_mday = 0;
+    allBulbOn->mTime.tm_hour = 0;
+    allBulbOn->mTime.tm_min = 0;
+    allBulbOn->mTime.tm_sec = 5;
+
+    allBulbOn->setDelay(allBulbOn->getSecAbsTime());
+
+    for (auto iter = lights.begin(); iter != lights.end(); ++iter)
+    {
+        Action *action = new Action();
+        action->target = (*iter);
+
+        Capability *capa = new Capability();
+        capa->capability = "power";
+        capa->status = "on";
+
+        action->listOfCapability.push_back(capa);
+        allBulbOn->listOfAction.push_back(action);
+    }
+    if (g_resource)
+    {
+        thingsMgr->addActionSet(g_resource, allBulbOn, onPut);
+    }
+
+    delete allBulbOn;
+}
+
 int main()
 {
     PlatformConfig config
-    { OC::ServiceType::InProc, ModeType::Both, "0.0.0.0", 0, OC::QualityOfService::LowQos };
+    { OC::ServiceType::InProc, ModeType::Both, "0.0.0.0", 0,
+            OC::QualityOfService::LowQos };
 
     try
     {
@@ -324,14 +433,18 @@ int main()
         OCPlatform::Configure(config);
 
         // Find lights for group creation.
-        vector< string > types;
+        vector<string> types;
         types.push_back("core.light");
         thingsMgr->findCandidateResources(types, &foundResources, 5);
 
-        OCPlatform::registerResource(resourceHandle, resourceURI, resourceTypeName,
-                resourceInterface, NULL,
-                //&entityHandler, // entityHandler
-                OC_DISCOVERABLE);
+        OCStackResult res = OCPlatform::registerResource(resourceHandle, resourceURI,
+                resourceTypeName, resourceInterface, NULL, OC_DISCOVERABLE);
+
+        if( res != OC_STACK_OK )
+        {
+            cout << "Resource registeration failed." << endl;
+            return 0;
+        }
 
         cout << "registerResource is called." << endl;
 
@@ -347,86 +460,130 @@ int main()
                 int n;
 
                 cout << endl;
-                cout << "1 :: CREATE ACTIONSET 2 :: EXECUTE ACTIONSET(ALLBULBON)"
-                        << "3 :: EXECUTE ACTIONSET(ALLBULBOFF)" << endl;
-                cout << "4 :: GET ACTIONSET 5 :: DELETE ACTIONSET 6 :: QUIT" << endl;
-                cout << "9 :: FIND GROUP 0 :: FIND BOOKMARK TO OBSERVE" << endl;
+                cout << "1 :: CREATE ACTIONSET" << endl;
+                cout << "2 :: EXECUTE ACTIONSET(ALLBULBON)" << endl;
+                cout << "3 :: EXECUTE ACTIONSET(ALLBULBOFF)" << endl;
+                cout << "4 :: CREATE ACTIONSET(R_ALLBULBON)" << endl;
+                cout << "\t41 :: EXECUTE ACTIONSET 42 :: CANCEL ACTIONSET" << endl;
+                cout << "5 :: CREATE ACTIONSET(S_ALLBULBON)" << endl;
+                cout << "\t51 :: EXECUTE ACTIONSET 52 :: CANCEL ACTIONSET" << endl;
+                cout << "6 :: GET ACTIONSET" << endl;
+                cout << "7 :: DELETE ACTIONSET" << endl;
+                cout << "8 :: QUIT" << endl;
+                cout << "9 :: FIND GROUP" << endl;
+                cout << "0 :: FIND BOOKMARK TO OBSERVE"
+                        << endl;
 
-                fflush(stdin);
+                //fflush(stdin);
                 cin >> n;
 
                 if (n == 9)
                 {
-                    OCPlatform::findResource("", "coap://224.0.1.187/oc/core?rt=a.collection",
+                    std::string query = OC_MULTICAST_DISCOVERY_URI;
+                    query.append("?rt=");
+                    query.append(resourceTypeName);
+
+                    OCPlatform::findResource("",
+                            query,
+                            OC_ALL,
                             &foundResource);
+
+                    // OCPlatform::findResource("",
+                    //         query,
+                    //         OC_WIFI,
+                    //         &foundResource);
                 }
                 else if (n == 0)
                 {
-                    OCPlatform::findResource("", "coap://224.0.1.187/oc/core?rt=core.bookmark",
+                    std::string query = OC_MULTICAST_DISCOVERY_URI;
+                    query.append("?rt=");
+                    query.append("core.bookmark");
+
+                    OCPlatform::findResource("",
+                            query,
+                            OC_ALL,
                             &foundResource);
+                    // OCPlatform::findResource("",
+                    //         query,
+                    //         OC_WIFI,
+                    //         &foundResource);
                 }
                 else if (n == 1)
                 {
-
-                    // Craete Action Set
-                    // "AllBulbOff"
-                    //"movieTime*uri=coap://10.251.44.228:49858/a/light|power=10";
                     createActionSet_AllBulbOff();
                     createActionSet_AllBulbOn();
-
                 }
                 else if (n == 2)
                 {
-
                     allBulbOn();
-                    // thingsMgr->executeActionSet(g_resource, "AllBulbOn", onPost);
-
                 }
                 else if (n == 3)
                 {
-
                     allBulbOff();
-                    // thingsMgr->executeActionSet(g_resource, "AllBulbOff", onPost);
-
                 }
                 else if (n == 4)
                 {
-                    // OCRepresentation rep;
-
-                    // rep.setValue("GetActionSet", std::string("AllBulbOff"));
-
-                    // if(g_resource)
-                    // {
-                    //     g_resource->post("a.collection", GROUP_INTERFACE, rep,
-                    //         QueryParamsMap(), &onPost);
-                    // }
-
-                    thingsMgr->getActionSet(g_resource, "AllBulbOff", onPost);
+                    createRecursiveActionSet_AllBulbOn();
+                }
+                else if (n == 41)
+                {
+                    Recursive_allBulbOn();
+                }
+                else if (n == 42)
+                {
+                    CancelRecursive_allBulbOn();
+                }
+                // Exampel of
+                else if (n == 43)
+                {
+                    Recursive_allBulbOnEx();
                 }
                 else if (n == 5)
                 {
-                    // OCRepresentation rep;
-
-                    // rep.setValue("DelActionSet", std::string("AllBulbOff"));
-
-                    // if(g_resource)
-                    // {
-                    //     g_resource->put("a.collection", GROUP_INTERFACE, rep,
-                    //         QueryParamsMap(), &onPut);
-                    // }
-                    thingsMgr->deleteActionSet(g_resource, "AllBulbOff", onPut);
+                    createScheduledActionSet_AllBulbOff();
+                }
+                else if (n == 51)
+                {
+                    Scheduled_AllbulbOff();
+                }
+                else if (n == 52)
+                {
+                    CancelScheduled_AllBulbOff();
+                }
+                else if (n == 53)
+                {
+                    Scheduled_AllbulbOffEx();
                 }
                 else if (n == 6)
+                {
+                    thingsMgr->getActionSet(g_resource, "AllBulbOff", onPost);
+                }
+                else if (n == 7)
+                {
+                    thingsMgr->deleteActionSet(g_resource, "AllBulbOff", onPut);
+                }
+                else if (n == 8)
                 {
                     isRun = false;
                     break;
                 }
+                else if(n == 100)
+                {
+
+                    OCRepresentation rep;
+
+                    rep.setValue("power", std::string("on"));
+
+                    g_light->put(rep, QueryParamsMap(), &onPut);
+
+                }
             }
         }
+        usleep(500*1000);
     }
     catch (OCException& e)
     {
-
+        cout << "ERROR :: " << e.reason() << endl;
     }
 
     return 0;

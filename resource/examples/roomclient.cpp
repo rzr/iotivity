@@ -33,6 +33,7 @@ using namespace OC;
 
 const int SUCCESS_RESPONSE = 0;
 std::shared_ptr<OCResource> curResource;
+std::mutex resourceLock;
 
 int observe_count()
 {
@@ -161,6 +162,7 @@ void onPut(const HeaderOptions& headerOptions, const OCRepresentation& rep, cons
 // Callback to found resources
 void foundResource(std::shared_ptr<OCResource> resource)
 {
+    std::lock_guard<std::mutex> lock(resourceLock);
     if(curResource)
     {
         std::cout << "Found another resource, ignoring"<<std::endl;
@@ -213,11 +215,15 @@ void foundResource(std::shared_ptr<OCResource> resource)
     }
     catch(std::exception& e)
     {
+        std::cerr << "Exception in foundResource: "<< e.what() <<std::endl;
         //log(e.what());
     }
 }
 
 int main(int argc, char* argv[]) {
+
+    std::ostringstream requestURI;
+
 
     // Create PlatformConfig object
     PlatformConfig cfg {
@@ -233,7 +239,9 @@ int main(int argc, char* argv[]) {
     try
     {
         // Find all resources
-        OCPlatform::findResource("", "coap://224.0.1.187/oc/core", &foundResource);
+        requestURI << OC_MULTICAST_DISCOVERY_URI;
+
+        OCPlatform::findResource("", requestURI.str(), OC_ALL, &foundResource);
         std::cout<< "Finding Resource... " <<std::endl;
 
         // A condition variable will free the mutex it is given, then do a non-
@@ -247,9 +255,10 @@ int main(int argc, char* argv[]) {
 
     }catch(OCException& e)
     {
-        //log(e.what());
+        oclog() << "Exception in main: "<< e.what();
     }
 
     return 0;
 }
+
 

@@ -19,10 +19,11 @@
 //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 
-extern "C" {
+extern "C"
+{
     #include "ocstack.h"
-    #include "ocstackinternal.h"
     #include "logger.h"
+    #include "ocmalloc.h"
 }
 
 #include "gtest/gtest.h"
@@ -41,18 +42,27 @@ extern "C" {
 
 #include <iostream>
 #include <stdint.h>
+
+#include "gtest_helper.h"
+
 using namespace std;
 
+namespace itst = iotivity::test;
+
 #define DEFAULT_CONTEXT_VALUE 0x99
+
 //-----------------------------------------------------------------------------
 // Private variables
 //-----------------------------------------------------------------------------
 static const char TAG[] = "TestHarness";
 
+std::chrono::seconds const SHORT_TEST_TIMEOUT = std::chrono::seconds(5);
+
 //-----------------------------------------------------------------------------
 // Callback functions
 //-----------------------------------------------------------------------------
-extern "C"  OCStackApplicationResult asyncDoResourcesCallback(void* ctx, OCDoHandle handle, OCClientResponse * clientResponse) {
+extern "C"  OCStackApplicationResult asyncDoResourcesCallback(void* ctx, OCDoHandle handle, OCClientResponse * clientResponse)
+{
     OC_LOG(INFO, TAG, "Entering asyncDoResourcesCallback");
 
     EXPECT_EQ(OC_STACK_OK, clientResponse->result);
@@ -65,118 +75,245 @@ extern "C"  OCStackApplicationResult asyncDoResourcesCallback(void* ctx, OCDoHan
     return OC_STACK_KEEP_TRANSACTION;
 }
 
+//-----------------------------------------------------------------------------
+// Entity handler
+//-----------------------------------------------------------------------------
+OCEntityHandlerResult entityHandler(OCEntityHandlerFlag flag, OCEntityHandlerRequest * entityHandlerRequest)
+{
+    OC_LOG(INFO, TAG, "Entering entityHandler");
 
+    return OC_EH_OK;
+}
+
+//-----------------------------------------------------------------------------
+//  Local functions
+//-----------------------------------------------------------------------------
+void InitStack(OCMode mode)
+{
+    OC_LOG(INFO, TAG, "Entering InitStack");
+
+    EXPECT_EQ(OC_STACK_OK, OCInit(NULL, 0, mode));
+    OC_LOG(INFO, TAG, "Leaving InitStack");
+}
+
+uint8_t InitNumExpectedResources()
+{
+#ifdef WITH_PRESENCE
+    // When presence is enabled, it is a resource and so is (currently) included
+    // in the returned resource count returned by the OCGetNumberOfResources API.
+    return 1;
+#else
+    return 0;
+#endif
+}
+
+uint8_t InitResourceIndex()
+{
+#ifdef WITH_PRESENCE
+    // When presence is enabled, it is a resource and so is (currently) included
+    // in the returned resource count returned by the OCGetNumberOfResources API.
+    // The index of the presence resource is 0, so the first user app resource index
+    // is 1.
+    return 1;
+#else
+    return 0;
+#endif
+}
 //-----------------------------------------------------------------------------
 //  Tests
 //-----------------------------------------------------------------------------
-#if 1
-TEST(StackTest, StackInitNullAddr) {
+
+TEST(StackInit, StackInitNullAddr)
+{
+    itst::DeadmanTimer killSwitch(SHORT_TEST_TIMEOUT);
     EXPECT_EQ(OC_STACK_OK, OCInit(0, 5683, OC_SERVER));
     EXPECT_EQ(OC_STACK_OK, OCStop());
 }
 
-TEST(StackTest, StackInitNullPort) {
+TEST(StackInit, StackInitNullPort)
+{
+    itst::DeadmanTimer killSwitch(SHORT_TEST_TIMEOUT);
     EXPECT_EQ(OC_STACK_OK, OCInit("127.0.0.1", 0, OC_SERVER));
     EXPECT_EQ(OC_STACK_OK, OCStop());
 }
 
-TEST(StackTest, StackInitNullAddrAndPort) {
+TEST(StackInit, StackInitNullAddrAndPort)
+{
+    itst::DeadmanTimer killSwitch(SHORT_TEST_TIMEOUT);
     EXPECT_EQ(OC_STACK_OK, OCInit(0, 0, OC_SERVER));
     EXPECT_EQ(OC_STACK_OK, OCStop());
 }
 
-TEST(StackTest, StackInitInvalidMode) {
+TEST(StackInit, StackInitInvalidMode)
+{
+    itst::DeadmanTimer killSwitch(SHORT_TEST_TIMEOUT);
     EXPECT_EQ(OC_STACK_ERROR, OCInit(0, 0, (OCMode)10));
     EXPECT_EQ(OC_STACK_ERROR, OCStop());
 }
 
-TEST(StackTest, StackStartSuccessClient) {
+TEST(StackStart, StackStartSuccessClient)
+{
+    itst::DeadmanTimer killSwitch(SHORT_TEST_TIMEOUT);
     EXPECT_EQ(OC_STACK_OK, OCInit("127.0.0.1", 5683, OC_CLIENT));
     EXPECT_EQ(OC_STACK_OK, OCStop());
 }
 
-TEST(StackTest, StackStartSuccessServer) {
+TEST(StackStart, StackStartSuccessServer)
+{
+    itst::DeadmanTimer killSwitch(SHORT_TEST_TIMEOUT);
     EXPECT_EQ(OC_STACK_OK, OCInit("127.0.0.1", 5683, OC_SERVER));
     EXPECT_EQ(OC_STACK_OK, OCStop());
 }
 
-TEST(StackTest, StackStartSuccessClientServer) {
+TEST(StackStart, StackStartSuccessClientServer)
+{
+    itst::DeadmanTimer killSwitch(SHORT_TEST_TIMEOUT);
     EXPECT_EQ(OC_STACK_OK, OCInit("127.0.0.1", 5683, OC_CLIENT_SERVER));
     EXPECT_EQ(OC_STACK_OK, OCStop());
 }
 
-TEST(StackTest, StackStartSuccessiveInits) {
+TEST(StackStart, StackStartSuccessiveInits)
+{
+    itst::DeadmanTimer killSwitch(SHORT_TEST_TIMEOUT);
     EXPECT_EQ(OC_STACK_OK, OCInit("127.0.0.1", 5683, OC_SERVER));
     EXPECT_EQ(OC_STACK_OK, OCInit("127.0.0.2", 5683, OC_SERVER));
     EXPECT_EQ(OC_STACK_OK, OCStop());
 }
 
-TEST(StackTest, DoResourceDeviceDiscovery) {
-    uint8_t addr[20];
-    uint16_t port = USE_RANDOM_PORT;
-    uint8_t ifname[] = "eth0";
+TEST(StackStart, SetPlatformInfoValid)
+{
+    itst::DeadmanTimer killSwitch(SHORT_TEST_TIMEOUT);
+    EXPECT_EQ(OC_STACK_OK, OCInit("127.0.0.1", 5683, OC_SERVER));
+
+    OCPlatformInfo info = {};
+    info.platformID = (char *) "platform_id";
+    info.manufacturerName = (char *) "manufac_name";
+
+    EXPECT_EQ(OC_STACK_OK, OCSetPlatformInfo(info));
+    EXPECT_EQ(OC_STACK_OK, OCStop());
+}
+
+TEST(StackStart, SetPlatformInfoWithNoPlatformID)
+{
+    itst::DeadmanTimer killSwitch(SHORT_TEST_TIMEOUT);
+    EXPECT_EQ(OC_STACK_OK, OCInit("127.0.0.1", 5683, OC_SERVER));
+
+    OCPlatformInfo info = {};
+    info.manufacturerName = (char *) "manufac_name";
+
+    EXPECT_EQ(OC_STACK_INVALID_PARAM, OCSetPlatformInfo(info));
+    EXPECT_EQ(OC_STACK_OK, OCStop());
+}
+
+TEST(StackStart, SetPlatformInfoWithNoManufacturerName)
+{
+    itst::DeadmanTimer killSwitch(SHORT_TEST_TIMEOUT);
+    EXPECT_EQ(OC_STACK_OK, OCInit("127.0.0.1", 5683, OC_SERVER));
+
+    OCPlatformInfo info = {};
+    info.platformID = (char *) "platform_id";
+
+    EXPECT_EQ(OC_STACK_INVALID_PARAM, OCSetPlatformInfo(info));
+    EXPECT_EQ(OC_STACK_OK, OCStop());
+}
+
+TEST(StackStart, SetPlatformInfoWithTooLongManufacName)
+{
+    itst::DeadmanTimer killSwitch(SHORT_TEST_TIMEOUT);
+    EXPECT_EQ(OC_STACK_OK, OCInit("127.0.0.1", 5683, OC_SERVER));
+
+    OCPlatformInfo info = {};
+    info.platformID = (char *) "platform_id";
+    info.manufacturerName = (char *) "extremelylongmanufacturername";
+
+    EXPECT_EQ(OC_STACK_INVALID_PARAM, OCSetPlatformInfo(info));
+    EXPECT_EQ(OC_STACK_OK, OCStop());
+}
+
+TEST(StackStart, SetPlatformInfoWithTooLongManufacURL)
+{
+    itst::DeadmanTimer killSwitch(SHORT_TEST_TIMEOUT);
+    EXPECT_EQ(OC_STACK_OK, OCInit("127.0.0.1", 5683, OC_SERVER));
+
+    OCPlatformInfo info = {};
+    info.platformID = (char *) "platform_id";
+    info.manufacturerName = (char *) "extremelylongmanufacturername";
+    info.manufacturerUrl = (char *)"www.foooooooooooooooo.baaaaaaaaaaaaar";
+
+    EXPECT_EQ(OC_STACK_INVALID_PARAM, OCSetPlatformInfo(info));
+    EXPECT_EQ(OC_STACK_OK, OCStop());
+}
+
+
+TEST(StackDiscovery, DISABLED_DoResourceDeviceDiscovery)
+{
+    itst::DeadmanTimer killSwitch(SHORT_TEST_TIMEOUT);
     OCCallbackData cbData;
     OCDoHandle handle;
 
-    /*Get Ip address on defined interface and initialize coap on it with random port number
-     * this port number will be used as a source port in all coap communications*/
-    OCGetInterfaceAddress(ifname, sizeof(ifname), AF_INET, addr, sizeof(addr));
-    OC_LOG_V(INFO, TAG, "Starting DoResourceDeviceDiscovery test on address %s",addr);
+    OC_LOG(INFO, TAG, "Starting DoResourceDeviceDiscovery test ");
+    InitStack(OC_CLIENT);
 
-    EXPECT_EQ(OC_STACK_OK, OCInit((char *) addr, port, OC_CLIENT));
     /* Start a discovery query*/
     char szQueryUri[64] = { 0 };
     strcpy(szQueryUri, OC_WELL_KNOWN_QUERY);
     cbData.cb = asyncDoResourcesCallback;
     cbData.context = (void*)DEFAULT_CONTEXT_VALUE;
     cbData.cd = NULL;
-
-    EXPECT_EQ(OC_STACK_OK, OCDoResource(&handle, OC_REST_GET, szQueryUri, 0, 0, OC_LOW_QOS, &cbData, NULL, 0));
-    //EXPECT_EQ(OC_STACK_OK, OCUpdateResources(SERVICE_URI));
+    EXPECT_EQ(OC_STACK_OK, OCDoResource(&handle,
+                                        OC_REST_GET,
+                                        szQueryUri,
+                                        0,
+                                        0,
+                                        OC_IPV4,
+                                        OC_LOW_QOS,
+                                        &cbData,
+                                        NULL,
+                                        0));
     EXPECT_EQ(OC_STACK_OK, OCStop());
 }
 
-TEST(StackTest, StackStopWithoutInit) {
+TEST(StackStop, StackStopWithoutInit)
+{
+    itst::DeadmanTimer killSwitch(SHORT_TEST_TIMEOUT);
     EXPECT_EQ(OC_STACK_OK, OCInit("127.0.0.1", 5683, OC_CLIENT));
     EXPECT_EQ(OC_STACK_OK, OCStop());
     EXPECT_EQ(OC_STACK_ERROR, OCStop());
 }
 
-TEST(StackTest, UpdateResourceNullURI) {
-    uint8_t addr[20];
-    uint16_t port = USE_RANDOM_PORT;
-    uint8_t ifname[] = "eth0";
+TEST(StackResource, DISABLED_UpdateResourceNullURI)
+{
+    itst::DeadmanTimer killSwitch(SHORT_TEST_TIMEOUT);
     OCCallbackData cbData;
     OCDoHandle handle;
 
-    /*Get Ip address on defined interface and initialize coap on it with random port number
-     * this port number will be used as a source port in all coap communications*/
-    OCGetInterfaceAddress(ifname, sizeof(ifname), AF_INET, addr, sizeof(addr));
-    OC_LOG_V(INFO, TAG, "Starting UpdateResourceNullURI test on address %s",addr);
+    OC_LOG(INFO, TAG, "Starting UpdateResourceNullURI test");
+    InitStack(OC_CLIENT);
 
-    EXPECT_EQ(OC_STACK_OK, OCInit((char *) addr, port, OC_CLIENT));
     /* Start a discovery query*/
     char szQueryUri[64] = { 0 };
     strcpy(szQueryUri, OC_WELL_KNOWN_QUERY);
     cbData.cb = asyncDoResourcesCallback;
     cbData.context = (void*)DEFAULT_CONTEXT_VALUE;
     cbData.cd = NULL;
-    EXPECT_EQ(OC_STACK_OK, OCDoResource(&handle, OC_REST_GET, szQueryUri, 0, 0, OC_LOW_QOS, &cbData, NULL, 0));
-    //EXPECT_EQ(OC_STACK_INVALID_URI, OCUpdateResources(0));
+    EXPECT_EQ(OC_STACK_OK, OCDoResource(&handle,
+                                        OC_REST_GET,
+                                        szQueryUri,
+                                        0,
+                                        0,
+                                        OC_IPV4,
+                                        OC_LOW_QOS,
+                                        &cbData,
+                                        NULL,
+                                        0));
     EXPECT_EQ(OC_STACK_OK, OCStop());
 }
 
-TEST(StackTest, CreateResourceBadParams) {
-    uint8_t addr[20];
-    uint16_t port = USE_RANDOM_PORT;
-    uint8_t ifname[] = "eth0";
-
-    /*Get Ip address on defined interface and initialize coap on it with random port number
-     * this port number will be used as a source port in all coap communications*/
-    OCGetInterfaceAddress(ifname, sizeof(ifname), AF_INET, addr, sizeof(addr));
-
-    OC_LOG_V(INFO, TAG, "Starting ocserver on address %s:%d",addr,port);
-    EXPECT_EQ(OC_STACK_OK, OCInit((char *) addr, port, OC_SERVER));
+TEST(StackResource, CreateResourceBadParams)
+{
+    itst::DeadmanTimer killSwitch(SHORT_TEST_TIMEOUT);
+    OC_LOG(INFO, TAG, "Starting CreateResourceBadParams test");
+    InitStack(OC_SERVER);
 
     OCResourceHandle handle;
 
@@ -200,23 +337,17 @@ TEST(StackTest, CreateResourceBadParams) {
                                             "core.rw",
                                             "/a/led",
                                             0,
-                                            16));//OC_DISCOVERABLE|OC_OBSERVABLE));
+                                            128));// invalid bitmask for OCResourceProperty
 
     EXPECT_EQ(OC_STACK_OK, OCStop());
 }
-#endif
 
-TEST(StackTest, CreateResourceSuccess) {
-    uint8_t addr[20];
-    uint16_t port = USE_RANDOM_PORT;
-    uint8_t ifname[] = "eth0";
 
-    /*Get Ip address on defined interface and initialize coap on it with random port number
-     * this port number will be used as a source port in all coap communications*/
-    OCGetInterfaceAddress(ifname, sizeof(ifname), AF_INET, addr, sizeof(addr));
-
-    OC_LOG_V(INFO, TAG, "Starting ocserver on address %s:%d",addr,port);
-    EXPECT_EQ(OC_STACK_OK, OCInit((char *) addr, port, OC_SERVER));
+TEST(StackResource, CreateResourceSuccess)
+{
+    itst::DeadmanTimer killSwitch(SHORT_TEST_TIMEOUT);
+    OC_LOG(INFO, TAG, "Starting CreateResourceSuccess test");
+    InitStack(OC_SERVER);
 
     OCResourceHandle handle;
     EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle,
@@ -231,17 +362,11 @@ TEST(StackTest, CreateResourceSuccess) {
     EXPECT_EQ(OC_STACK_OK, OCStop());
 }
 
-TEST(StackTest, CreateResourceFailDuplicateUri) {
-    uint8_t addr[20];
-    uint16_t port = USE_RANDOM_PORT;
-    uint8_t ifname[] = "eth0";
-
-    /*Get Ip address on defined interface and initialize coap on it with random port number
-     * this port number will be used as a source port in all coap communications*/
-    OCGetInterfaceAddress(ifname, sizeof(ifname), AF_INET, addr, sizeof(addr));
-
-    OC_LOG_V(INFO, TAG, "Starting ocserver on address %s:%d",addr,port);
-    EXPECT_EQ(OC_STACK_OK, OCInit((char *) addr, port, OC_SERVER));
+TEST(StackResource, CreateResourceFailDuplicateUri)
+{
+    itst::DeadmanTimer killSwitch(SHORT_TEST_TIMEOUT);
+    OC_LOG(INFO, TAG, "Starting CreateResourceFailDuplicateUri test");
+    InitStack(OC_SERVER);
 
     OCResourceHandle handle;
     EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle,
@@ -263,17 +388,11 @@ TEST(StackTest, CreateResourceFailDuplicateUri) {
     EXPECT_EQ(OC_STACK_OK, OCStop());
 }
 
-TEST(StackTest, CreateResourceMultipleResources) {
-    uint8_t addr[20];
-    uint16_t port = USE_RANDOM_PORT;
-    uint8_t ifname[] = "eth0";
-
-    /*Get Ip address on defined interface and initialize coap on it with random port number
-     * this port number will be used as a source port in all coap communications*/
-    OCGetInterfaceAddress(ifname, sizeof(ifname), AF_INET, addr, sizeof(addr));
-
-    OC_LOG_V(INFO, TAG, "Starting ocserver on address %s:%d",addr,port);
-    EXPECT_EQ(OC_STACK_OK, OCInit((char *) addr, port, OC_SERVER));
+TEST(StackResource, CreateResourceMultipleResources)
+{
+    itst::DeadmanTimer killSwitch(SHORT_TEST_TIMEOUT);
+    OC_LOG(INFO, TAG, "Starting CreateResourceMultipleResources test");
+    InitStack(OC_SERVER);
 
     OCResourceHandle handle1;
     EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle1,
@@ -310,17 +429,11 @@ TEST(StackTest, CreateResourceMultipleResources) {
     EXPECT_EQ(OC_STACK_OK, OCStop());
 }
 
-TEST(StackTest, CreateResourceBadResoureType) {
-    uint8_t addr[20];
-    uint16_t port = USE_RANDOM_PORT;
-    uint8_t ifname[] = "eth0";
-
-    /*Get Ip address on defined interface and initialize coap on it with random port number
-     * this port number will be used as a source port in all coap communications*/
-    OCGetInterfaceAddress(ifname, sizeof(ifname), AF_INET, addr, sizeof(addr));
-
-    OC_LOG_V(INFO, TAG, "Starting ocserver on address %s:%d",addr,port);
-    EXPECT_EQ(OC_STACK_OK, OCInit((char *) addr, port, OC_SERVER));
+TEST(StackResource, CreateResourceBadResoureType)
+{
+    itst::DeadmanTimer killSwitch(SHORT_TEST_TIMEOUT);
+    OC_LOG(INFO, TAG, "Starting CreateResourceBadResoureType test");
+    InitStack(OC_SERVER);
 
     OCResourceHandle handle;
     EXPECT_EQ(OC_STACK_INVALID_PARAM, OCCreateResource(&handle,
@@ -333,17 +446,11 @@ TEST(StackTest, CreateResourceBadResoureType) {
     EXPECT_EQ(OC_STACK_OK, OCStop());
 }
 
-TEST(StackTest, CreateResourceGoodResourceType) {
-    uint8_t addr[20];
-    uint16_t port = USE_RANDOM_PORT;
-    uint8_t ifname[] = "eth0";
-
-    /*Get Ip address on defined interface and initialize coap on it with random port number
-     * this port number will be used as a source port in all coap communications*/
-    OCGetInterfaceAddress(ifname, sizeof(ifname), AF_INET, addr, sizeof(addr));
-
-    OC_LOG_V(INFO, TAG, "Starting ocserver on address %s:%d",addr,port);
-    EXPECT_EQ(OC_STACK_OK, OCInit((char *) addr, port, OC_SERVER));
+TEST(StackResource, CreateResourceGoodResourceType)
+{
+    itst::DeadmanTimer killSwitch(SHORT_TEST_TIMEOUT);
+    OC_LOG(INFO, TAG, "Starting CreateResourceGoodResourceType test");
+    InitStack(OC_SERVER);
 
     OCResourceHandle handle;
     EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle,
@@ -356,17 +463,11 @@ TEST(StackTest, CreateResourceGoodResourceType) {
     EXPECT_EQ(OC_STACK_OK, OCStop());
 }
 
-TEST(StackTest, ResourceTypeName) {
-    uint8_t addr[20];
-    uint16_t port = USE_RANDOM_PORT;
-    uint8_t ifname[] = "eth0";
-
-    /*Get Ip address on defined interface and initialize coap on it with random port number
-     * this port number will be used as a source port in all coap communications*/
-    OCGetInterfaceAddress(ifname, sizeof(ifname), AF_INET, addr, sizeof(addr));
-
-    OC_LOG_V(INFO, TAG, "Starting ocserver on address %s:%d",addr,port);
-    EXPECT_EQ(OC_STACK_OK, OCInit((char *) addr, port, OC_SERVER));
+TEST(StackResource, ResourceTypeName)
+{
+    itst::DeadmanTimer killSwitch(SHORT_TEST_TIMEOUT);
+    OC_LOG(INFO, TAG, "Starting ResourceTypeName test");
+    InitStack(OC_SERVER);
 
     OCResourceHandle handle;
     EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle,
@@ -392,89 +493,11 @@ TEST(StackTest, ResourceTypeName) {
     EXPECT_EQ(OC_STACK_OK, OCStop());
 }
 
-TEST(StackTest, BindResourceTypeNameBad) {
-    uint8_t addr[20];
-    uint16_t port = USE_RANDOM_PORT;
-    uint8_t ifname[] = "eth0";
-
-    /*Get Ip address on defined interface and initialize coap on it with random port number
-     * this port number will be used as a source port in all coap communications*/
-    OCGetInterfaceAddress(ifname, sizeof(ifname), AF_INET, addr, sizeof(addr));
-
-    OC_LOG_V(INFO, TAG, "Starting ocserver on address %s:%d",addr,port);
-    EXPECT_EQ(OC_STACK_OK, OCInit((char *) addr, port, OC_SERVER));
-
-    OCResourceHandle handle;
-    EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle,
-                                            "core.led",
-                                            "core.rw",
-                                            "/a/led",
-                                            0,
-                                            OC_DISCOVERABLE|OC_OBSERVABLE));
-
-    uint8_t numResourceTypes;
-    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResourceTypes(handle, &numResourceTypes));
-    EXPECT_EQ(1, numResourceTypes);
-    const char *resourceTypeName = OCGetResourceTypeName(handle, 0);
-    EXPECT_STREQ("core.led", resourceTypeName);
-
-    EXPECT_EQ(OC_STACK_INVALID_PARAM, OCBindResourceTypeToResource(handle, NULL));
-
-    EXPECT_EQ(OC_STACK_OK, OCStop());
-}
-
-TEST(StackTest, BindResourceTypeNameGood) {
-    uint8_t addr[20];
-    uint16_t port = USE_RANDOM_PORT;
-    uint8_t ifname[] = "eth0";
-
-    /*Get Ip address on defined interface and initialize coap on it with random port number
-     * this port number will be used as a source port in all coap communications*/
-    OCGetInterfaceAddress(ifname, sizeof(ifname), AF_INET, addr, sizeof(addr));
-
-    OC_LOG_V(INFO, TAG, "Starting ocserver on address %s:%d",addr,port);
-    EXPECT_EQ(OC_STACK_OK, OCInit((char *) addr, port, OC_SERVER));
-
-    OCResourceHandle handle;
-    EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle,
-                                            "core.led",
-                                            "core.rw",
-                                            "/a/led",
-                                            0,
-                                            OC_DISCOVERABLE|OC_OBSERVABLE));
-
-    uint8_t numResourceTypes;
-    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResourceTypes(handle, &numResourceTypes));
-    EXPECT_EQ(1, numResourceTypes);
-    const char *resourceTypeName = OCGetResourceTypeName(handle, 0);
-    EXPECT_STREQ("core.led", resourceTypeName);
-
-    EXPECT_EQ(OC_STACK_OK, OCBindResourceTypeToResource(handle, "core.brightled"));
-    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResourceTypes(handle, &numResourceTypes));
-    EXPECT_EQ(2, numResourceTypes);
-    resourceTypeName = OCGetResourceTypeName(handle, 1);
-    EXPECT_STREQ("core.brightled", resourceTypeName);
-
-    EXPECT_EQ(OC_STACK_OK, OCBindResourceTypeToResource(handle, "core.reallybrightled"));
-    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResourceTypes(handle, &numResourceTypes));
-    EXPECT_EQ(3, numResourceTypes);
-    resourceTypeName = OCGetResourceTypeName(handle, 2);
-    EXPECT_STREQ("core.reallybrightled", resourceTypeName);
-
-    EXPECT_EQ(OC_STACK_OK, OCStop());
-}
-
-TEST(StackTest, ResourceTypeAttrRepresentation) {
-    uint8_t addr[20];
-    uint16_t port = USE_RANDOM_PORT;
-    uint8_t ifname[] = "eth0";
-
-    /*Get Ip address on defined interface and initialize coap on it with random port number
-     * this port number will be used as a source port in all coap communications*/
-    OCGetInterfaceAddress(ifname, sizeof(ifname), AF_INET, addr, sizeof(addr));
-
-    OC_LOG_V(INFO, TAG, "Starting ocserver on address %s:%d",addr,port);
-    EXPECT_EQ(OC_STACK_OK, OCInit((char *) addr, port, OC_SERVER));
+TEST(StackResource, ResourceTypeAttrRepresentation)
+{
+    itst::DeadmanTimer killSwitch(SHORT_TEST_TIMEOUT);
+    OC_LOG(INFO, TAG, "Starting ResourceTypeAttrRepresentation test");
+    InitStack(OC_SERVER);
 
     OCResourceHandle handle;
     EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle,
@@ -491,52 +514,11 @@ TEST(StackTest, ResourceTypeAttrRepresentation) {
     EXPECT_EQ(OC_STACK_OK, OCStop());
 }
 
-TEST(StackTest, BindResourceTypeAttribRepGood) {
-    uint8_t addr[20];
-    uint16_t port = USE_RANDOM_PORT;
-    uint8_t ifname[] = "eth0";
-
-    /*Get Ip address on defined interface and initialize coap on it with random port number
-     * this port number will be used as a source port in all coap communications*/
-    OCGetInterfaceAddress(ifname, sizeof(ifname), AF_INET, addr, sizeof(addr));
-
-    OC_LOG_V(INFO, TAG, "Starting ocserver on address %s:%d",addr,port);
-    EXPECT_EQ(OC_STACK_OK, OCInit((char *) addr, port, OC_SERVER));
-
-    OCResourceHandle handle;
-    EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle,
-                                            "core.led",
-                                            "core.rw",
-                                            "/a/led",
-                                            0,
-                                            OC_DISCOVERABLE|OC_OBSERVABLE));
-
-    uint8_t numResourceTypes;
-    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResourceTypes(handle, &numResourceTypes));
-    EXPECT_EQ(1, numResourceTypes);
-
-    EXPECT_EQ(OC_STACK_OK, OCBindResourceTypeToResource(handle, "core.brightled"));
-    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResourceTypes(handle, &numResourceTypes));
-    EXPECT_EQ(2, numResourceTypes);
-
-    EXPECT_EQ(OC_STACK_OK, OCBindResourceTypeToResource(handle, "core.reallybrightled"));
-    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResourceTypes(handle, &numResourceTypes));
-    EXPECT_EQ(3, numResourceTypes);
-
-    EXPECT_EQ(OC_STACK_OK, OCStop());
-}
-
-TEST(StackTest, ResourceTypeInterface) {
-    uint8_t addr[20];
-    uint16_t port = USE_RANDOM_PORT;
-    uint8_t ifname[] = "eth0";
-
-    /*Get Ip address on defined interface and initialize coap on it with random port number
-     * this port number will be used as a source port in all coap communications*/
-    OCGetInterfaceAddress(ifname, sizeof(ifname), AF_INET, addr, sizeof(addr));
-
-    OC_LOG_V(INFO, TAG, "Starting ocserver on address %s:%d",addr,port);
-    EXPECT_EQ(OC_STACK_OK, OCInit((char *) addr, port, OC_SERVER));
+TEST(StackResource, ResourceTypeInterface)
+{
+    itst::DeadmanTimer killSwitch(SHORT_TEST_TIMEOUT);
+    OC_LOG(INFO, TAG, "Starting ResourceTypeInterface test");
+    InitStack(OC_SERVER);
 
     OCResourceHandle handle;
     EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle,
@@ -562,17 +544,13 @@ TEST(StackTest, ResourceTypeInterface) {
     EXPECT_EQ(OC_STACK_OK, OCStop());
 }
 
-TEST(StackTest, BindResourceInterfaceNameBad) {
-    uint8_t addr[20];
-    uint16_t port = USE_RANDOM_PORT;
-    uint8_t ifname[] = "eth0";
+TEST(StackResource, ResourceDefaultInterfaceAlwaysFirst)
+{
+    itst::DeadmanTimer killSwitch(SHORT_TEST_TIMEOUT);
 
-    /*Get Ip address on defined interface and initialize coap on it with random port number
-     * this port number will be used as a source port in all coap communications*/
-    OCGetInterfaceAddress(ifname, sizeof(ifname), AF_INET, addr, sizeof(addr));
+    OC_LOG(INFO, TAG, "Starting ResourceDefaultInterfaceAlwaysFirst test");
 
-    OC_LOG_V(INFO, TAG, "Starting ocserver on address %s:%d",addr,port);
-    EXPECT_EQ(OC_STACK_OK, OCInit((char *) addr, port, OC_SERVER));
+    InitStack(OC_SERVER);
 
     OCResourceHandle handle;
     EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle,
@@ -581,390 +559,28 @@ TEST(StackTest, BindResourceInterfaceNameBad) {
                                             "/a/led",
                                             0,
                                             OC_DISCOVERABLE|OC_OBSERVABLE));
-
+    EXPECT_EQ(OC_STACK_OK, OCBindResourceInterfaceToResource(handle,
+                                        OC_RSRVD_INTERFACE_DEFAULT));
     uint8_t numResourceInterfaces;
-    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResourceInterfaces(handle, &numResourceInterfaces));
-    EXPECT_EQ(1, numResourceInterfaces);
-    const char *resourceInterfaceName = OCGetResourceInterfaceName(handle, 0);
-    EXPECT_STREQ("core.rw", resourceInterfaceName);
-
-    EXPECT_EQ(OC_STACK_INVALID_PARAM, OCBindResourceInterfaceToResource(handle, NULL));
-
-    EXPECT_EQ(OC_STACK_OK, OCStop());
-}
-
-TEST(StackTest, BindResourceInterfaceNameGood) {
-    uint8_t addr[20];
-    uint16_t port = USE_RANDOM_PORT;
-    uint8_t ifname[] = "eth0";
-
-    /*Get Ip address on defined interface and initialize coap on it with random port number
-     * this port number will be used as a source port in all coap communications*/
-    OCGetInterfaceAddress(ifname, sizeof(ifname), AF_INET, addr, sizeof(addr));
-
-    OC_LOG_V(INFO, TAG, "Starting ocserver on address %s:%d",addr,port);
-    EXPECT_EQ(OC_STACK_OK, OCInit((char *) addr, port, OC_SERVER));
-
-    OCResourceHandle handle;
-    EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle,
-                                            "core.led",
-                                            "core.rw",
-                                            "/a/led",
-                                            0,
-                                            OC_DISCOVERABLE|OC_OBSERVABLE));
-
-    uint8_t numResourceInterfaces;
-    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResourceInterfaces(handle, &numResourceInterfaces));
-    EXPECT_EQ(1, numResourceInterfaces);
-    const char *resourceInterfaceName = OCGetResourceInterfaceName(handle, 0);
-    EXPECT_STREQ("core.rw", resourceInterfaceName);
-
-    EXPECT_EQ(OC_STACK_OK, OCBindResourceInterfaceToResource(handle, "core.r"));
-
-    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResourceInterfaces(handle, &numResourceInterfaces));
-    EXPECT_EQ(2, numResourceInterfaces);
-    resourceInterfaceName = OCGetResourceInterfaceName(handle, 1);
-    EXPECT_STREQ("core.r", resourceInterfaceName);
-
-    EXPECT_EQ(OC_STACK_OK, OCStop());
-}
-
-TEST(StackTest, ResourceTypeInterfaceMethods) {
-    uint8_t addr[20];
-    uint16_t port = USE_RANDOM_PORT;
-    uint8_t ifname[] = "eth0";
-
-    /*Get Ip address on defined interface and initialize coap on it with random port number
-     * this port number will be used as a source port in all coap communications*/
-    OCGetInterfaceAddress(ifname, sizeof(ifname), AF_INET, addr, sizeof(addr));
-
-    OC_LOG_V(INFO, TAG, "Starting ocserver on address %s:%d",addr,port);
-    EXPECT_EQ(OC_STACK_OK, OCInit((char *) addr, port, OC_SERVER));
-
-    OCResourceHandle handle;
-    EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle,
-                                            "core.led",
-                                            "core.rw",
-                                            "/a/led",
-                                            0,
-                                            OC_DISCOVERABLE|OC_OBSERVABLE));
-
-    uint8_t numResourceInterfaces;
-    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResourceInterfaces(handle, &numResourceInterfaces));
-    EXPECT_EQ(1, numResourceInterfaces);
-
-    EXPECT_EQ(OC_STACK_OK, OCStop());
-}
-
-TEST(StackTest, BindResourceInterfaceMethodsBad) {
-    uint8_t addr[20];
-    uint16_t port = USE_RANDOM_PORT;
-    uint8_t ifname[] = "eth0";
-
-    /*Get Ip address on defined interface and initialize coap on it with random port number
-     * this port number will be used as a source port in all coap communications*/
-    OCGetInterfaceAddress(ifname, sizeof(ifname), AF_INET, addr, sizeof(addr));
-
-    OC_LOG_V(INFO, TAG, "Starting ocserver on address %s:%d",addr,port);
-    EXPECT_EQ(OC_STACK_OK, OCInit((char *) addr, port, OC_SERVER));
-
-    OCResourceHandle handle;
-    EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle,
-                                            "core.led",
-                                            "core.rw",
-                                            "/a/led",
-                                            0,
-                                            OC_DISCOVERABLE|OC_OBSERVABLE));
-
-    uint8_t numResourceInterfaces;
-    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResourceInterfaces(handle, &numResourceInterfaces));
-    EXPECT_EQ(1, numResourceInterfaces);
-
-    EXPECT_EQ(OC_STACK_INVALID_PARAM, OCBindResourceInterfaceToResource(handle, 0));
-
-    EXPECT_EQ(OC_STACK_OK, OCStop());
-}
-
-TEST(StackTest, BindResourceInterfaceMethodsGood) {
-    uint8_t addr[20];
-    uint16_t port = USE_RANDOM_PORT;
-    uint8_t ifname[] = "eth0";
-
-    /*Get Ip address on defined interface and initialize coap on it with random port number
-     * this port number will be used as a source port in all coap communications*/
-    OCGetInterfaceAddress(ifname, sizeof(ifname), AF_INET, addr, sizeof(addr));
-
-    OC_LOG_V(INFO, TAG, "Starting ocserver on address %s:%d",addr,port);
-    EXPECT_EQ(OC_STACK_OK, OCInit((char *) addr, port, OC_SERVER));
-
-    OCResourceHandle handle;
-    EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle,
-                                            "core.led",
-                                            "core.rw",
-                                            "/a/led",
-                                            0,
-                                            OC_DISCOVERABLE|OC_OBSERVABLE));
-
-    uint8_t numResourceInterfaces;
-    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResourceInterfaces(handle, &numResourceInterfaces));
-    EXPECT_EQ(1, numResourceInterfaces);
-
-    EXPECT_EQ(OC_STACK_OK, OCBindResourceInterfaceToResource(handle, "core.r"));
-
     EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResourceInterfaces(handle, &numResourceInterfaces));
     EXPECT_EQ(2, numResourceInterfaces);
 
-    EXPECT_EQ(OC_STACK_OK, OCStop());
-}
+    const char *interfaceName_1 = OCGetResourceInterfaceName(handle, 0);
+    EXPECT_STREQ(OC_RSRVD_INTERFACE_DEFAULT, interfaceName_1);
 
-TEST(StackTest, BindContainedResourceBad) {
-    uint8_t addr[20];
-    uint16_t port = USE_RANDOM_PORT;
-    uint8_t ifname[] = "eth0";
-
-    /*Get Ip address on defined interface and initialize coap on it with random port number
-     * this port number will be used as a source port in all coap communications*/
-    OCGetInterfaceAddress(ifname, sizeof(ifname), AF_INET, addr, sizeof(addr));
-
-    OC_LOG_V(INFO, TAG, "Starting ocserver on address %s:%d",addr,port);
-    EXPECT_EQ(OC_STACK_OK, OCInit((char *) addr, port, OC_SERVER));
-
-    OCResourceHandle containerHandle;
-    EXPECT_EQ(OC_STACK_OK, OCCreateResource(&containerHandle,
-                                            "core.led",
-                                            "core.rw",
-                                            "/a/kitchen",
-                                            0,
-                                            OC_DISCOVERABLE|OC_OBSERVABLE));
-
-    OCResourceHandle handle0;
-    EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle0,
-                                            "core.led",
-                                            "core.rw",
-                                            "/a/led",
-                                            0,
-                                            OC_DISCOVERABLE|OC_OBSERVABLE));
-
-    EXPECT_EQ(OC_STACK_INVALID_PARAM, OCBindResource(containerHandle, containerHandle));
-
-    EXPECT_EQ(OC_STACK_ERROR, OCBindResource((OCResourceHandle) 0, handle0));
+    const char*interfaceName_2 = OCGetResourceInterfaceName(handle, 1);
+    EXPECT_STREQ("core.rw", interfaceName_2);
 
     EXPECT_EQ(OC_STACK_OK, OCStop());
 }
 
-TEST(StackTest, BindContainedResourceGood) {
-    uint8_t addr[20];
-    uint16_t port = USE_RANDOM_PORT;
-    uint8_t ifname[] = "eth0";
+TEST(StackResource, ResourceDuplicateDefaultInterfaces)
+{
+    itst::DeadmanTimer killSwitch(SHORT_TEST_TIMEOUT);
 
-    /*Get Ip address on defined interface and initialize coap on it with random port number
-     * this port number will be used as a source port in all coap communications*/
-    OCGetInterfaceAddress(ifname, sizeof(ifname), AF_INET, addr, sizeof(addr));
+    OC_LOG(INFO, TAG, "Starting ResourceDuplicateDefaultInterfaces test");
 
-    OC_LOG_V(INFO, TAG, "Starting ocserver on address %s:%d",addr,port);
-    EXPECT_EQ(OC_STACK_OK, OCInit((char *) addr, port, OC_SERVER));
-
-    uint8_t numResources = 0;
-    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResources(&numResources));
-    EXPECT_EQ(0, numResources);
-
-    OCResourceHandle containerHandle;
-    EXPECT_EQ(OC_STACK_OK, OCCreateResource(&containerHandle,
-                                            "core.led",
-                                            "core.rw",
-                                            "/a/kitchen",
-                                            0,
-                                            OC_DISCOVERABLE|OC_OBSERVABLE));
-    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResources(&numResources));
-    EXPECT_EQ(1, numResources);
-
-    OCResourceHandle handle0;
-    EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle0,
-                                            "core.led",
-                                            "core.rw",
-                                            "/a/led0",
-                                            0,
-                                            OC_DISCOVERABLE|OC_OBSERVABLE));
-    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResources(&numResources));
-    EXPECT_EQ(2, numResources);
-
-    OCResourceHandle handle1;
-    EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle1,
-                                            "core.led",
-                                            "core.rw",
-                                            "/a/led1",
-                                            0,
-                                            OC_DISCOVERABLE|OC_OBSERVABLE));
-    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResources(&numResources));
-    EXPECT_EQ(3, numResources);
-
-    OCResourceHandle handle2;
-    EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle2,
-                                            "core.led",
-                                            "core.rw",
-                                            "/a/led2",
-                                            0,
-                                            OC_DISCOVERABLE|OC_OBSERVABLE));
-    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResources(&numResources));
-    EXPECT_EQ(4, numResources);
-
-    OCResourceHandle handle3;
-    EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle3,
-                                            "core.led",
-                                            "core.rw",
-                                            "/a/led3",
-                                            0,
-                                            OC_DISCOVERABLE|OC_OBSERVABLE));
-    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResources(&numResources));
-    EXPECT_EQ(5, numResources);
-
-    OCResourceHandle handle4;
-    EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle4,
-                                            "core.led",
-                                            "core.rw",
-                                            "/a/led4",
-                                            0,
-                                            OC_DISCOVERABLE|OC_OBSERVABLE));
-    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResources(&numResources));
-    EXPECT_EQ(6, numResources);
-
-    OCResourceHandle handle5;
-    EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle5,
-                                            "core.led",
-                                            "core.rw",
-                                            "/a/led5",
-                                            0,
-                                            OC_DISCOVERABLE|OC_OBSERVABLE));
-    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResources(&numResources));
-    EXPECT_EQ(7, numResources);
-
-
-    EXPECT_EQ(OC_STACK_OK, OCBindResource(containerHandle, handle0));
-    EXPECT_EQ(OC_STACK_OK, OCBindResource(containerHandle, handle1));
-    EXPECT_EQ(OC_STACK_OK, OCBindResource(containerHandle, handle2));
-    EXPECT_EQ(OC_STACK_OK, OCBindResource(containerHandle, handle3));
-    EXPECT_EQ(OC_STACK_OK, OCBindResource(containerHandle, handle4));
-    EXPECT_EQ(OC_STACK_ERROR, OCBindResource(containerHandle, handle5));
-
-    EXPECT_EQ(handle0, OCGetResourceHandleFromCollection(containerHandle, 0));
-    EXPECT_EQ(handle1, OCGetResourceHandleFromCollection(containerHandle, 1));
-    EXPECT_EQ(handle2, OCGetResourceHandleFromCollection(containerHandle, 2));
-    EXPECT_EQ(handle3, OCGetResourceHandleFromCollection(containerHandle, 3));
-    EXPECT_EQ(handle4, OCGetResourceHandleFromCollection(containerHandle, 4));
-
-    EXPECT_EQ(NULL, OCGetResourceHandleFromCollection(containerHandle, 5));
-
-    EXPECT_EQ(OC_STACK_OK, OCStop());
-}
-
-TEST(StackTest, GetResourceByIndex) {
-    uint8_t addr[20];
-    uint16_t port = USE_RANDOM_PORT;
-    uint8_t ifname[] = "eth0";
-
-    /*Get Ip address on defined interface and initialize coap on it with random port number
-     * this port number will be used as a source port in all coap communications*/
-    OCGetInterfaceAddress(ifname, sizeof(ifname), AF_INET, addr, sizeof(addr));
-
-    OC_LOG_V(INFO, TAG, "Starting ocserver on address %s:%d",addr,port);
-    EXPECT_EQ(OC_STACK_OK, OCInit((char *) addr, port, OC_SERVER));
-
-    uint8_t numResources = 0;
-    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResources(&numResources));
-    EXPECT_EQ(0, numResources);
-
-    OCResourceHandle containerHandle;
-    EXPECT_EQ(OC_STACK_OK, OCCreateResource(&containerHandle,
-                                            "core.led",
-                                            "core.rw",
-                                            "/a/kitchen",
-                                            0,
-                                            OC_DISCOVERABLE|OC_OBSERVABLE));
-    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResources(&numResources));
-    EXPECT_EQ(1, numResources);
-
-    OCResourceHandle handle0;
-    EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle0,
-                                            "core.led",
-                                            "core.rw",
-                                            "/a/led0",
-                                            0,
-                                            OC_DISCOVERABLE|OC_OBSERVABLE));
-    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResources(&numResources));
-    EXPECT_EQ(2, numResources);
-
-    OCResourceHandle handle1;
-    EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle1,
-                                            "core.led",
-                                            "core.rw",
-                                            "/a/led1",
-                                            0,
-                                            OC_DISCOVERABLE|OC_OBSERVABLE));
-    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResources(&numResources));
-    EXPECT_EQ(3, numResources);
-
-    OCResourceHandle handle2;
-    EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle2,
-                                            "core.led",
-                                            "core.rw",
-                                            "/a/led2",
-                                            0,
-                                            OC_DISCOVERABLE|OC_OBSERVABLE));
-    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResources(&numResources));
-    EXPECT_EQ(4, numResources);
-
-    OCResourceHandle handle3;
-    EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle3,
-                                            "core.led",
-                                            "core.rw",
-                                            "/a/led3",
-                                            0,
-                                            OC_DISCOVERABLE|OC_OBSERVABLE));
-    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResources(&numResources));
-    EXPECT_EQ(5, numResources);
-
-    OCResourceHandle handle4;
-    EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle4,
-                                            "core.led",
-                                            "core.rw",
-                                            "/a/led4",
-                                            0,
-                                            OC_DISCOVERABLE|OC_OBSERVABLE));
-    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResources(&numResources));
-    EXPECT_EQ(6, numResources);
-
-    OCResourceHandle handle5;
-    EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle5,
-                                            "core.led",
-                                            "core.rw",
-                                            "/a/led5",
-                                            0,
-                                            OC_DISCOVERABLE|OC_OBSERVABLE));
-    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResources(&numResources));
-    EXPECT_EQ(7, numResources);
-
-    EXPECT_EQ(containerHandle, OCGetResourceHandle(0));
-    EXPECT_EQ(handle0, OCGetResourceHandle(1));
-    EXPECT_EQ(handle1, OCGetResourceHandle(2));
-    EXPECT_EQ(handle2, OCGetResourceHandle(3));
-    EXPECT_EQ(handle3, OCGetResourceHandle(4));
-    EXPECT_EQ(handle4, OCGetResourceHandle(5));
-    EXPECT_EQ(handle5, OCGetResourceHandle(6));
-
-    EXPECT_EQ(OC_STACK_OK, OCStop());
-}
-
-TEST(StackTest, BindEntityHandlerBad) {
-    uint8_t addr[20];
-    uint16_t port = USE_RANDOM_PORT;
-    uint8_t ifname[] = "eth0";
-
-    /*Get Ip address on defined interface and initialize coap on it with random port number
-     * this port number will be used as a source port in all coap communications*/
-    OCGetInterfaceAddress(ifname, sizeof(ifname), AF_INET, addr, sizeof(addr));
-
-    OC_LOG_V(INFO, TAG, "Starting ocserver on address %s:%d",addr,port);
-    EXPECT_EQ(OC_STACK_OK, OCInit((char *) addr, port, OC_SERVER));
+    InitStack(OC_SERVER);
 
     OCResourceHandle handle;
     EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle,
@@ -974,256 +590,75 @@ TEST(StackTest, BindEntityHandlerBad) {
                                             0,
                                             OC_DISCOVERABLE|OC_OBSERVABLE));
 
-    EXPECT_EQ(OC_STACK_INVALID_PARAM, OCBindResourceHandler(handle, NULL));
-    EXPECT_EQ(OC_STACK_INVALID_PARAM, OCBindResourceHandler(NULL, NULL));
+    EXPECT_EQ(OC_STACK_OK, OCBindResourceInterfaceToResource(handle,
+                                        OC_RSRVD_INTERFACE_DEFAULT));
+    EXPECT_EQ(OC_STACK_OK, OCBindResourceInterfaceToResource(handle,
+                                        OC_RSRVD_INTERFACE_DEFAULT));
 
-    EXPECT_EQ(OC_STACK_OK, OCStop());
-}
-
-
-OCEntityHandlerResult entityHandler(OCEntityHandlerFlag flag, OCEntityHandlerRequest * entityHandlerRequest) {
-    OC_LOG(INFO, TAG, "Entering entityHandler");
-
-    return OC_EH_OK;
-}
-
-TEST(StackTest, BindEntityHandlerGood) {
-    uint8_t addr[20];
-    uint16_t port = USE_RANDOM_PORT;
-    uint8_t ifname[] = "eth0";
-
-    /*Get Ip address on defined interface and initialize coap on it with random port number
-     * this port number will be used as a source port in all coap communications*/
-    OCGetInterfaceAddress(ifname, sizeof(ifname), AF_INET, addr, sizeof(addr));
-
-    OC_LOG_V(INFO, TAG, "Starting ocserver on address %s:%d",addr,port);
-    EXPECT_EQ(OC_STACK_OK, OCInit((char *) addr, port, OC_SERVER));
-
-    OCResourceHandle handle;
-    EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle,
-                                            "core.led",
-                                            "core.rw",
-                                            "/a/led",
-                                            0,
-                                            OC_DISCOVERABLE|OC_OBSERVABLE));
-
-    OCEntityHandler myHandler = entityHandler;
-
-    EXPECT_EQ(OC_STACK_OK, OCBindResourceHandler(handle, myHandler));
-
-    EXPECT_EQ(myHandler, OCGetResourceHandler(handle));
-
-    EXPECT_EQ(OC_STACK_OK, OCStop());
-}
-
-TEST(StackTest, DeleteHeadResource) {
-    uint8_t addr[20];
-    uint16_t port = USE_RANDOM_PORT;
-    uint8_t ifname[] = "eth0";
-
-    /*Get Ip address on defined interface and initialize coap on it with random port number
-     * this port number will be used as a source port in all coap communications*/
-    OCGetInterfaceAddress(ifname, sizeof(ifname), AF_INET, addr, sizeof(addr));
-
-    OC_LOG_V(INFO, TAG, "Starting ocserver on address %s:%d",addr,port);
-    EXPECT_EQ(OC_STACK_OK, OCInit((char *) addr, port, OC_SERVER));
-
-    uint8_t numResources = 0;
-    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResources(&numResources));
-    EXPECT_EQ(0, numResources);
-
-    OCResourceHandle handle0;
-    EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle0,
-                                            "core.led",
-                                            "core.rw",
-                                            "/a/led0",
-                                            0,
-                                            OC_DISCOVERABLE|OC_OBSERVABLE));
-    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResources(&numResources));
-    EXPECT_EQ(1, numResources);
-
-    EXPECT_EQ(OC_STACK_OK, OCDeleteResource(handle0));
-    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResources(&numResources));
-    EXPECT_EQ(0, numResources);
-
-    EXPECT_EQ(OC_STACK_OK, OCStop());
-}
-
-TEST(StackTest, DeleteHeadResource2) {
-    uint8_t addr[20];
-    uint16_t port = USE_RANDOM_PORT;
-    uint8_t ifname[] = "eth0";
-
-    /*Get Ip address on defined interface and initialize coap on it with random port number
-     * this port number will be used as a source port in all coap communications*/
-    OCGetInterfaceAddress(ifname, sizeof(ifname), AF_INET, addr, sizeof(addr));
-
-    OC_LOG_V(INFO, TAG, "Starting ocserver on address %s:%d",addr,port);
-    EXPECT_EQ(OC_STACK_OK, OCInit((char *) addr, port, OC_SERVER));
-
-    uint8_t numResources = 0;
-    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResources(&numResources));
-    EXPECT_EQ(0, numResources);
-
-    OCResourceHandle handle0;
-    EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle0,
-                                            "core.led",
-                                            "core.rw",
-                                            "/a/led0",
-                                            0,
-                                            OC_DISCOVERABLE|OC_OBSERVABLE));
-    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResources(&numResources));
-    EXPECT_EQ(1, numResources);
-
-    OCResourceHandle handle1;
-    EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle1,
-                                            "core.led",
-                                            "core.rw",
-                                            "/a/led1",
-                                            0,
-                                            OC_DISCOVERABLE|OC_OBSERVABLE));
-    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResources(&numResources));
-    EXPECT_EQ(2, numResources);
-
-    EXPECT_EQ(OC_STACK_OK, OCDeleteResource(handle0));
-    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResources(&numResources));
-    EXPECT_EQ(1, numResources);
-
-    EXPECT_EQ(handle1, OCGetResourceHandle(0));
-
-    EXPECT_EQ(OC_STACK_OK, OCStop());
-}
-
-
-TEST(StackTest, DeleteLastResource) {
-    uint8_t addr[20];
-    uint16_t port = USE_RANDOM_PORT;
-    uint8_t ifname[] = "eth0";
-
-    /*Get Ip address on defined interface and initialize coap on it with random port number
-     * this port number will be used as a source port in all coap communications*/
-    OCGetInterfaceAddress(ifname, sizeof(ifname), AF_INET, addr, sizeof(addr));
-
-    OC_LOG_V(INFO, TAG, "Starting ocserver on address %s:%d",addr,port);
-    EXPECT_EQ(OC_STACK_OK, OCInit((char *) addr, port, OC_SERVER));
-
-    uint8_t numResources = 0;
-    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResources(&numResources));
-    EXPECT_EQ(0, numResources);
-
-    OCResourceHandle handle0;
-    EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle0,
-                                            "core.led",
-                                            "core.rw",
-                                            "/a/led0",
-                                            0,
-                                            OC_DISCOVERABLE|OC_OBSERVABLE));
-    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResources(&numResources));
-    EXPECT_EQ(1, numResources);
-
-    OCResourceHandle handle1;
-    EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle1,
-                                            "core.led",
-                                            "core.rw",
-                                            "/a/led1",
-                                            0,
-                                            OC_DISCOVERABLE|OC_OBSERVABLE));
-    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResources(&numResources));
-    EXPECT_EQ(2, numResources);
-
-    EXPECT_EQ(OC_STACK_OK, OCDeleteResource(handle1));
-    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResources(&numResources));
-    EXPECT_EQ(1, numResources);
-
-    EXPECT_EQ(handle0, OCGetResourceHandle(0));
-
-    OCResourceHandle handle2;
-    EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle2,
-                                            "core.led",
-                                            "core.rw",
-                                            "/a/led2",
-                                            0,
-                                            OC_DISCOVERABLE|OC_OBSERVABLE));
-    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResources(&numResources));
-    EXPECT_EQ(2, numResources);
-
-    EXPECT_EQ(OC_STACK_OK, OCStop());
-}
-
-TEST(StackTest, DeleteMiddleResource) {
-    uint8_t addr[20];
-    uint16_t port = USE_RANDOM_PORT;
-    uint8_t ifname[] = "eth0";
-
-    /*Get Ip address on defined interface and initialize coap on it with random port number
-     * this port number will be used as a source port in all coap communications*/
-    OCGetInterfaceAddress(ifname, sizeof(ifname), AF_INET, addr, sizeof(addr));
-
-    OC_LOG_V(INFO, TAG, "Starting ocserver on address %s:%d",addr,port);
-    EXPECT_EQ(OC_STACK_OK, OCInit((char *) addr, port, OC_SERVER));
-
-    uint8_t numResources = 0;
-    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResources(&numResources));
-    EXPECT_EQ(0, numResources);
-
-    OCResourceHandle handle0;
-    EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle0,
-                                            "core.led",
-                                            "core.rw",
-                                            "/a/led0",
-                                            0,
-                                            OC_DISCOVERABLE|OC_OBSERVABLE));
-    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResources(&numResources));
-    EXPECT_EQ(1, numResources);
-
-    OCResourceHandle handle1;
-    EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle1,
-                                            "core.led",
-                                            "core.rw",
-                                            "/a/led1",
-                                            0,
-                                            OC_DISCOVERABLE|OC_OBSERVABLE));
-    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResources(&numResources));
-    EXPECT_EQ(2, numResources);
-
-    OCResourceHandle handle2;
-    EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle2,
-                                            "core.led",
-                                            "core.rw",
-                                            "/a/led2",
-                                            0,
-                                            OC_DISCOVERABLE|OC_OBSERVABLE));
-    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResources(&numResources));
-    EXPECT_EQ(3, numResources);
-
-    EXPECT_EQ(OC_STACK_OK, OCDeleteResource(handle1));
-    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResources(&numResources));
-    EXPECT_EQ(2, numResources);
-
-    EXPECT_EQ(handle0, OCGetResourceHandle(0));
-    EXPECT_EQ(handle2, OCGetResourceHandle(1));
-
-    // Make sure the resource elements are still correct
     uint8_t numResourceInterfaces;
-    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResourceInterfaces(handle2, &numResourceInterfaces));
-    EXPECT_EQ(1, numResourceInterfaces);
-    const char *resourceInterfaceName = OCGetResourceInterfaceName(handle2, 0);
-    EXPECT_STREQ("core.rw", resourceInterfaceName);
+    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResourceInterfaces(handle, &numResourceInterfaces));
+    EXPECT_EQ(2, numResourceInterfaces);
+
+    const char *interfaceName_1 = OCGetResourceInterfaceName(handle, 0);
+    EXPECT_STREQ(OC_RSRVD_INTERFACE_DEFAULT, interfaceName_1);
 
     EXPECT_EQ(OC_STACK_OK, OCStop());
 }
 
-TEST(StackTest, GetResourceProperties) {
-    uint8_t addr[20];
-    uint16_t port = USE_RANDOM_PORT;
-    uint8_t ifname[] = "eth0";
+TEST(StackResource, ResourceDuplicateNonDefaultInterfaces)
+{
+    itst::DeadmanTimer killSwitch(SHORT_TEST_TIMEOUT);
 
-    /*Get Ip address on defined interface and initialize coap on it with random port number
-     * this port number will be used as a source port in all coap communications*/
-    OCGetInterfaceAddress(ifname, sizeof(ifname), AF_INET, addr, sizeof(addr));
+    OC_LOG(INFO, TAG, "Starting ResourceDuplicateInterfaces test");
 
-    OC_LOG_V(INFO, TAG, "Starting ocserver on address %s:%d",addr,port);
-    EXPECT_EQ(OC_STACK_OK, OCInit((char *) addr, port, OC_SERVER));
+    InitStack(OC_SERVER);
+
+    OCResourceHandle handle;
+    EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle,
+                                            "core.led",
+                                            "core.rw",
+                                            "/a/led",
+                                            0,
+                                            OC_DISCOVERABLE|OC_OBSERVABLE));
+
+    EXPECT_EQ(OC_STACK_OK, OCBindResourceInterfaceToResource(handle,
+                                        "core.rw"));
+    EXPECT_EQ(OC_STACK_OK, OCBindResourceInterfaceToResource(handle,
+                                        "core.rw"));
+
+    uint8_t numResourceInterfaces;
+    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResourceInterfaces(handle, &numResourceInterfaces));
+    EXPECT_EQ(1, numResourceInterfaces);
+
+    EXPECT_EQ(OC_STACK_OK, OCStop());
+}
+
+TEST(StackResource, ResourceTypeInterfaceMethods)
+{
+    itst::DeadmanTimer killSwitch(SHORT_TEST_TIMEOUT);
+    OC_LOG(INFO, TAG, "Starting ResourceTypeInterfaceMethods test");
+    InitStack(OC_SERVER);
+
+    OCResourceHandle handle;
+    EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle,
+                                            "core.led",
+                                            "core.rw",
+                                            "/a/led",
+                                            0,
+                                            OC_DISCOVERABLE|OC_OBSERVABLE));
+
+    uint8_t numResourceInterfaces;
+    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResourceInterfaces(handle, &numResourceInterfaces));
+    EXPECT_EQ(1, numResourceInterfaces);
+
+    EXPECT_EQ(OC_STACK_OK, OCStop());
+}
+
+TEST(StackResource, GetResourceProperties)
+{
+    itst::DeadmanTimer killSwitch(SHORT_TEST_TIMEOUT);
+    OC_LOG(INFO, TAG, "Starting GetResourceProperties test");
+    InitStack(OC_SERVER);
 
     OCResourceHandle handle;
     EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle,
@@ -1239,17 +674,11 @@ TEST(StackTest, GetResourceProperties) {
     EXPECT_EQ(OC_STACK_OK, OCStop());
 }
 
-TEST(StackTest, StackTestResourceDiscoverOneResourceBad) {
-    uint8_t addr[20];
-    uint16_t port = USE_RANDOM_PORT;
-    uint8_t ifname[] = "eth0";
-
-    /*Get Ip address on defined interface and initialize coap on it with random port number
-     * this port number will be used as a source port in all coap communications*/
-    OCGetInterfaceAddress(ifname, sizeof(ifname), AF_INET, addr, sizeof(addr));
-
-    OC_LOG_V(INFO, TAG, "Starting ocserver on address %s:%d",addr,port);
-    EXPECT_EQ(OC_STACK_OK, OCInit((char *) addr, port, OC_SERVER));
+TEST(StackResource, StackTestResourceDiscoverOneResourceBad)
+{
+    itst::DeadmanTimer killSwitch(SHORT_TEST_TIMEOUT);
+    OC_LOG(INFO, TAG, "Starting StackTestResourceDiscoverOneResourceBad test");
+    InitStack(OC_SERVER);
 
     OCResourceHandle handle;
     EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle,
@@ -1264,23 +693,19 @@ TEST(StackTest, StackTestResourceDiscoverOneResourceBad) {
     //EXPECT_EQ(OC_STACK_INVALID_URI, OCHandleServerRequest(&res, uri, query, req, rsp));
     EXPECT_EQ(OC_STACK_OK, OCDeleteResource(handle));
     uint8_t numResources = 0;
+    uint8_t numExpectedResources = InitNumExpectedResources();
+
     EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResources(&numResources));
-    EXPECT_EQ(0, numResources);
+    EXPECT_EQ(numExpectedResources, numResources);
 
     EXPECT_EQ(OC_STACK_OK, OCStop());
 }
 
-TEST(StackTest, StackTestResourceDiscoverOneResource) {
-    uint8_t addr[20];
-    uint16_t port = USE_RANDOM_PORT;
-    uint8_t ifname[] = "eth0";
-
-    /*Get Ip address on defined interface and initialize coap on it with random port number
-     * this port number will be used as a source port in all coap communications*/
-    OCGetInterfaceAddress(ifname, sizeof(ifname), AF_INET, addr, sizeof(addr));
-
-    OC_LOG_V(INFO, TAG, "Starting ocserver on address %s:%d",addr,port);
-    EXPECT_EQ(OC_STACK_OK, OCInit((char *) addr, port, OC_SERVER));
+TEST(StackResource, StackTestResourceDiscoverOneResource)
+{
+    itst::DeadmanTimer killSwitch(SHORT_TEST_TIMEOUT);
+    OC_LOG(INFO, TAG, "Starting StackTestResourceDiscoverOneResource test");
+    InitStack(OC_SERVER);
 
     OCResourceHandle handle;
     EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle,
@@ -1298,17 +723,11 @@ TEST(StackTest, StackTestResourceDiscoverOneResource) {
     EXPECT_EQ(OC_STACK_OK, OCStop());
 }
 
-TEST(StackTest, StackTestResourceDiscoverManyResources) {
-    uint8_t addr[20];
-    uint16_t port = USE_RANDOM_PORT;
-    uint8_t ifname[] = "eth0";
-
-    /*Get Ip address on defined interface and initialize coap on it with random port number
-     * this port number will be used as a source port in all coap communications*/
-    OCGetInterfaceAddress(ifname, sizeof(ifname), AF_INET, addr, sizeof(addr));
-
-    OC_LOG_V(INFO, TAG, "Starting ocserver on address %s:%d",addr,port);
-    EXPECT_EQ(OC_STACK_OK, OCInit((char *) addr, port, OC_SERVER));
+TEST(StackResource, StackTestResourceDiscoverManyResources)
+{
+    itst::DeadmanTimer killSwitch(SHORT_TEST_TIMEOUT);
+    OC_LOG(INFO, TAG, "Starting StackTestResourceDiscoverManyResources test");
+    InitStack(OC_SERVER);
 
     OCResourceHandle handle1;
     EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle1,
@@ -1343,8 +762,8 @@ TEST(StackTest, StackTestResourceDiscoverManyResources) {
     url = OCGetResourceUri(handle3);
     EXPECT_STREQ("/a/led3", url);
 
-    EXPECT_EQ(OC_STACK_OK, OCBindResourceInterfaceToResource(handle3, "oc.mi.ll"));
-    EXPECT_EQ(OC_STACK_OK, OCBindResourceInterfaceToResource(handle3, "oc.mi.b"));
+    EXPECT_EQ(OC_STACK_OK, OCBindResourceInterfaceToResource(handle3, OC_RSRVD_INTERFACE_LL));
+    EXPECT_EQ(OC_STACK_OK, OCBindResourceInterfaceToResource(handle3, OC_RSRVD_INTERFACE_BATCH));
 
     OCResourceHandle handle4;
     EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle4,
@@ -1357,64 +776,728 @@ TEST(StackTest, StackTestResourceDiscoverManyResources) {
     EXPECT_STREQ("/a/led4", url);
 
     EXPECT_EQ(OC_STACK_OK, OCBindResourceTypeToResource(handle4, "core.brightled"));
-    EXPECT_EQ(OC_STACK_OK, OCBindResourceInterfaceToResource(handle4, "oc.mi.ll"));
-    EXPECT_EQ(OC_STACK_OK, OCBindResourceInterfaceToResource(handle4, "oc.mi.b"));
+    EXPECT_EQ(OC_STACK_OK, OCBindResourceInterfaceToResource(handle4, OC_RSRVD_INTERFACE_LL));
+    EXPECT_EQ(OC_STACK_OK, OCBindResourceInterfaceToResource(handle4, OC_RSRVD_INTERFACE_BATCH));
 
     //EXPECT_EQ(OC_STACK_OK, OCHandleServerRequest(&res, uri, query, req, rsp));
 
     EXPECT_EQ(OC_STACK_OK, OCStop());
 }
 
+TEST(StackBind, BindResourceTypeNameBad)
+{
+    itst::DeadmanTimer killSwitch(SHORT_TEST_TIMEOUT);
+    OC_LOG(INFO, TAG, "Starting BindResourceTypeNameBad test");
+    InitStack(OC_SERVER);
 
-#if 0
-TEST(StackTest, StackTestResourceDiscoverIfFilteringBad) {
-    uint8_t addr[20];
-    uint16_t port = USE_RANDOM_PORT;
-    uint8_t ifname[] = "eth0";
-    char uri[] = "/oc/core";
-    char query[] = "if";
-    char req[1024] = {};
-    char rsp[1024] = {};
-    //OCServerRequestResult res;
+    OCResourceHandle handle;
+    EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle,
+                                            "core.led",
+                                            "core.rw",
+                                            "/a/led",
+                                            0,
+                                            OC_DISCOVERABLE|OC_OBSERVABLE));
 
-    //EXPECT_EQ(OC_STACK_INVALID_QUERY, OCHandleServerRequest(&res, uri, query, req, rsp));
+    uint8_t numResourceTypes;
+    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResourceTypes(handle, &numResourceTypes));
+    EXPECT_EQ(1, numResourceTypes);
+    const char *resourceTypeName = OCGetResourceTypeName(handle, 0);
+    EXPECT_STREQ("core.led", resourceTypeName);
+
+    EXPECT_EQ(OC_STACK_INVALID_PARAM, OCBindResourceTypeToResource(handle, NULL));
+
+    EXPECT_EQ(OC_STACK_OK, OCStop());
 }
 
-TEST(StackTest, StackTestResourceDiscoverRtFilteringBad) {
-    uint8_t addr[20];
-    uint16_t port = USE_RANDOM_PORT;
-    uint8_t ifname[] = "eth0";
-    char uri[] = "/oc/core";
-    char query[] = "rt";
-    char req[1024] = {};
-    char rsp[1024] = {};
-    //OCServerRequestResult res;
+TEST(StackBind, BindResourceTypeNameGood)
+{
+    itst::DeadmanTimer killSwitch(SHORT_TEST_TIMEOUT);
+    OC_LOG(INFO, TAG, "Starting BindResourceTypeNameGood test");
+    InitStack(OC_SERVER);
 
-    //EXPECT_EQ(OC_STACK_INVALID_QUERY, OCHandleServerRequest(&res, uri, query, req, rsp));
+    OCResourceHandle handle;
+    EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle,
+                                            "core.led",
+                                            "core.rw",
+                                            "/a/led",
+                                            0,
+                                            OC_DISCOVERABLE|OC_OBSERVABLE));
+
+    uint8_t numResourceTypes;
+    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResourceTypes(handle, &numResourceTypes));
+    EXPECT_EQ(1, numResourceTypes);
+    const char *resourceTypeName = OCGetResourceTypeName(handle, 0);
+    EXPECT_STREQ("core.led", resourceTypeName);
+
+    EXPECT_EQ(OC_STACK_OK, OCBindResourceTypeToResource(handle, "core.brightled"));
+    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResourceTypes(handle, &numResourceTypes));
+    EXPECT_EQ(2, numResourceTypes);
+    resourceTypeName = OCGetResourceTypeName(handle, 1);
+    EXPECT_STREQ("core.brightled", resourceTypeName);
+
+    EXPECT_EQ(OC_STACK_OK, OCBindResourceTypeToResource(handle, "core.reallybrightled"));
+    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResourceTypes(handle, &numResourceTypes));
+    EXPECT_EQ(3, numResourceTypes);
+    resourceTypeName = OCGetResourceTypeName(handle, 2);
+    EXPECT_STREQ("core.reallybrightled", resourceTypeName);
+
+    EXPECT_EQ(OC_STACK_OK, OCStop());
 }
-TEST(StackTest, StackTestResourceDiscoverIfFiltering) {
-    uint8_t addr[20];
-    uint16_t port = USE_RANDOM_PORT;
-    uint8_t ifname[] = "eth0";
-    char uri[] = "/oc/core";
-    char query[] = "if=oc.mi.ll";
-    char req[1024] = {};
-    char rsp[1024] = {};
-    //OCServerRequestResult res;
 
-    //EXPECT_EQ(OC_STACK_OK, OCHandleServerRequest(&res, uri, query, req, rsp));
+TEST(StackBind, BindResourceTypeAttribRepGood)
+{
+    itst::DeadmanTimer killSwitch(SHORT_TEST_TIMEOUT);
+    OC_LOG(INFO, TAG, "Starting BindResourceTypeAttribRepGood test");
+    InitStack(OC_SERVER);
+
+    OCResourceHandle handle;
+    EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle,
+                                            "core.led",
+                                            "core.rw",
+                                            "/a/led",
+                                            0,
+                                            OC_DISCOVERABLE|OC_OBSERVABLE));
+
+    uint8_t numResourceTypes;
+    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResourceTypes(handle, &numResourceTypes));
+    EXPECT_EQ(1, numResourceTypes);
+
+    EXPECT_EQ(OC_STACK_OK, OCBindResourceTypeToResource(handle, "core.brightled"));
+    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResourceTypes(handle, &numResourceTypes));
+    EXPECT_EQ(2, numResourceTypes);
+
+    EXPECT_EQ(OC_STACK_OK, OCBindResourceTypeToResource(handle, "core.reallybrightled"));
+    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResourceTypes(handle, &numResourceTypes));
+    EXPECT_EQ(3, numResourceTypes);
+
+    EXPECT_EQ(OC_STACK_OK, OCStop());
 }
 
-TEST(StackTest, StackTestResourceDiscoverRtFiltering) {
-    uint8_t addr[20];
-    uint16_t port = USE_RANDOM_PORT;
-    uint8_t ifname[] = "eth0";
-    char uri[] = "/oc/core";
-    char query[] = "rt=core.brightled";
-    char req[1024] = {};
-    char rsp[1024] = {};
-    //OCServerRequestResult res;
 
-    //EXPECT_EQ(OC_STACK_OK, OCHandleServerRequest(&res, uri, query, req, rsp));
+TEST(StackBind, BindResourceInterfaceNameBad)
+{
+    itst::DeadmanTimer killSwitch(SHORT_TEST_TIMEOUT);
+    OC_LOG(INFO, TAG, "Starting BindResourceInterfaceNameBad test");
+    InitStack(OC_SERVER);
+
+    OCResourceHandle handle;
+    EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle,
+                                            "core.led",
+                                            "core.rw",
+                                            "/a/led",
+                                            0,
+                                            OC_DISCOVERABLE|OC_OBSERVABLE));
+
+    uint8_t numResourceInterfaces;
+    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResourceInterfaces(handle, &numResourceInterfaces));
+    EXPECT_EQ(1, numResourceInterfaces);
+    const char *resourceInterfaceName = OCGetResourceInterfaceName(handle, 0);
+    EXPECT_STREQ("core.rw", resourceInterfaceName);
+
+    EXPECT_EQ(OC_STACK_INVALID_PARAM, OCBindResourceInterfaceToResource(handle, NULL));
+
+    EXPECT_EQ(OC_STACK_OK, OCStop());
 }
-#endif
+
+TEST(StackBind, BindResourceInterfaceNameGood)
+{
+    itst::DeadmanTimer killSwitch(SHORT_TEST_TIMEOUT);
+    OC_LOG(INFO, TAG, "Starting BindResourceInterfaceNameGood test");
+    InitStack(OC_SERVER);
+
+    OCResourceHandle handle;
+    EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle,
+                                            "core.led",
+                                            "core.rw",
+                                            "/a/led",
+                                            0,
+                                            OC_DISCOVERABLE|OC_OBSERVABLE));
+
+    uint8_t numResourceInterfaces;
+    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResourceInterfaces(handle, &numResourceInterfaces));
+    EXPECT_EQ(1, numResourceInterfaces);
+    const char *resourceInterfaceName = OCGetResourceInterfaceName(handle, 0);
+    EXPECT_STREQ("core.rw", resourceInterfaceName);
+
+    EXPECT_EQ(OC_STACK_OK, OCBindResourceInterfaceToResource(handle, "core.r"));
+
+    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResourceInterfaces(handle, &numResourceInterfaces));
+    EXPECT_EQ(2, numResourceInterfaces);
+    resourceInterfaceName = OCGetResourceInterfaceName(handle, 1);
+    EXPECT_STREQ("core.r", resourceInterfaceName);
+
+    EXPECT_EQ(OC_STACK_OK, OCStop());
+}
+
+TEST(StackBind, BindResourceInterfaceMethodsBad)
+{
+    itst::DeadmanTimer killSwitch(SHORT_TEST_TIMEOUT);
+    OC_LOG(INFO, TAG, "Starting BindResourceInterfaceMethodsBad test");
+    InitStack(OC_SERVER);
+
+    OCResourceHandle handle;
+    EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle,
+                                            "core.led",
+                                            "core.rw",
+                                            "/a/led",
+                                            0,
+                                            OC_DISCOVERABLE|OC_OBSERVABLE));
+
+    uint8_t numResourceInterfaces;
+    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResourceInterfaces(handle, &numResourceInterfaces));
+    EXPECT_EQ(1, numResourceInterfaces);
+
+    EXPECT_EQ(OC_STACK_INVALID_PARAM, OCBindResourceInterfaceToResource(handle, 0));
+
+    EXPECT_EQ(OC_STACK_OK, OCStop());
+}
+
+TEST(StackBind, BindResourceInterfaceMethodsGood)
+{
+    itst::DeadmanTimer killSwitch(SHORT_TEST_TIMEOUT);
+    OC_LOG(INFO, TAG, "Starting BindResourceInterfaceMethodsGood test");
+    InitStack(OC_SERVER);
+
+    OCResourceHandle handle;
+    EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle,
+                                            "core.led",
+                                            "core.rw",
+                                            "/a/led",
+                                            0,
+                                            OC_DISCOVERABLE|OC_OBSERVABLE));
+
+    uint8_t numResourceInterfaces;
+    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResourceInterfaces(handle, &numResourceInterfaces));
+    EXPECT_EQ(1, numResourceInterfaces);
+
+    EXPECT_EQ(OC_STACK_OK, OCBindResourceInterfaceToResource(handle, "core.r"));
+
+    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResourceInterfaces(handle, &numResourceInterfaces));
+    EXPECT_EQ(2, numResourceInterfaces);
+
+    EXPECT_EQ(OC_STACK_OK, OCStop());
+}
+
+TEST(StackBind, BindContainedResourceBad)
+{
+    itst::DeadmanTimer killSwitch(SHORT_TEST_TIMEOUT);
+    OC_LOG(INFO, TAG, "Starting BindContainedResourceBad test");
+    InitStack(OC_SERVER);
+
+    OCResourceHandle containerHandle;
+    EXPECT_EQ(OC_STACK_OK, OCCreateResource(&containerHandle,
+                                            "core.led",
+                                            "core.rw",
+                                            "/a/kitchen",
+                                            0,
+                                            OC_DISCOVERABLE|OC_OBSERVABLE));
+
+    OCResourceHandle handle0;
+    EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle0,
+                                            "core.led",
+                                            "core.rw",
+                                            "/a/led",
+                                            0,
+                                            OC_DISCOVERABLE|OC_OBSERVABLE));
+
+    EXPECT_EQ(OC_STACK_INVALID_PARAM, OCBindResource(containerHandle, containerHandle));
+
+    EXPECT_EQ(OC_STACK_ERROR, OCBindResource((OCResourceHandle) 0, handle0));
+
+    EXPECT_EQ(OC_STACK_OK, OCStop());
+}
+
+TEST(StackBind, BindContainedResourceGood)
+{
+    itst::DeadmanTimer killSwitch(SHORT_TEST_TIMEOUT);
+    OC_LOG(INFO, TAG, "Starting BindContainedResourceGood test");
+    InitStack(OC_SERVER);
+
+    uint8_t numResources = 0;
+    uint8_t numExpectedResources = InitNumExpectedResources();
+
+    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResources(&numResources));
+    EXPECT_EQ(numExpectedResources, numResources);
+
+    OCResourceHandle containerHandle;
+    EXPECT_EQ(OC_STACK_OK, OCCreateResource(&containerHandle,
+                                            "core.led",
+                                            "core.rw",
+                                            "/a/kitchen",
+                                            0,
+                                            OC_DISCOVERABLE|OC_OBSERVABLE));
+    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResources(&numResources));
+    EXPECT_EQ(++numExpectedResources, numResources);
+
+    OCResourceHandle handle0;
+    EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle0,
+                                            "core.led",
+                                            "core.rw",
+                                            "/a/led0",
+                                            0,
+                                            OC_DISCOVERABLE|OC_OBSERVABLE));
+    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResources(&numResources));
+    EXPECT_EQ(++numExpectedResources, numResources);
+
+    OCResourceHandle handle1;
+    EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle1,
+                                            "core.led",
+                                            "core.rw",
+                                            "/a/led1",
+                                            0,
+                                            OC_DISCOVERABLE|OC_OBSERVABLE));
+    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResources(&numResources));
+    EXPECT_EQ(++numExpectedResources, numResources);
+
+    OCResourceHandle handle2;
+    EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle2,
+                                            "core.led",
+                                            "core.rw",
+                                            "/a/led2",
+                                            0,
+                                            OC_DISCOVERABLE|OC_OBSERVABLE));
+    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResources(&numResources));
+    EXPECT_EQ(++numExpectedResources, numResources);
+
+    OCResourceHandle handle3;
+    EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle3,
+                                            "core.led",
+                                            "core.rw",
+                                            "/a/led3",
+                                            0,
+                                            OC_DISCOVERABLE|OC_OBSERVABLE));
+    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResources(&numResources));
+    EXPECT_EQ(++numExpectedResources, numResources);
+
+    OCResourceHandle handle4;
+    EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle4,
+                                            "core.led",
+                                            "core.rw",
+                                            "/a/led4",
+                                            0,
+                                            OC_DISCOVERABLE|OC_OBSERVABLE));
+    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResources(&numResources));
+    EXPECT_EQ(++numExpectedResources, numResources);
+
+    OCResourceHandle handle5;
+    EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle5,
+                                            "core.led",
+                                            "core.rw",
+                                            "/a/led5",
+                                            0,
+                                            OC_DISCOVERABLE|OC_OBSERVABLE));
+    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResources(&numResources));
+    EXPECT_EQ(++numExpectedResources, numResources);
+
+
+    EXPECT_EQ(OC_STACK_OK, OCBindResource(containerHandle, handle0));
+    EXPECT_EQ(OC_STACK_OK, OCBindResource(containerHandle, handle1));
+    EXPECT_EQ(OC_STACK_OK, OCBindResource(containerHandle, handle2));
+    EXPECT_EQ(OC_STACK_OK, OCBindResource(containerHandle, handle3));
+    EXPECT_EQ(OC_STACK_OK, OCBindResource(containerHandle, handle4));
+    EXPECT_EQ(OC_STACK_ERROR, OCBindResource(containerHandle, handle5));
+
+    EXPECT_EQ(handle0, OCGetResourceHandleFromCollection(containerHandle, 0));
+    EXPECT_EQ(handle1, OCGetResourceHandleFromCollection(containerHandle, 1));
+    EXPECT_EQ(handle2, OCGetResourceHandleFromCollection(containerHandle, 2));
+    EXPECT_EQ(handle3, OCGetResourceHandleFromCollection(containerHandle, 3));
+    EXPECT_EQ(handle4, OCGetResourceHandleFromCollection(containerHandle, 4));
+
+    EXPECT_EQ(NULL, OCGetResourceHandleFromCollection(containerHandle, 5));
+
+    EXPECT_EQ(OC_STACK_OK, OCStop());
+}
+
+
+TEST(StackBind, BindEntityHandlerBad)
+{
+    itst::DeadmanTimer killSwitch(SHORT_TEST_TIMEOUT);
+    OC_LOG(INFO, TAG, "Starting BindEntityHandlerBad test");
+    InitStack(OC_SERVER);
+
+    OCResourceHandle handle;
+    EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle,
+                                            "core.led",
+                                            "core.rw",
+                                            "/a/led",
+                                            0,
+                                            OC_DISCOVERABLE|OC_OBSERVABLE));
+
+    EXPECT_EQ(OC_STACK_INVALID_PARAM, OCBindResourceHandler(NULL, NULL));
+
+    EXPECT_EQ(OC_STACK_OK, OCStop());
+}
+
+TEST(StackBind, BindEntityHandlerGood)
+{
+    itst::DeadmanTimer killSwitch(SHORT_TEST_TIMEOUT);
+    OC_LOG(INFO, TAG, "Starting BindEntityHandlerGood test");
+    InitStack(OC_SERVER);
+
+    OCResourceHandle handle;
+    EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle,
+                                            "core.led",
+                                            "core.rw",
+                                            "/a/led",
+                                            0,
+                                            OC_DISCOVERABLE|OC_OBSERVABLE));
+
+    OCEntityHandler myHandler = entityHandler;
+
+    EXPECT_EQ(OC_STACK_OK, OCBindResourceHandler(handle, myHandler));
+
+    EXPECT_EQ(myHandler, OCGetResourceHandler(handle));
+
+    EXPECT_EQ(OC_STACK_OK, OCStop());
+}
+
+TEST(StackResourceAccess, GetResourceByIndex)
+{
+    itst::DeadmanTimer killSwitch(SHORT_TEST_TIMEOUT);
+    OC_LOG(INFO, TAG, "Starting GetResourceByIndex test");
+    InitStack(OC_SERVER);
+
+    uint8_t numResources = 0;
+    uint8_t numExpectedResources = InitNumExpectedResources();
+    uint8_t resourceIndex = InitResourceIndex();
+
+    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResources(&numResources));
+    EXPECT_EQ(numExpectedResources, numResources);
+
+    OCResourceHandle containerHandle;
+    EXPECT_EQ(OC_STACK_OK, OCCreateResource(&containerHandle,
+                                            "core.led",
+                                            "core.rw",
+                                            "/a/kitchen",
+                                            0,
+                                            OC_DISCOVERABLE|OC_OBSERVABLE));
+    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResources(&numResources));
+    EXPECT_EQ(++numExpectedResources, numResources);
+
+    OCResourceHandle handle0;
+    EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle0,
+                                            "core.led",
+                                            "core.rw",
+                                            "/a/led0",
+                                            0,
+                                            OC_DISCOVERABLE|OC_OBSERVABLE));
+    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResources(&numResources));
+    EXPECT_EQ(++numExpectedResources, numResources);
+
+    OCResourceHandle handle1;
+    EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle1,
+                                            "core.led",
+                                            "core.rw",
+                                            "/a/led1",
+                                            0,
+                                            OC_DISCOVERABLE|OC_OBSERVABLE));
+    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResources(&numResources));
+    EXPECT_EQ(++numExpectedResources, numResources);
+
+    OCResourceHandle handle2;
+    EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle2,
+                                            "core.led",
+                                            "core.rw",
+                                            "/a/led2",
+                                            0,
+                                            OC_DISCOVERABLE|OC_OBSERVABLE));
+    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResources(&numResources));
+    EXPECT_EQ(++numExpectedResources, numResources);
+
+    OCResourceHandle handle3;
+    EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle3,
+                                            "core.led",
+                                            "core.rw",
+                                            "/a/led3",
+                                            0,
+                                            OC_DISCOVERABLE|OC_OBSERVABLE));
+    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResources(&numResources));
+    EXPECT_EQ(++numExpectedResources, numResources);
+
+    OCResourceHandle handle4;
+    EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle4,
+                                            "core.led",
+                                            "core.rw",
+                                            "/a/led4",
+                                            0,
+                                            OC_DISCOVERABLE|OC_OBSERVABLE));
+    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResources(&numResources));
+    EXPECT_EQ(++numExpectedResources, numResources);
+
+    OCResourceHandle handle5;
+    EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle5,
+                                            "core.led",
+                                            "core.rw",
+                                            "/a/led5",
+                                            0,
+                                            OC_DISCOVERABLE|OC_OBSERVABLE));
+    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResources(&numResources));
+    EXPECT_EQ(++numExpectedResources, numResources);
+
+    EXPECT_EQ(containerHandle, OCGetResourceHandle(resourceIndex));
+    EXPECT_EQ(handle0, OCGetResourceHandle(++resourceIndex));
+    EXPECT_EQ(handle1, OCGetResourceHandle(++resourceIndex));
+    EXPECT_EQ(handle2, OCGetResourceHandle(++resourceIndex));
+    EXPECT_EQ(handle3, OCGetResourceHandle(++resourceIndex));
+    EXPECT_EQ(handle4, OCGetResourceHandle(++resourceIndex));
+    EXPECT_EQ(handle5, OCGetResourceHandle(++resourceIndex));
+
+    EXPECT_EQ(OC_STACK_OK, OCStop());
+}
+
+TEST(StackResourceAccess, DeleteHeadResource)
+{
+    itst::DeadmanTimer killSwitch(SHORT_TEST_TIMEOUT);
+    OC_LOG(INFO, TAG, "Starting DeleteHeadResource test");
+    InitStack(OC_SERVER);
+
+    uint8_t numResources = 0;
+    uint8_t numExpectedResources = InitNumExpectedResources();
+
+    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResources(&numResources));
+    EXPECT_EQ(numExpectedResources, numResources);
+
+    OCResourceHandle handle0;
+    EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle0,
+                                            "core.led",
+                                            "core.rw",
+                                            "/a/led0",
+                                            0,
+                                            OC_DISCOVERABLE|OC_OBSERVABLE));
+    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResources(&numResources));
+    EXPECT_EQ(++numExpectedResources, numResources);
+
+    EXPECT_EQ(OC_STACK_OK, OCDeleteResource(handle0));
+    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResources(&numResources));
+    EXPECT_EQ(--numExpectedResources, numResources);
+
+    EXPECT_EQ(OC_STACK_OK, OCStop());
+}
+
+TEST(StackResourceAccess, DeleteHeadResource2)
+{
+    itst::DeadmanTimer killSwitch(SHORT_TEST_TIMEOUT);
+    OC_LOG(INFO, TAG, "Starting DeleteHeadResource2 test");
+    InitStack(OC_SERVER);
+
+    uint8_t numResources = 0;
+    uint8_t numExpectedResources = InitNumExpectedResources();
+    uint8_t resourceIndex = InitResourceIndex();
+
+    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResources(&numResources));
+    EXPECT_EQ(numExpectedResources, numResources);
+
+    OCResourceHandle handle0;
+    EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle0,
+                                            "core.led",
+                                            "core.rw",
+                                            "/a/led0",
+                                            0,
+                                            OC_DISCOVERABLE|OC_OBSERVABLE));
+    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResources(&numResources));
+    EXPECT_EQ(++numExpectedResources, numResources);
+
+    OCResourceHandle handle1;
+    EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle1,
+                                            "core.led",
+                                            "core.rw",
+                                            "/a/led1",
+                                            0,
+                                            OC_DISCOVERABLE|OC_OBSERVABLE));
+    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResources(&numResources));
+    EXPECT_EQ(++numExpectedResources, numResources);
+
+    EXPECT_EQ(OC_STACK_OK, OCDeleteResource(handle0));
+    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResources(&numResources));
+    EXPECT_EQ(--numExpectedResources, numResources);
+
+    EXPECT_EQ(handle1, OCGetResourceHandle(resourceIndex));
+
+    EXPECT_EQ(OC_STACK_OK, OCStop());
+}
+
+
+TEST(StackResourceAccess, DeleteLastResource)
+{
+    itst::DeadmanTimer killSwitch(SHORT_TEST_TIMEOUT);
+    OC_LOG(INFO, TAG, "Starting DeleteLastResource test");
+    InitStack(OC_SERVER);
+
+    uint8_t numResources = 0;
+    uint8_t numExpectedResources = InitNumExpectedResources();
+    uint8_t resourceIndex = InitResourceIndex();
+
+    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResources(&numResources));
+    EXPECT_EQ(numExpectedResources, numResources);
+
+    OCResourceHandle handle0;
+    EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle0,
+                                            "core.led",
+                                            "core.rw",
+                                            "/a/led0",
+                                            0,
+                                            OC_DISCOVERABLE|OC_OBSERVABLE));
+    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResources(&numResources));
+    EXPECT_EQ(++numExpectedResources, numResources);
+
+    OCResourceHandle handle1;
+    EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle1,
+                                            "core.led",
+                                            "core.rw",
+                                            "/a/led1",
+                                            0,
+                                            OC_DISCOVERABLE|OC_OBSERVABLE));
+    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResources(&numResources));
+    EXPECT_EQ(++numExpectedResources, numResources);
+
+    EXPECT_EQ(OC_STACK_OK, OCDeleteResource(handle1));
+    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResources(&numResources));
+    EXPECT_EQ(--numExpectedResources, numResources);
+
+    EXPECT_EQ(handle0, OCGetResourceHandle(resourceIndex));
+
+    OCResourceHandle handle2;
+    EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle2,
+                                            "core.led",
+                                            "core.rw",
+                                            "/a/led2",
+                                            0,
+                                            OC_DISCOVERABLE|OC_OBSERVABLE));
+    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResources(&numResources));
+    EXPECT_EQ(++numExpectedResources, numResources);
+
+    EXPECT_EQ(OC_STACK_OK, OCStop());
+}
+
+TEST(StackResourceAccess, DeleteMiddleResource)
+{
+    itst::DeadmanTimer killSwitch(SHORT_TEST_TIMEOUT);
+    OC_LOG(INFO, TAG, "Starting DeleteMiddleResource test");
+    InitStack(OC_SERVER);
+
+    uint8_t numResources = 0;
+    uint8_t numExpectedResources = InitNumExpectedResources();
+    uint8_t resourceIndex = InitResourceIndex();
+
+    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResources(&numResources));
+    EXPECT_EQ(numExpectedResources, numResources);
+
+    OCResourceHandle handle0;
+    EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle0,
+                                            "core.led",
+                                            "core.rw",
+                                            "/a/led0",
+                                            0,
+                                            OC_DISCOVERABLE|OC_OBSERVABLE));
+    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResources(&numResources));
+    EXPECT_EQ(++numExpectedResources, numResources);
+
+    OCResourceHandle handle1;
+    EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle1,
+                                            "core.led",
+                                            "core.rw",
+                                            "/a/led1",
+                                            0,
+                                            OC_DISCOVERABLE|OC_OBSERVABLE));
+    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResources(&numResources));
+    EXPECT_EQ(++numExpectedResources, numResources);
+
+    OCResourceHandle handle2;
+    EXPECT_EQ(OC_STACK_OK, OCCreateResource(&handle2,
+                                            "core.led",
+                                            "core.rw",
+                                            "/a/led2",
+                                            0,
+                                            OC_DISCOVERABLE|OC_OBSERVABLE));
+    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResources(&numResources));
+    EXPECT_EQ(++numExpectedResources, numResources);
+
+    EXPECT_EQ(OC_STACK_OK, OCDeleteResource(handle1));
+    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResources(&numResources));
+    EXPECT_EQ(--numExpectedResources, numResources);
+
+    EXPECT_EQ(handle0, OCGetResourceHandle(resourceIndex));
+    EXPECT_EQ(handle2, OCGetResourceHandle(++resourceIndex));
+
+    // Make sure the resource elements are still correct
+    uint8_t numResourceInterfaces;
+    EXPECT_EQ(OC_STACK_OK, OCGetNumberOfResourceInterfaces(handle2, &numResourceInterfaces));
+    EXPECT_EQ(1, numResourceInterfaces);
+    const char *resourceInterfaceName = OCGetResourceInterfaceName(handle2, 0);
+    EXPECT_STREQ("core.rw", resourceInterfaceName);
+
+    EXPECT_EQ(OC_STACK_OK, OCStop());
+}
+
+
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+    void parsePresencePayload(char* payload, uint32_t* seqNum, uint32_t* maxAge, char** resType);
+#ifdef __cplusplus
+}
+#endif // __cplusplus
+
+TEST(StackPresence, ParsePresencePayload)
+{
+    itst::DeadmanTimer killSwitch(SHORT_TEST_TIMEOUT);
+    OC_LOG(INFO, TAG, "Starting ParsePresencePayload test");
+
+    char payload[100];
+    uint32_t seqNum = 0, maxAge = 0;
+    char * resType = NULL;
+
+    //Good Scenario
+    strncpy(payload, "{\"oc\":[100:99:presence]}", sizeof(payload));
+    parsePresencePayload(payload, &seqNum, &maxAge, &resType);
+    EXPECT_TRUE(100 == seqNum);
+    EXPECT_TRUE(99 == maxAge);
+    EXPECT_STREQ("presence", resType);
+    OCFree(resType);
+
+    //Bad Scenario -- should not result in Seg Fault
+    parsePresencePayload(payload, NULL, &maxAge, &resType);
+
+    //Bad Scenario
+    seqNum = 0; maxAge = 0; resType = NULL;
+    strncpy(payload, "{abracadabra}", sizeof(payload));
+    parsePresencePayload(payload, &seqNum, &maxAge, &resType);
+    EXPECT_TRUE(0 == seqNum);
+    EXPECT_TRUE(0 == maxAge);
+    EXPECT_EQ(NULL, resType);
+    OCFree(resType);
+
+    //Bad Scenario
+    seqNum = 0; maxAge = 0; resType = NULL;
+    strncpy(payload, "{\"oc\":[100]}", sizeof(payload));
+    parsePresencePayload(payload, &seqNum, &maxAge, &resType);
+    EXPECT_TRUE(100 == seqNum);
+    EXPECT_TRUE(0 == maxAge);
+    EXPECT_EQ(NULL, resType);
+    OCFree(resType);
+
+    //Bad Scenario
+    seqNum = 0; maxAge = 0; resType = NULL;
+    strncpy(payload, "{\"oc\":[]}", sizeof(payload));
+    parsePresencePayload(payload, &seqNum, &maxAge, &resType);
+    EXPECT_TRUE(0 == seqNum);
+    EXPECT_TRUE(0 == maxAge);
+    EXPECT_EQ(NULL, resType);
+    OCFree(resType);
+
+    //Bad Scenario
+    strncpy(payload, "{:]}", sizeof(payload));
+    parsePresencePayload(payload, &seqNum, &maxAge, &resType);
+    EXPECT_TRUE(0 == seqNum);
+    EXPECT_TRUE(0 == maxAge);
+    EXPECT_EQ(NULL, resType);
+    OCFree(resType);
+
+    //Bad Scenario
+    strncpy(payload, "{:[presence}", sizeof(payload));
+    parsePresencePayload(payload, &seqNum, &maxAge, &resType);
+    EXPECT_TRUE(0 == seqNum);
+    EXPECT_TRUE(0 == maxAge);
+    EXPECT_EQ(NULL, resType);
+    OCFree(resType);
+}

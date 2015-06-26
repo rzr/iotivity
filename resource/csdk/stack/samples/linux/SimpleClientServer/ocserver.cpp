@@ -56,9 +56,12 @@ static int stopPresenceCount = 10;
 #endif
 
 //TODO: Follow the pattern used in constructJsonResponse() when the payload is decided.
-const char responsePayloadDeleteOk[] = "{App determines payload: Delete Resource operation succeeded.}";
-const char responsePayloadDeleteNotOK[] = "{App determines payload: Delete Resource operation failed.}";
-const char responsePayloadResourceDoesNotExist[] = "{App determines payload: The resource does not exist.}";
+const char responsePayloadDeleteOk[] =
+        "{App determines payload: Delete Resource operation succeeded.}";
+const char responsePayloadDeleteNotOK[] =
+        "{App determines payload: Delete Resource operation failed.}";
+const char responsePayloadResourceDoesNotExist[] =
+        "{App determines payload: The resource does not exist.}";
 const char responsePayloadDeleteResourceNotSupported[] =
         "{App determines payload: The request is received for a non-support resource.}";
 
@@ -70,16 +73,23 @@ const char *deviceName = "myDeviceName";
 const char *deviceUUID = "myDeviceUUID";
 const char *firmwareVersion = "myFirmwareVersion";
 const char *hostName = "myHostName";
-const char *manufacturerName = "myManufacturerNa";
+const char *manufacturerName = "myName";
+const char *operatingSystemVersion = "myOS";
+const char *hardwareVersion = "myHardwareVersion";
+const char* platformID = "myPlatformID";
 const char *manufacturerUrl = "myManufacturerUrl";
 const char *modelNumber = "myModelNumber";
 const char *platformVersion = "myPlatformVersion";
 const char *supportUrl = "mySupportUrl";
 const char *version = "myVersion";
+const char *systemTime = "2015-05-15T11.04";
 
-OCDeviceInfo deviceInfo;
+// Entity handler should check for resourceTypeName and ResourceInterface in order to GET
+// the existence of a known resource
+const char *resourceTypeName = "core.light";
+const char *resourceInterface = OC_RSRVD_INTERFACE_DEFAULT;
 
-static uint16_t OC_WELL_KNOWN_PORT = 5683;
+OCPlatformInfo platformInfo;
 
 //This function takes the request as an input and returns the response
 //in JSON format.
@@ -103,16 +113,38 @@ char* constructJsonResponse (OCEntityHandlerRequest *ehRequest)
 
     if(OC_REST_PUT == ehRequest->method)
     {
-        cJSON *putJson = cJSON_Parse((char *)ehRequest->reqJSONPayload);
-        currLightResource->state = ( !strcmp(cJSON_GetObjectItem(putJson,"state")->valuestring,
-                "on") ? true:false);
-        currLightResource->power = cJSON_GetObjectItem(putJson,"power")->valuedouble;
+        // Get cJSON pointer to query
+        cJSON *putJson = cJSON_Parse(ehRequest->reqJSONPayload);
+
+        if(!putJson)
+        {
+            OC_LOG_V(ERROR, TAG, "Failed to parse JSON: %s", ehRequest->reqJSONPayload);
+            return NULL;
+        }
+
+        // Get root of JSON payload, then the 1st resource.
+        cJSON* carrier = cJSON_GetObjectItem(putJson, "oc");
+        carrier = cJSON_GetArrayItem(carrier, 0);
+        carrier = cJSON_GetObjectItem(carrier, "rep");
+
+        cJSON* prop = cJSON_GetObjectItem(carrier,"power");
+        if (prop)
+        {
+            currLightResource->power =prop->valueint;
+        }
+
+        prop = cJSON_GetObjectItem(carrier,"state");
+        if (prop)
+        {
+            currLightResource->state = prop->valueint;
+        }
+
         cJSON_Delete(putJson);
     }
 
     cJSON_AddStringToObject(json,"href",gResourceUri);
     cJSON_AddItemToObject(json, "rep", format=cJSON_CreateObject());
-    cJSON_AddStringToObject(format, "state", (char *) (currLightResource->state ? "on":"off"));
+    cJSON_AddBoolToObject(format, "state", currLightResource->state);
     cJSON_AddNumberToObject(format, "power", currLightResource->power);
 
     jsonResponse = cJSON_Print(json);
@@ -121,32 +153,95 @@ char* constructJsonResponse (OCEntityHandlerRequest *ehRequest)
     return jsonResponse;
 }
 
-OCEntityHandlerResult ProcessGetRequest (OCEntityHandlerRequest *ehRequest, char *payload, uint16_t maxPayloadSize)
+/*
+ * Very simple example of query parsing.
+ * The query may have multiple filters separated by '&'.
+ * It is upto the entity handler to parse the query for the individual filters,
+ * VALIDATE them and respond as it sees fit.
+
+ * This function only returns false if the query is exactly "power<X" and
+ * current power is greater than X. If X cannot be parsed for an int,
+ * true is returned.
+ */
+bool checkIfQueryForPowerPassed(char * query)
+{
+    if (query && strncmp(query, "power<", strlen("power<")) == 0)
+    {
+        char * pointerToOperator = strstr(query, "<");
+
+        if (pointerToOperator)
+        {
+            int powerRequested = atoi(pointerToOperator + 1);
+            if (Light.power > powerRequested)
+            {
+                OC_LOG_V(INFO, TAG, "Current power: %d. Requested: <%d", Light.power
+                            , powerRequested);
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+/*
+ * Application should validate and process these as desired.
+ */
+OCEntityHandlerResult ValidateQueryParams (OCEntityHandlerRequest *entityHandlerRequest)
+{
+    OC_LOG_V(INFO, TAG, PCF("Received query %s"), entityHandlerRequest->query);
+    OC_LOG(INFO, TAG, PCF("Not processing query"));
+    return OC_EH_OK;
+}
+
+OCEntityHandlerResult ProcessGetRequest (OCEntityHandlerRequest *ehRequest,
+        char *payload, uint16_t maxPayloadSize)
 {
     OCEntityHandlerResult ehResult;
-    char *getResp = constructJsonResponse(ehRequest);
+    bool queryPassed = checkIfQueryForPowerPassed(ehRequest->query);
 
-    if (maxPayloadSize > strlen ((char *)getResp))
+    // Empty payload if the query has no match.
+    if (queryPassed)
     {
-        strncpy(payload, getResp, strlen((char *)getResp));
-        ehResult = OC_EH_OK;
+        char *getResp = constructJsonResponse(ehRequest);
+        if(!getResp)
+        {
+            OC_LOG(ERROR, TAG, "constructJsonResponse failed");
+            return OC_EH_ERROR;
+        }
+
+        if (maxPayloadSize > strlen (getResp))
+        {
+            strncpy(payload, getResp, strlen(getResp));
+            ehResult = OC_EH_OK;
+        }
+        else
+        {
+            OC_LOG_V (INFO, TAG, "Response buffer: %d bytes is too small",
+                    maxPayloadSize);
+            ehResult = OC_EH_ERROR;
+        }
+
+        free(getResp);
     }
     else
     {
-        OC_LOG_V (INFO, TAG, "Response buffer: %d bytes is too small",
-                maxPayloadSize);
-        ehResult = OC_EH_ERROR;
+        ehResult = OC_EH_OK;
     }
-
-    free(getResp);
 
     return ehResult;
 }
 
-OCEntityHandlerResult ProcessPutRequest (OCEntityHandlerRequest *ehRequest, char *payload, uint16_t maxPayloadSize)
+OCEntityHandlerResult ProcessPutRequest (OCEntityHandlerRequest *ehRequest,
+        char *payload, uint16_t maxPayloadSize)
 {
     OCEntityHandlerResult ehResult;
     char *putResp = constructJsonResponse(ehRequest);
+
+    if(!putResp)
+    {
+        OC_LOG(ERROR, TAG, "Failed to construct Json response");
+        return OC_EH_ERROR;
+    }
 
     if (maxPayloadSize > strlen ((char *)putResp))
     {
@@ -165,7 +260,8 @@ OCEntityHandlerResult ProcessPutRequest (OCEntityHandlerRequest *ehRequest, char
     return ehResult;
 }
 
-OCEntityHandlerResult ProcessPostRequest (OCEntityHandlerRequest *ehRequest, OCEntityHandlerResponse *response, char *payload, uint16_t maxPayloadSize)
+OCEntityHandlerResult ProcessPostRequest (OCEntityHandlerRequest *ehRequest,
+        OCEntityHandlerResponse *response, char *payload, uint16_t maxPayloadSize)
 {
     OCEntityHandlerResult ehResult = OC_EH_OK;
     char *respPLPost_light = NULL;
@@ -253,7 +349,8 @@ OCEntityHandlerResult ProcessPostRequest (OCEntityHandlerRequest *ehRequest, OCE
     return ehResult;
 }
 
-OCEntityHandlerResult ProcessDeleteRequest (OCEntityHandlerRequest *ehRequest, char *payload, uint16_t maxPayloadSize)
+OCEntityHandlerResult ProcessDeleteRequest (OCEntityHandlerRequest *ehRequest,
+        char *payload, uint16_t maxPayloadSize)
 {
     if(ehRequest == NULL)
     {
@@ -333,7 +430,8 @@ OCEntityHandlerResult ProcessDeleteRequest (OCEntityHandlerRequest *ehRequest, c
     return ehResult;
 }
 
-OCEntityHandlerResult ProcessNonExistingResourceRequest(OCEntityHandlerRequest *ehRequest, char *payload, uint16_t maxPayloadSize)
+OCEntityHandlerResult ProcessNonExistingResourceRequest(OCEntityHandlerRequest *ehRequest,
+        char *payload, uint16_t maxPayloadSize)
 {
     OC_LOG_V(INFO, TAG, "\n\nExecuting %s ", __func__);
 
@@ -347,11 +445,11 @@ OCEntityHandlerResult ProcessNonExistingResourceRequest(OCEntityHandlerRequest *
     }
     else
     {
-        OC_LOG_V (INFO, TAG, "Response buffer: %d bytes is too small",
+        OC_LOG_V (ERROR, TAG, "Response buffer: %d bytes is too small",
                 maxPayloadSize);
     }
 
-    return OC_EH_RESOURCE_DELETED;
+    return OC_EH_RESOURCE_NOT_FOUND;
 }
 
 void ProcessObserveRegister (OCEntityHandlerRequest *ehRequest)
@@ -408,22 +506,22 @@ OCDeviceEntityHandlerCb (OCEntityHandlerFlag flag,
         OC_LOG (ERROR, TAG, "Invalid request pointer");
         return OC_EH_ERROR;
     }
-
     // Initialize certain response fields
     response.numSendVendorSpecificHeaderOptions = 0;
-    memset(response.sendVendorSpecificHeaderOptions, 0, sizeof response.sendVendorSpecificHeaderOptions);
+    memset(response.sendVendorSpecificHeaderOptions, 0,
+            sizeof response.sendVendorSpecificHeaderOptions);
     memset(response.resourceUri, 0, sizeof response.resourceUri);
 
-    if (flag & OC_INIT_FLAG)
-    {
-        OC_LOG (INFO, TAG, "Flag includes OC_INIT_FLAG");
-    }
+
     if (flag & OC_REQUEST_FLAG)
     {
         OC_LOG (INFO, TAG, "Flag includes OC_REQUEST_FLAG");
-        if (entityHandlerRequest->resource == NULL) {
+
+        if (entityHandlerRequest->resource == NULL)
+        {
             OC_LOG (INFO, TAG, "Received request from client to a non-existing resource");
-            ehResult = ProcessNonExistingResourceRequest(entityHandlerRequest, payload, sizeof(payload) - 1);
+            ehResult = ProcessNonExistingResourceRequest(entityHandlerRequest,
+                           payload, sizeof(payload) - 1);
         }
         else if (OC_REST_GET == entityHandlerRequest->method)
         {
@@ -443,18 +541,17 @@ OCDeviceEntityHandlerCb (OCEntityHandlerFlag flag,
         else
         {
             OC_LOG_V (INFO, TAG, "Received unsupported method %d from client",
-                    entityHandlerRequest->method);
+                      entityHandlerRequest->method);
             ehResult = OC_EH_ERROR;
         }
-
-        // If the result isn't an error or forbidden, send response
+               // If the result isn't an error or forbidden, send response
         if (!((ehResult == OC_EH_ERROR) || (ehResult == OC_EH_FORBIDDEN)))
         {
             // Format the response.  Note this requires some info about the request
             response.requestHandle = entityHandlerRequest->requestHandle;
             response.resourceHandle = entityHandlerRequest->resource;
             response.ehResult = ehResult;
-            response.payload = (unsigned char *)payload;
+            response.payload = payload;
             response.payloadSize = strlen(payload);
             // Indicate that response is NOT in a persistent buffer
             response.persistentBufferFlag = 0;
@@ -511,16 +608,14 @@ OCEntityHandlerCb (OCEntityHandlerFlag flag,
 
     // Initialize certain response fields
     response.numSendVendorSpecificHeaderOptions = 0;
-    memset(response.sendVendorSpecificHeaderOptions, 0, sizeof response.sendVendorSpecificHeaderOptions);
+    memset(response.sendVendorSpecificHeaderOptions,
+            0, sizeof response.sendVendorSpecificHeaderOptions);
     memset(response.resourceUri, 0, sizeof response.resourceUri);
 
-    if (flag & OC_INIT_FLAG)
-    {
-        OC_LOG (INFO, TAG, "Flag includes OC_INIT_FLAG");
-    }
     if (flag & OC_REQUEST_FLAG)
     {
         OC_LOG (INFO, TAG, "Flag includes OC_REQUEST_FLAG");
+
         if (OC_REST_GET == entityHandlerRequest->method)
         {
             OC_LOG (INFO, TAG, "Received OC_REST_GET from client");
@@ -544,9 +639,9 @@ OCEntityHandlerCb (OCEntityHandlerFlag flag,
         else
         {
             OC_LOG_V (INFO, TAG, "Received unsupported method %d from client",
-                    entityHandlerRequest->method);
+                      entityHandlerRequest->method);
+            ehResult = OC_EH_ERROR;
         }
-
         // If the result isn't an error or forbidden, send response
         if (!((ehResult == OC_EH_ERROR) || (ehResult == OC_EH_FORBIDDEN)))
         {
@@ -554,7 +649,7 @@ OCEntityHandlerCb (OCEntityHandlerFlag flag,
             response.requestHandle = entityHandlerRequest->requestHandle;
             response.resourceHandle = entityHandlerRequest->resource;
             response.ehResult = ehResult;
-            response.payload = (unsigned char *)payload;
+            response.payload = payload;
             response.payloadSize = strlen(payload);
             // Indicate that response is NOT in a persistent buffer
             response.persistentBufferFlag = 0;
@@ -565,15 +660,17 @@ OCEntityHandlerCb (OCEntityHandlerFlag flag,
             {
                 OC_LOG (INFO, TAG, "Received vendor specific options");
                 uint8_t i = 0;
-                OCHeaderOption * rcvdOptions = entityHandlerRequest->rcvdVendorSpecificHeaderOptions;
+                OCHeaderOption * rcvdOptions =
+                        entityHandlerRequest->rcvdVendorSpecificHeaderOptions;
                 for( i = 0; i < entityHandlerRequest->numRcvdVendorSpecificHeaderOptions; i++)
                 {
                     if(((OCHeaderOption)rcvdOptions[i]).protocolID == OC_COAP_ID)
                     {
                         OC_LOG_V(INFO, TAG, "Received option with OC_COAP_ID and ID %u with",
                                 ((OCHeaderOption)rcvdOptions[i]).optionID );
+
                         OC_LOG_BUFFER(INFO, TAG, ((OCHeaderOption)rcvdOptions[i]).optionData,
-                                ((OCHeaderOption)rcvdOptions[i]).optionLength);
+                            MAX_HEADER_OPTION_DATA_LENGTH);
                     }
                 }
                 OCHeaderOption * sendOptions = response.sendVendorSpecificHeaderOptions;
@@ -618,8 +715,10 @@ OCEntityHandlerCb (OCEntityHandlerFlag flag,
 }
 
 /* SIGINT handler: set gQuitFlag to 1 for graceful termination */
-void handleSigInt(int signum) {
-    if (signum == SIGINT) {
+void handleSigInt(int signum)
+{
+    if (signum == SIGINT)
+    {
         gQuitFlag = 1;
     }
 }
@@ -635,7 +734,7 @@ void *ChangeLightRepresentation (void *param)
 
     while (!gQuitFlag)
     {
-        sleep(10);
+        sleep(3);
         Light.power += 5;
         if (gLightUnderObservation)
         {
@@ -657,12 +756,12 @@ void *ChangeLightRepresentation (void *param)
                 cJSON *format;
                 cJSON_AddStringToObject(json,"href",gResourceUri);
                 cJSON_AddItemToObject(json, "rep", format=cJSON_CreateObject());
-                cJSON_AddStringToObject(format, "state", (char *) (Light.state ? "on":"off"));
+                cJSON_AddBoolToObject(format, "state", Light.state);
                 cJSON_AddNumberToObject(format, "power", Light.power);
                 char * obsResp = cJSON_Print(json);
                 cJSON_Delete(json);
                 result = OCNotifyListOfObservers (Light.handle, obsNotify, j,
-                        (unsigned char *)obsResp, OC_NA_QOS);
+                        obsResp, OC_NA_QOS);
                 free(obsResp);
             }
             else if (gObserveNotifyType == 0)
@@ -684,7 +783,7 @@ void *ChangeLightRepresentation (void *param)
 #ifdef WITH_PRESENCE
         if(stopPresenceCount > 0)
         {
-            OC_LOG_V(INFO, TAG, "================ presence count %d", stopPresenceCount);
+            OC_LOG_V(INFO, TAG, "================  Counting down to stop presence %d", stopPresenceCount);
         }
         if(!stopPresenceCount--)
         {
@@ -696,6 +795,7 @@ void *ChangeLightRepresentation (void *param)
     return NULL;
 }
 
+#ifdef WITH_PRESENCE
 void *presenceNotificationGenerator(void *param)
 {
     sleep(5);
@@ -717,7 +817,7 @@ void *presenceNotificationGenerator(void *param)
             sleep(1);
             res = OCCreateResource(&presenceNotificationHandles[i],
                     presenceNotificationResources.at(i).c_str(),
-                    "oc.mi.def",
+                    OC_RSRVD_INTERFACE_DEFAULT,
                     presenceNotificationUris.at(i).c_str(),
                     OCNOPEntityHandlerCb,
                     OC_DISCOVERABLE|OC_OBSERVABLE);
@@ -729,6 +829,8 @@ void *presenceNotificationGenerator(void *param)
                     getResult(res));
             break;
         }
+        OC_LOG_V(INFO, TAG, PCF("Created %s for presence notification"),
+                                presenceNotificationUris[i].c_str());
     }
     sleep(5);
     for(int i=0; i<numPresenceResources; i++)
@@ -743,8 +845,148 @@ void *presenceNotificationGenerator(void *param)
                     "resource %s.", presenceNotificationResources.at(i).c_str());
             break;
         }
+        OC_LOG_V(INFO, TAG, PCF("Deleted %s for presence notification"),
+                                presenceNotificationUris[i].c_str());
     }
     return NULL;
+}
+#endif
+
+int createLightResource (char *uri, LightResource *lightResource)
+{
+    if (!uri)
+    {
+        OC_LOG(ERROR, TAG, "Resource URI cannot be NULL");
+        return -1;
+    }
+
+    lightResource->state = false;
+    lightResource->power= 0;
+    OCStackResult res = OCCreateResource(&(lightResource->handle),
+            "core.light",
+            "oc.mi.def",
+            uri,
+            OCEntityHandlerCb,
+            OC_DISCOVERABLE|OC_OBSERVABLE);
+    OC_LOG_V(INFO, TAG, "Created Light resource with result: %s", getResult(res));
+
+    return 0;
+}
+
+void DeletePlatformInfo()
+{
+    free (platformInfo.platformID);
+    free (platformInfo.manufacturerName);
+    free (platformInfo.manufacturerUrl);
+    free (platformInfo.modelNumber);
+    free (platformInfo.dateOfManufacture);
+    free (platformInfo.platformVersion);
+    free (platformInfo.operatingSystemVersion);
+    free (platformInfo.hardwareVersion);
+    free (platformInfo.firmwareVersion);
+    free (platformInfo.supportUrl);
+    free (platformInfo.systemTime);
+}
+
+bool DuplicateString(char** targetString, const char* sourceString)
+{
+    if(!sourceString)
+    {
+        return false;
+    }
+    else
+    {
+        *targetString = (char *) malloc(strlen(sourceString) + 1);
+
+        if(*targetString)
+        {
+            strncpy(*targetString, sourceString, (strlen(sourceString) + 1));
+            return true;
+        }
+    }
+    return false;
+}
+
+OCStackResult SetPlatformInfo(const char* platformID, const char *manufacturerName,
+    const char *manufacturerUrl, const char *modelNumber, const char *dateOfManufacture,
+    const char *platformVersion, const char* operatingSystemVersion, const char* hardwareVersion,
+    const char *firmwareVersion, const char* supportUrl, const char* systemTime)
+{
+
+    bool success = true;
+
+    if(manufacturerName != NULL && (strlen(manufacturerName) > MAX_MANUFACTURER_NAME_LENGTH))
+    {
+        return OC_STACK_INVALID_PARAM;
+    }
+
+    if(manufacturerUrl != NULL && (strlen(manufacturerUrl) > MAX_MANUFACTURER_URL_LENGTH))
+    {
+        return OC_STACK_INVALID_PARAM;
+    }
+
+    if(!DuplicateString(&platformInfo.platformID, platformID))
+    {
+        success = false;
+    }
+
+    if(!DuplicateString(&platformInfo.manufacturerName, manufacturerName))
+    {
+        success = false;
+    }
+
+    if(!DuplicateString(&platformInfo.manufacturerUrl, manufacturerUrl))
+    {
+        success = false;
+    }
+
+    if(!DuplicateString(&platformInfo.modelNumber, modelNumber))
+    {
+        success = false;
+    }
+
+    if(!DuplicateString(&platformInfo.dateOfManufacture, dateOfManufacture))
+    {
+        success = false;
+    }
+
+    if(!DuplicateString(&platformInfo.platformVersion, platformVersion))
+    {
+        success = false;
+    }
+
+    if(!DuplicateString(&platformInfo.operatingSystemVersion, operatingSystemVersion))
+    {
+        success = false;
+    }
+
+    if(!DuplicateString(&platformInfo.hardwareVersion, hardwareVersion))
+    {
+        success = false;
+    }
+
+    if(!DuplicateString(&platformInfo.firmwareVersion, firmwareVersion))
+    {
+        success = false;
+    }
+
+    if(!DuplicateString(&platformInfo.supportUrl, supportUrl))
+    {
+        success = false;
+    }
+
+    if(!DuplicateString(&platformInfo.systemTime, systemTime))
+    {
+        success = false;
+    }
+
+    if(success)
+    {
+        return OC_STACK_OK;
+    }
+
+    DeletePlatformInfo();
+    return OC_STACK_ERROR;
 }
 
 static void PrintUsage()
@@ -756,10 +998,6 @@ static void PrintUsage()
 
 int main(int argc, char* argv[])
 {
-    uint8_t addr[20] = {0};
-    uint8_t* paddr = NULL;
-    uint16_t port = OC_WELL_KNOWN_PORT;
-    uint8_t ifname[] = "eth0";
     pthread_t threadId;
     pthread_t threadId_presence;
     int opt;
@@ -784,21 +1022,15 @@ int main(int argc, char* argv[])
     }
 
     OC_LOG(DEBUG, TAG, "OCServer is starting...");
-    /*Get Ip address on defined interface and initialize coap on it with random port number
-     * this port number will be used as a source port in all coap communications*/
-    if ( OCGetInterfaceAddress(ifname, sizeof(ifname), AF_INET, addr,
-                sizeof(addr)) == ERR_SUCCESS)
-    {
-        OC_LOG_V(INFO, TAG, "Starting ocserver on address %s:%d",addr,port);
-        paddr = addr;
-    }
 
-    if (OCInit((char *) paddr, port, OC_SERVER) != OC_STACK_OK) {
+    if (OCInit(NULL, 0, OC_SERVER) != OC_STACK_OK)
+    {
         OC_LOG(ERROR, TAG, "OCStack init error");
         return 0;
     }
 #ifdef WITH_PRESENCE
-    if (OCStartPresence(0) != OC_STACK_OK) {
+    if (OCStartPresence(0) != OC_STACK_OK)
+    {
         OC_LOG(ERROR, TAG, "OCStack presence/discovery error");
         return 0;
     }
@@ -806,21 +1038,22 @@ int main(int argc, char* argv[])
 
     OCSetDefaultDeviceEntityHandler(OCDeviceEntityHandlerCb);
 
-    OCStackResult deviceResult = SetDeviceInfo(contentType, dateOfManufacture, deviceName,
-            deviceUUID, firmwareVersion, hostName, manufacturerName,
-            manufacturerUrl, modelNumber, platformVersion, supportUrl, version);
+    OCStackResult platformRegistrationResult =
+        SetPlatformInfo(platformID, manufacturerName, manufacturerUrl, modelNumber,
+            dateOfManufacture, platformVersion,  operatingSystemVersion,  hardwareVersion,
+            firmwareVersion,  supportUrl, systemTime);
 
-    if (deviceResult != OC_STACK_OK)
+    if (platformRegistrationResult != OC_STACK_OK)
     {
-        OC_LOG(INFO, TAG, "Device Registration failed!");
+        OC_LOG(INFO, TAG, "Platform info setting failed locally!");
         exit (EXIT_FAILURE);
     }
 
-    deviceResult = OCSetDeviceInfo(deviceInfo);
+    platformRegistrationResult = OCSetPlatformInfo(platformInfo);
 
-    if (deviceResult != OC_STACK_OK)
+    if (platformRegistrationResult != OC_STACK_OK)
     {
-        OC_LOG(INFO, TAG, "Device Registration failed!");
+        OC_LOG(INFO, TAG, "Platform Registration failed!");
         exit (EXIT_FAILURE);
     }
 
@@ -844,14 +1077,19 @@ int main(int argc, char* argv[])
      * Create a thread for generating changes that cause presence notifications
      * to be sent to clients
      */
+
+    #ifdef WITH_PRESENCE
     pthread_create(&threadId_presence, NULL, presenceNotificationGenerator, (void *)NULL);
+    #endif
 
     // Break from loop with Ctrl-C
     OC_LOG(INFO, TAG, "Entering ocserver main loop...");
-    DeleteDeviceInfo();
+    DeletePlatformInfo();
     signal(SIGINT, handleSigInt);
-    while (!gQuitFlag) {
-        if (OCProcess() != OC_STACK_OK) {
+    while (!gQuitFlag)
+    {
+        if (OCProcess() != OC_STACK_OK)
+        {
             OC_LOG(ERROR, TAG, "OCStack process error");
             return 0;
         }
@@ -869,153 +1107,10 @@ int main(int argc, char* argv[])
 
     OC_LOG(INFO, TAG, "Exiting ocserver main loop...");
 
-    if (OCStop() != OC_STACK_OK) {
+    if (OCStop() != OC_STACK_OK)
+    {
         OC_LOG(ERROR, TAG, "OCStack process error");
     }
 
     return 0;
-}
-
-int createLightResource (char *uri, LightResource *lightResource)
-{
-    if (!uri)
-    {
-        OC_LOG(ERROR, TAG, "Resource URI cannot be NULL");
-        return -1;
-    }
-
-    lightResource->state = false;
-    lightResource->power= 0;
-    OCStackResult res = OCCreateResource(&(lightResource->handle),
-            "core.light",
-            "oc.mi.def",
-            uri,
-            OCEntityHandlerCb,
-            OC_DISCOVERABLE|OC_OBSERVABLE);
-    OC_LOG_V(INFO, TAG, "Created Light resource with result: %s", getResult(res));
-
-    return 0;
-}
-
-void DeleteDeviceInfo()
-{
-    free(deviceInfo.contentType);
-    free(deviceInfo.dateOfManufacture);
-    free(deviceInfo.deviceName);
-    free(deviceInfo.deviceUUID);
-    free(deviceInfo.firmwareVersion);
-    free(deviceInfo.hostName);
-    free(deviceInfo.manufacturerName);
-    free(deviceInfo.manufacturerUrl);
-    free(deviceInfo.modelNumber);
-    free(deviceInfo.platformVersion);
-    free(deviceInfo.supportUrl);
-    free(deviceInfo.version);
-}
-
-bool DuplicateString(char** targetString, const char* sourceString)
-{
-    if(!sourceString)
-    {
-        return false;
-    }
-    else
-    {
-        *targetString = (char *) malloc(strlen(sourceString) + 1);
-
-        if(targetString)
-        {
-            strncpy(*targetString, sourceString, (strlen(sourceString) + 1));
-            return true;
-        }
-    }
-    return false;
-}
-
-OCStackResult SetDeviceInfo(const char *contentType, const char *dateOfManufacture,
-        const char *deviceName, const char *deviceUUID, const char *firmwareVersion,
-        const char *hostName, const char *manufacturerName, const char *manufacturerUrl,
-        const char *modelNumber, const char *platformVersion, const char *supportUrl,
-        const char *version)
-{
-
-    bool success = true;
-
-    if(manufacturerName != NULL && (strlen(manufacturerName) > MAX_MANUFACTURER_NAME_LENGTH))
-    {
-        return OC_STACK_INVALID_PARAM;
-    }
-
-    if(manufacturerUrl != NULL && (strlen(manufacturerUrl) > MAX_MANUFACTURER_URL_LENGTH))
-    {
-        return OC_STACK_INVALID_PARAM;
-    }
-
-    if(!DuplicateString(&deviceInfo.contentType, contentType))
-    {
-        success = false;
-    }
-
-    if(!DuplicateString(&deviceInfo.dateOfManufacture, dateOfManufacture))
-    {
-        success = false;
-    }
-
-    if(!DuplicateString(&deviceInfo.deviceName, deviceName))
-    {
-        success = false;
-    }
-
-    if(!DuplicateString(&deviceInfo.deviceUUID, deviceUUID))
-    {
-        success = false;
-    }
-
-    if(!DuplicateString(&deviceInfo.firmwareVersion, firmwareVersion))
-    {
-        success = false;
-    }
-
-    if(!DuplicateString(&deviceInfo.hostName, hostName))
-    {
-        success = false;
-    }
-
-    if(!DuplicateString(&deviceInfo.manufacturerName, manufacturerName))
-    {
-        success = false;
-    }
-
-    if(!DuplicateString(&deviceInfo.manufacturerUrl, manufacturerUrl))
-    {
-        success = false;
-    }
-
-    if(!DuplicateString(&deviceInfo.modelNumber, modelNumber))
-    {
-        success = false;
-    }
-
-    if(!DuplicateString(&deviceInfo.platformVersion, platformVersion))
-    {
-        success = false;
-    }
-
-    if(!DuplicateString(&deviceInfo.supportUrl, supportUrl))
-    {
-        success = false;
-    }
-
-    if(!DuplicateString(&deviceInfo.version, version))
-    {
-        success = false;
-    }
-
-    if(success)
-    {
-        return OC_STACK_OK;
-    }
-
-    DeleteDeviceInfo();
-    return OC_STACK_ERROR;
 }

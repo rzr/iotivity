@@ -21,6 +21,9 @@
 #ifndef OCRESOURCE_H_
 #define OCRESOURCE_H_
 
+#include "ocstackconfig.h"
+#include "occlientcb.h"
+
 #define OC_OBSERVER_NOT_INTERESTED       (0)
 #define OC_OBSERVER_STILL_INTERESTED     (1)
 #define OC_OBSERVER_FAILED_COMM          (2)
@@ -74,16 +77,16 @@ typedef struct ocaction {
 } OCAction;
 
 // following structure will be created in occollection.
-typedef struct ocactionset {
-
+typedef struct ocactionset
+{
     struct ocactionset *next;
 
     char *actionsetName;
+    long int timesteps;
+    unsigned int type;
 
     OCAction* head;
 } OCActionSet;
-
-
 
 typedef struct resourcetype_t {
     struct resourcetype_t *next; // linked list; for multiple types on resource

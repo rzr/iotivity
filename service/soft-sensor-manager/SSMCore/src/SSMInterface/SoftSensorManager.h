@@ -23,7 +23,6 @@
 #include "SSMInterface/SSMCore.h"
 #include "Common/PlatformLayer.h"
 #include "Common/InternalInterface.h"
-#include "Common/rapidxml.hpp"
 
 /**
 * @class    CSoftSensorManager
@@ -85,7 +84,7 @@ class CSoftSensorManager :
         * @exception
         * @see
         */
-        SSMRESULT initializeCore(IN std::string xmlDescription);
+        SSMRESULT initializeCore(std::string xmlDescription);
 
         /**
         * @fn startCore
@@ -124,7 +123,7 @@ class CSoftSensorManager :
         * @exception
         * @see
         */
-        SSMRESULT terminateCore(IN bool factoryResetFlag);
+        SSMRESULT terminateCore(bool factoryResetFlag);
 
         /**
         * @fn createQueryEngine
@@ -138,7 +137,7 @@ class CSoftSensorManager :
         * @exception
         * @see
         */
-        SSMRESULT createQueryEngine(OUT IQueryEngine **ppQueryEngine);
+        SSMRESULT createQueryEngine(IQueryEngine **ppQueryEngine);
 
         /**
         * @fn releaseQueryEngine
@@ -150,7 +149,7 @@ class CSoftSensorManager :
         * @exception
         * @see
         */
-        unsigned long releaseQueryEngine(IN IQueryEngine *pQueryEngine);
+        unsigned long releaseQueryEngine(IQueryEngine *pQueryEngine);
 
         /**
         * @fn getInstalledModelList
@@ -163,7 +162,7 @@ class CSoftSensorManager :
         * @exception
         * @see
         */
-        SSMRESULT getInstalledModelList(OUT std::vector<ISSMResource *> *pList);
+        SSMRESULT getInstalledModelList(std::vector<ISSMResource *> *pList);
 };
 
 #endif

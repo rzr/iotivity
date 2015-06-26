@@ -18,8 +18,8 @@
 //
 //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
-#ifndef __OIC_LOGGER_TYPES_H_
-#define __OIC_LOGGER_TYPES_H_
+#ifndef OIC_LOGGER_TYPES_H_
+#define OIC_LOGGER_TYPES_H_
 
 #include <stddef.h>
 
@@ -43,11 +43,11 @@ typedef enum
 
 typedef struct _oic_log_ctx
 {
-    void* ctx;
+    void *ctx;
 
     oic_log_level log_level;
 
-    char* module_name;
+    char *module_name;
 
     /* Required interface: */
     int (*init)(struct _oic_log_ctx *, void *);
@@ -83,4 +83,5 @@ typedef int (*oic_log_try_lock_t)(oic_log_ctx_t *);
 } // extern "C"
 #endif
 
-#endif
+#endif /* OIC_LOGGER_TYPES_H_ */
+

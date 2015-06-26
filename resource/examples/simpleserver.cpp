@@ -74,7 +74,8 @@ public:
 public:
     /// Constructor
     LightResource()
-        :m_name("John's light"), m_state(false), m_power(0), m_lightUri("/a/light") {
+        :m_name("John's light"), m_state(false), m_power(0), m_lightUri("/a/light"),
+                m_resourceHandle(nullptr) {
         // Initialize representation
         m_lightRep.setUri(m_lightUri);
 
@@ -89,9 +90,12 @@ public:
     /// This function internally calls registerResource API.
     void createResource()
     {
-        std::string resourceURI = m_lightUri; //URI of the resource
-        std::string resourceTypeName = "core.light"; //resource type name. In this case, it is light
-        std::string resourceInterface = DEFAULT_INTERFACE; // resource interface.
+        //URI of the resource
+        std::string resourceURI = m_lightUri;
+        //resource type name. In this case, it is light
+        std::string resourceTypeName = "core.light";
+        // resource interface.
+        std::string resourceInterface = DEFAULT_INTERFACE;
 
         // OCResourceProperty is defined ocstack.h
         uint8_t resourceProperty;
@@ -118,9 +122,12 @@ public:
 
     OCStackResult createResource1()
     {
-        std::string resourceURI = "/a/light1"; // URI of the resource
-        std::string resourceTypeName = "core.light"; // resource type name. In this case, it is light
-        std::string resourceInterface = DEFAULT_INTERFACE; // resource interface.
+        // URI of the resource
+        std::string resourceURI = "/a/light1";
+        // resource type name. In this case, it is light
+        std::string resourceTypeName = "core.light";
+        // resource interface.
+        std::string resourceInterface = DEFAULT_INTERFACE;
 
         // OCResourceProperty is defined ocstack.h
         uint8_t resourceProperty;
@@ -255,18 +262,25 @@ OCEntityHandlerResult entityHandler(std::shared_ptr<OCResourceRequest> request)
         std::string requestType = request->getRequestType();
         int requestFlag = request->getRequestHandlerFlag();
 
-        if(requestFlag & RequestHandlerFlag::InitFlag)
-        {
-            cout << "\t\trequestFlag : Init\n";
-
-            // entity handler to perform resource initialization operations
-        }
         if(requestFlag & RequestHandlerFlag::RequestFlag)
         {
             cout << "\t\trequestFlag : Request\n";
             auto pResponse = std::make_shared<OC::OCResourceResponse>();
             pResponse->setRequestHandle(request->getRequestHandle());
             pResponse->setResourceHandle(request->getResourceHandle());
+
+            // Check for query params (if any)
+            QueryParamsMap queries = request->getQueryParameters();
+
+            if (!queries.empty())
+            {
+                std::cout << "\nQuery processing upto entityHandler" << std::endl;
+            }
+            for (auto it : queries)
+            {
+                std::cout << "Query key: " << it.first << " value : " << it.second
+                        << std:: endl;
+            }
 
             // If the request type is GET
             if(requestType == "GET")
@@ -325,6 +339,10 @@ OCEntityHandlerResult entityHandler(std::shared_ptr<OCResourceRequest> request)
                     pResponse->setResponseResult(OC_EH_RESOURCE_CREATED);
                     pResponse->setNewResourceUri(rep_post.getValue<std::string>("createduri"));
                 }
+                else
+                {
+                    pResponse->setResponseResult(OC_EH_OK);
+                }
 
                 if(OC_STACK_OK == OCPlatform::sendResponse(pResponse))
                 {
@@ -333,7 +351,7 @@ OCEntityHandlerResult entityHandler(std::shared_ptr<OCResourceRequest> request)
             }
             else if(requestType == "DELETE")
             {
-                // DELETE request operations
+                cout << "Delete request received" << endl;
             }
         }
 
@@ -389,7 +407,7 @@ void * ChangeLightRepresentation (void *param)
     // This function continuously monitors for the changes
     while (1)
     {
-        sleep (5);
+        sleep (3);
 
         if (gObservation)
         {
@@ -406,7 +424,8 @@ void * ChangeLightRepresentation (void *param)
 
             if(isListOfObservers)
             {
-                std::shared_ptr<OCResourceResponse> resourceResponse(new OCResourceResponse());
+                std::shared_ptr<OCResourceResponse> resourceResponse =
+                            {std::make_shared<OCResourceResponse>()};
 
                 resourceResponse->setErrorCode(200);
                 resourceResponse->setResourceRepresentation(lightPtr->get(), DEFAULT_INTERFACE);
@@ -492,6 +511,7 @@ int main(int argc, char* argv[])
                 break;
             case 4:
                 isSlowResponse = true;
+                break;
             default:
                 break;
        }
@@ -519,9 +539,12 @@ int main(int argc, char* argv[])
 
         // Invoke createResource function of class light.
         myLight.createResource();
+        std::cout << "Created resource." << std::endl;
 
         myLight.addType(std::string("core.brightlight"));
-        myLight.addInterface(std::string("oc.mi.ll"));
+        myLight.addInterface(std::string(LINK_INTERFACE));
+        std::cout << "Added Interface and Type" << std::endl;
+
 
         // A condition variable will free the mutex it is given, then do a non-
         // intensive block until 'notify' is called on it.  In this case, since we
@@ -530,11 +553,12 @@ int main(int argc, char* argv[])
         std::mutex blocker;
         std::condition_variable cv;
         std::unique_lock<std::mutex> lock(blocker);
-        cv.wait(lock);
+        std::cout <<"Waiting" << std::endl;
+        cv.wait(lock, []{return false;});
     }
-    catch(OCException e)
+    catch(OCException &e)
     {
-        //log(e.what());
+        std::cout << "OCException in main : " << e.what() << endl;
     }
 
     // No explicit call to stop the platform.

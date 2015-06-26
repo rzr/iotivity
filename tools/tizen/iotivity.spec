@@ -1,5 +1,5 @@
 Name: iotivity
-Version: 0.9
+Version: 0.9.1
 Release: 0
 Summary: IoTivity Base Stack & IoTivity Services
 Group: System Environment/Libraries
@@ -12,6 +12,14 @@ BuildRequires:	python, libcurl-devel
 BuildRequires:	scons
 BuildRequires:	openssl-devel
 BuildRequires:  boost-devel
+BuildRequires:  boost-thread
+BuildRequires:  boost-system
+BuildRequires:  boost-filesystem
+BuildRequires:  pkgconfig(dlog)
+BuildRequires:  pkgconfig(uuid)
+BuildRequires:  pkgconfig(capi-network-wifi)
+BuildRequires:  pkgconfig(capi-network-bluetooth)
+BuildRequires:  pkgconfig(capi-appfw-app-common)
 Requires(postun): /sbin/ldconfig
 Requires(post): /sbin/ldconfig
 
@@ -32,24 +40,49 @@ developing applications that use %{name}.
 %setup -q -n %{name}-%{version}
 
 %build
+%ifarch armv7l
+export RPM_ARCH=armeabi-v7a
+%else
 %ifarch %arm
 export RPM_ARCH=arm
 %else
+%ifarch aarch64
+export RPM_ARCH=arm64
+%else
+%ifarch i586 i686 %{ix86}
 export RPM_ARCH=x86
+%else
+export RPM_ARCH=%{_arch}
+%endif
+%endif
+%endif
 %endif
 
-scons -j 4 TARGET_ARCH=$RPM_ARCH
+
+scons -j 4 TARGET_OS=tizen TARGET_ARCH=$RPM_ARCH TARGET_TRANSPORT=IP
 
 %install
 rm -rf %{buildroot}
 mkdir -p %{buildroot}%{_includedir}
+mkdir -p %{buildroot}%{_includedir}/targets
 mkdir -p %{buildroot}%{_libdir}
 mkdir -p %{buildroot}%{_sbindir}
 
-cp out/linux/*/release/lib*.so %{buildroot}%{_libdir}
-cp out/linux/*/release/lib*.a %{buildroot}%{_libdir}
+cp out/tizen/*/release/lib*.so %{buildroot}%{_libdir}
+cp out/tizen/*/release/libSSMSDK.a %{buildroot}%{_libdir}
+cp out/tizen/*/release/libppm.a %{buildroot}%{_libdir}
+cp out/tizen/*/release/service/protocol-plugin/plugins/mqtt-fan/*.so %{buildroot}%{_libdir}
+cp out/tizen/*/release/service/protocol-plugin/plugins/mqtt-light/*.so %{buildroot}%{_libdir}
+cp /usr/lib/libuuid.so %{buildroot}%{_libdir}
 
 cp resource/csdk/stack/include/ocstack.h %{buildroot}%{_includedir}
+cp resource/csdk/stack/include/ocstackconfig.h %{buildroot}%{_includedir}
+cp resource/oc_logger/include/oc_logger.hpp %{buildroot}%{_includedir}
+cp resource/oc_logger/include/oc_log_stream.hpp %{buildroot}%{_includedir}
+cp resource/oc_logger/include/oc_logger.h %{buildroot}%{_includedir}
+cp resource/oc_logger/include/oc_logger_types.h %{buildroot}%{_includedir}
+cp resource/oc_logger/include/targets/oc_console_logger.h %{buildroot}%{_includedir}/targets
+cp resource/oc_logger/include/targets/oc_ostream_logger.h %{buildroot}%{_includedir}/targets
 cp resource/include/*.h %{buildroot}%{_includedir}
 
 cp service/things-manager/sdk/inc/*.h %{buildroot}%{_includedir}
@@ -67,7 +100,9 @@ rm -rf %{buildroot}
 %defattr(-,root,root,-)
 %{_libdir}/lib*.so
 %{_libdir}/lib*.a
+%{_libdir}/fanserver*.so
+%{_libdir}/lightserver*.so
 
 %files devel
 %defattr(-,root,root,-)
-%{_includedir}/*.h
+%{_includedir}/*

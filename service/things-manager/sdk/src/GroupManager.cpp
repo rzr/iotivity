@@ -18,8 +18,10 @@
 //
 //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
-/// @file    GroupManager.cpp
-///  @brief
+/**
+ * @file
+ *
+ */
 
 #include "GroupManager.h"
 #include <algorithm>
@@ -34,13 +36,14 @@
 #define ATTR_DELIMITER "="
 
 using namespace OC;
+using namespace OIC;
 
-namespace OIC
-{
 std::map< std::vector< std::string >, CandidateCallback > candidateRequest;
 std::map< std::vector< std::string >, CandidateCallback > candidateRequestForTimer;
 std::map< std::string, std::map< std::string, std::shared_ptr< OCResource > > > rtForResourceList;
 std::vector< std::string > allFoundResourceTypes;
+std::mutex callbackLock;
+
 
 template< typename T >
 bool IsSubset(std::vector< T > full, std::vector< T > sub)
@@ -150,6 +153,7 @@ GroupManager::~GroupManager(void)
 void GroupManager::findPreparedRequest(
         std::map< std::vector< std::string >, CandidateCallback > &request)
 {
+    std::lock_guard<std::mutex> lock(callbackLock);
     std::vector< std::shared_ptr< OCResource > > resources;
 
     for (auto it = request.begin(); it != request.end();)
@@ -157,14 +161,13 @@ void GroupManager::findPreparedRequest(
 
         if (IsSubset(allFoundResourceTypes, it->first))
         {
-            //std::cout << "IS SUBSET !!! \n";
-
             for (unsigned int i = 0; i < it->first.size(); ++i)
             {
 
                 for (auto secondIt = rtForResourceList[it->first.at(i)].begin();
                         secondIt != rtForResourceList[it->first.at(i)].end(); ++secondIt)
                 {
+                    //insert resource related to request
                     resources.push_back(secondIt->second);
                 }
             }
@@ -190,10 +193,15 @@ void GroupManager::lazyCallback(int second)
 
 }
 
-OCStackResult GroupManager::findCandidateResources(std::vector< std::string > resourceTypes,
+OCStackResult GroupManager::findCandidateResources(
+        std::vector< std::string > resourceTypes,
         CandidateCallback callback, int waitsec)
 {
     if (resourceTypes.size() < 1)
+    {
+        return OC_STACK_ERROR;
+    }
+    if(callback == NULL)
     {
         return OC_STACK_ERROR;
     }
@@ -202,7 +210,7 @@ OCStackResult GroupManager::findCandidateResources(std::vector< std::string > re
     resourceTypes.erase(std::unique(resourceTypes.begin(), resourceTypes.end()),
             resourceTypes.end());
 
-    if (waitsec != -1)
+    if (waitsec >= 0)
     {
         candidateRequestForTimer.insert(std::make_pair(resourceTypes, callback));
     }
@@ -213,16 +221,21 @@ OCStackResult GroupManager::findCandidateResources(std::vector< std::string > re
 
     for (unsigned int i = 0; i < resourceTypes.size(); ++i)
     {
-        std::cout << "resourceTypes : " << resourceTypes.at(i) << std::endl;
-        std::string query = "coap://224.0.1.187/oc/core?rt=";
+        // std::cout << "resourceTypes : " << resourceTypes.at(i) << std::endl;
+
+        std::string query = OC_MULTICAST_DISCOVERY_URI;
+        query.append("?rt=");
         query.append(resourceTypes.at(i));
-        OCPlatform::findResource("", query.c_str(),
+
+        OCPlatform::findResource("",
+                query,
+                OC_ALL,
                 std::function < void(std::shared_ptr < OCResource > resource)
-                        > (std::bind(&GroupManager::onFoundResource, this,
-                                std::placeholders::_1, waitsec)));
+                        > (std::bind(&GroupManager::onFoundResource, this, std::placeholders::_1,
+                                waitsec)));
     }
 
-    if (waitsec != -1)
+    if (waitsec >= 0)
     {
         std::thread exec(
                 std::function< void(int second) >(
@@ -233,6 +246,28 @@ OCStackResult GroupManager::findCandidateResources(std::vector< std::string > re
 
     return OC_STACK_OK;
 }
+
+
+OCStackResult GroupManager::bindResourceToGroup(OCResourceHandle& childHandle, std::shared_ptr< OCResource > resource, OCResourceHandle& collectionHandle)
+{
+
+    OCStackResult result = OCPlatform::registerResource(childHandle, resource);
+
+    cout << "\tresource registed!" << endl;
+
+    if(result == OC_STACK_OK)
+    {
+        OCPlatform::bindResource(collectionHandle, childHandle);
+    }
+    else
+    {
+        cout << "\tresource Error!" << endl;
+    }
+
+    return result;
+ }
+
+
 
 /*
  Presence Check
@@ -277,17 +312,23 @@ void GroupManager::checkCollectionRepresentation(const OCRepresentation& rep,
 {
     std::cout << "\tResource URI: " << rep.getUri() << std::endl;
 
-    /* //bug not found
-     if(rep.hasAttribute("name"))
-     {
-     std::cout << "\tRoom name: " << rep.getValue<std::string>("name") << std::endl;
-     }
-     */
     std::vector< OCRepresentation > children = rep.getChildren();
+    if(children.size() == 0 )
+    {
+        callback("", OC_STACK_ERROR);
+        return;
+    }
 
     for (auto oit = children.begin(); oit != children.end(); ++oit)
     {
-        std::cout << "\t\tChild Resource URI: " << oit->getUri() << std::endl;
+        if(oit->getUri().find("coap://") == std::string::npos)
+        {
+            std::cout << "The resource with a URI " << oit->getUri() << " is not a remote resource."
+                << " Thus, we ignore to send a request for presence check to the resource.\n";
+
+            continue;
+        }
+
         std::vector< std::string > hostAddressVector = str_split(oit->getUri(), '/');
         std::string hostAddress = "";
         for (unsigned int i = 0; i < hostAddressVector.size(); ++i)
@@ -303,35 +344,44 @@ void GroupManager::checkCollectionRepresentation(const OCRepresentation& rep,
         }
 
         std::vector< std::string > resourceTypes = oit->getResourceTypes();
-        for (unsigned int i = 0; i < resourceTypes.size(); ++i)
-        {
-            std::cout << "\t\t\tresourcetype :" << resourceTypes.at(i) << std::endl;
-        }
+        // for (unsigned int i = 0; i < resourceTypes.size(); ++i)
+        // {
+        //     std::cout << "\t\t\tresourcetype :" << resourceTypes.at(i) << std::endl;
+        // }
 
-        std::string resourceType = "core.";
-        resourceType.append(str_split(oit->getUri(), '/').at(4));
-        std::cout << "\t\tconvertRT : " << resourceType << std::endl;
-        std::cout << "\t\thost : " << hostAddress << std::endl;
+        // std::string resourceType = "core.";
+        // resourceType.append(str_split(oit->getUri(), '/').at(4));
+        // std::cout << "\t\tconvertRT : " << resourceType << std::endl;
+        // std::cout << "\t\tresource type front : " << resourceTypes.front() << endl;
+        // std::cout << "\t\thost : " << hostAddress << std::endl;
         OCPlatform::OCPresenceHandle presenceHandle;
-        OCStackResult result = OCPlatform::subscribePresence(presenceHandle, hostAddress,
-                resourceType,
-                std::function<
-                        void(OCStackResult result, const unsigned int nonce,
-                                const std::string& hostAddress) >(
-                        std::bind(&GroupManager::collectionPresenceHandler, this,
-                                std::placeholders::_1, std::placeholders::_2,
-                                std::placeholders::_3, hostAddress, oit->getUri())));
+        OCStackResult result = OC_STACK_ERROR;
+
+        try
+        {
+            result = OCPlatform::subscribePresence(presenceHandle, hostAddress,
+                    // resourceType,
+                    resourceTypes.front(),
+                    OC_ALL,
+                    std::function<
+                            void(OCStackResult result, const unsigned int nonce,
+                                    const std::string& hostAddress) >(
+                            std::bind(&GroupManager::collectionPresenceHandler, this,
+                                    std::placeholders::_1, std::placeholders::_2,
+                                    std::placeholders::_3, hostAddress, oit->getUri())));
+        }catch(OCException& e)
+        {
+            std::cout<< "Exception in subscribePresence: "<< e.what() << std::endl;
+        }
 
         if (result == OC_STACK_OK)
         {
-            std::cout << "\t\tOK!" << std::endl;
             presenceCallbacks.insert(std::make_pair(oit->getUri(), callback));
         }
         else
         {
             callback("", OC_STACK_ERROR);
         }
-
     }
 }
 
@@ -350,13 +400,17 @@ void GroupManager::onGetForPresence(const HeaderOptions& headerOptions,
     {
         std::cout << "onGET Response error: " << eCode << std::endl;
         callback("", OC_STACK_ERROR);
-        std::exit(-1);
     }
 }
 
 OCStackResult GroupManager::subscribeCollectionPresence(
         std::shared_ptr< OCResource > collectionResource, CollectionPresenceCallback callback)
 {
+    if(callback == NULL || collectionResource == NULL)
+    {
+        return OC_STACK_ERROR;
+    }
+
     OCStackResult result = OC_STACK_OK;
     //callback("core.room",OC_STACK_OK);
 
@@ -381,7 +435,12 @@ std::string GroupManager::getStringFromActionSet(const ActionSet *newActionSet)
 {
     std::string message = "";
 
+    if(newActionSet == NULL)
+        return message;
+
     message = newActionSet->actionsetName;
+    message.append("*");
+    message.append(newActionSet->toString());
     message.append("*");
     for (auto iterAction = newActionSet->listOfAction.begin();
             iterAction != newActionSet->listOfAction.end(); iterAction++)
@@ -410,35 +469,74 @@ std::string GroupManager::getStringFromActionSet(const ActionSet *newActionSet)
     return message;
 }
 
-ActionSet* GroupManager::getActionSetfromString(std::string desc)
-{
+#define DELETE(p) { \
+    delete p; \
+    p = NULL; \
+}
 
+#define DELETEARRAY(p) { \
+    delete[] p; \
+    p = NULL; \
+}
+
+ActionSet* GroupManager::getActionSetfromString(std::string description)
+{
     char *token = NULL;
     char *plainText = NULL;
     char *plainPtr = NULL;
+    char *attr = NULL, *desc = NULL;
 
+    Capability *capa = NULL;
     ActionSet *actionset = new ActionSet();
-    plainText = new char[(desc.length() + 1)];
-    strcpy(plainText, desc.c_str());
+
+    if(actionset == NULL)
+    {
+        goto exit;
+    }
+
+    if(description.empty())
+    {
+        goto exit;
+    }
+    else if(description.at(0) == '*')
+    {
+        goto exit;
+    }
+
+    plainText = new char[(description.length() + 1)];
+    strcpy(plainText, description.c_str());
 
     token = strtok_r(plainText, ACTION_DELIMITER, &plainPtr);
 
     if (token != NULL)
     {
         actionset->actionsetName = std::string(token);
+
+        if((actionset->actionsetName).empty())
+            goto exit;
+
         token = strtok_r(NULL, ACTION_DELIMITER, &plainPtr);
     }
     else
     {
-        delete actionset;
-        delete[] plainText;
-        return NULL;
+        goto exit;
+    }
+
+    if (token != NULL)
+    {
+        sscanf(token, "%ld %d", &actionset->mDelay, (int*)&actionset->type);
+
+        token = strtok_r(NULL, ACTION_DELIMITER, &plainPtr);
+    }
+    else
+    {
+        goto exit;
     }
 
     while (token)
     {
         char *descPtr = NULL;
-        char *desc = new char[(strlen(token) + 1)];
+        desc = new char[(strlen(token) + 1)];
 
         if (desc != NULL)
         {
@@ -446,15 +544,12 @@ ActionSet* GroupManager::getActionSetfromString(std::string desc)
             strcpy(desc, token);
             token = strtok_r(desc, DESC_DELIMITER, &descPtr);
 
-            // cout << "desc :: " << token << endl;
             while (token != NULL)
             {
                 char *attrPtr = NULL;
-                char *attr = new char[(strlen(token) + 1)];
+                attr = new char[(strlen(token) + 1)];
 
                 strcpy(attr, token);
-
-                // cout << "attr :: " << attr << endl;
 
                 token = strtok_r(attr, ATTR_DELIMITER, &attrPtr);
                 while (token != NULL)
@@ -462,67 +557,71 @@ ActionSet* GroupManager::getActionSetfromString(std::string desc)
                     if (strcmp(token, "uri") == 0)
                     {
                         token = strtok_r(NULL, ATTR_DELIMITER, &attrPtr);
-                        action = new Action();
+                        if(token == NULL)
+                        {
+                            goto exit;
+                        }
 
+                        action = new Action();
                         if (action != NULL)
                         {
                             action->target = std::string(token);
                         }
                         else
                         {
-                            delete actionset;
-                            delete[] attr;
-                            delete desc;
-                            delete[] plainText;
-                            return NULL;
+                            goto exit;
                         }
                     }
                     else
                     {
-                        Capability *capa = new Capability();
+                        capa = new Capability();
                         capa->capability = std::string(token);
                         token = strtok_r(NULL, ATTR_DELIMITER, &attrPtr);
+
+                        if( token == NULL )
+                            goto exit;
+
                         capa->status = std::string(token);
 
                         if (action != NULL)
-                        {
                             action->listOfCapability.push_back(capa);
-                        }
                         else
-                        {
-                            delete capa;
-                            delete actionset;
-                            delete[] attr;
-                            delete[] plainText;
-                            delete desc;
-                            return NULL;
-                        }
+                            goto exit;
                     }
 
                     token = strtok_r(NULL, ATTR_DELIMITER, &attrPtr);
                 }
-
-                delete[] attr;
+                DELETEARRAY(attr);
                 token = strtok_r(NULL, DESC_DELIMITER, &descPtr);
             }
 
-            actionset->listOfAction.push_back(action);
+            if( action != NULL )
+                actionset->listOfAction.push_back(action);
+            else
+                goto exit;
             //delete action;
         }
         else
         {
-            delete actionset;
-            delete[] plainText;
-            return NULL;
+            goto exit;
+
         }
 
-        delete[] desc;
+        DELETEARRAY(desc);
 
         token = strtok_r(NULL, ACTION_DELIMITER, &plainPtr);
     }
 
-    delete plainText;
+    DELETE(plainText);
     return actionset;
+
+exit:
+    DELETE(capa)
+    DELETE(actionset)
+    DELETEARRAY(attr);
+    DELETEARRAY(plainText);
+    DELETEARRAY(desc);
+    return NULL;
 }
 
 OCStackResult GroupManager::addActionSet(std::shared_ptr< OCResource > resource,
@@ -531,11 +630,15 @@ OCStackResult GroupManager::addActionSet(std::shared_ptr< OCResource > resource,
     // BUILD message of ActionSet which it is included delimiter.
     if ((resource != NULL) && (newActionSet != NULL))
     {
+        if(newActionSet->mDelay < 0)
+        {
+            return OC_STACK_INVALID_PARAM;
+        }
+
         std::string message = getStringFromActionSet(newActionSet);
+
         OCRepresentation rep;
-
         rep.setValue("ActionSet", message);
-
         return resource->put(resource->getResourceTypes().front(), GROUP_INTERFACE, rep,
                 QueryParamsMap(), cb);
     }
@@ -553,6 +656,47 @@ OCStackResult GroupManager::executeActionSet(std::shared_ptr< OCResource > resou
         OCRepresentation rep;
 
         rep.setValue("DoAction", actionsetName);
+        return resource->post(resource->getResourceTypes().front(), GROUP_INTERFACE, rep,
+                QueryParamsMap(), cb);
+    }
+    else
+    {
+        return OC_STACK_ERROR;
+    }
+}
+
+OCStackResult GroupManager::executeActionSet(std::shared_ptr< OCResource > resource,
+        std::string actionsetName, long int delay, PostCallback cb)
+{
+    if(delay <= 0 )
+    {
+        return OC_STACK_INVALID_PARAM;
+    }
+    if (resource != NULL)
+    {
+        std::string value = actionsetName;
+        value.append("*");
+        value.append(std::to_string(delay));
+
+        OCRepresentation rep;
+        rep.setValue("DoScheduledAction", value);
+        return resource->post(resource->getResourceTypes().front(), GROUP_INTERFACE, rep,
+                QueryParamsMap(), cb);
+    }
+    else
+    {
+        return OC_STACK_ERROR;
+    }
+}
+
+OCStackResult GroupManager::cancelActionSet(std::shared_ptr< OCResource > resource,
+        std::string actionsetName, PostCallback cb)
+{
+    if (resource != NULL)
+    {
+        OCRepresentation rep;
+
+        rep.setValue("CancelAction", actionsetName);
         return resource->post(resource->getResourceTypes().front(), GROUP_INTERFACE, rep,
                 QueryParamsMap(), cb);
     }
@@ -596,5 +740,4 @@ OCStackResult GroupManager::deleteActionSet(std::shared_ptr< OCResource > resour
     {
         return OC_STACK_ERROR;
     }
-}
 }

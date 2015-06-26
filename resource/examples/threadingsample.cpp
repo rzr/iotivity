@@ -30,10 +30,12 @@
 #include <condition_variable>
 #include <map>
 #include <vector>
+
 #include "OCPlatform.h"
 #include "OCApi.h"
 using namespace OC;
 
+static std::ostringstream requestURI;
 
 struct FooResource
 {
@@ -139,11 +141,7 @@ struct FooResource
             {
                 std::cout <<"\t\trequestFlag : UNSUPPORTED: ";
 
-                if(request->getRequestHandlerFlag()==RequestHandlerFlag::InitFlag)
-                {
-                    std::cout<<"InitFlag"<<std::endl;
-                }
-                else if(request->getRequestHandlerFlag()== RequestHandlerFlag::ObserverFlag)
+                if(request->getRequestHandlerFlag()== RequestHandlerFlag::ObserverFlag)
                 {
                     std::cout<<"ObserverFlag"<<std::endl;
                 }
@@ -280,9 +278,8 @@ void foundResource1(std::shared_ptr<OCResource> resource)
 void client1()
 {
     std::cout << "in client1\n";
-
-    std::cout<<"result1:" << OCPlatform::findResource("", "coap://224.0.1.187/oc/core?rt=core.foo",
-            foundResource1)<< std::endl;
+    std::cout<<"result1:" << OCPlatform::findResource("", requestURI.str(),
+            OC_ALL, foundResource1)<< std::endl;
 
     // A condition variable will free the mutex it is given, then do a non-
     // intensive block until 'notify' is called on it.  In this case, since we
@@ -297,10 +294,9 @@ void client1()
 void client2()
 {
     std::cout << "in client2\n";
-
     std::cout<<"result2:" << OCPlatform::findResource("",
-                "coap://224.0.1.187/oc/core?rt=core.foo",
-                foundResource2)<< std::endl;
+                requestURI.str(),
+                OC_ALL, foundResource2)<< std::endl;
 
     // A condition variable will free the mutex it is given, then do a non-
     // intensive block until 'notify' is called on it.  In this case, since we
@@ -331,8 +327,11 @@ void server()
     cv.wait(lock);
 }
 
-int main()
+int main(int argc, char* argv[])
 {
+
+    requestURI << OC_MULTICAST_DISCOVERY_URI << "?rt=core.foo";
+
     PlatformConfig cfg {
         OC::ServiceType::InProc,
         OC::ModeType::Both,
@@ -382,3 +381,4 @@ int main()
 
     return 0;
 }
+

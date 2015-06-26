@@ -27,6 +27,7 @@
 #include "SensorProcessor/ContextExecutor.h"
 #include "SensorProcessor/ContextDataReader.h"
 #include "SensorProcessor/ResourceFinder.h"
+#include "rapidxml/rapidxml.hpp"
 
 inline bool operator<( const OID &lhs, const OID &rhs )
 {
@@ -43,7 +44,7 @@ void CSoftSensorManager::finalRelease()
 {
 }
 
-SSMRESULT CSoftSensorManager::initializeCore(IN std::string xmlDescription)
+SSMRESULT CSoftSensorManager::initializeCore(std::string xmlDescription)
 {
     SSMRESULT                   res = SSM_E_FAIL;
     rapidxml::xml_document<>    xmlDoc;
@@ -58,69 +59,84 @@ SSMRESULT CSoftSensorManager::initializeCore(IN std::string xmlDescription)
     std::string                 pathSoftSensors;
     std::string                 pathDescription;
 
-    xmlDoc.parse<0>((char *)xmlDescription.c_str());
+    std::string                 copyDescription = xmlDescription.c_str();
 
-    root = xmlDoc.first_node();
-
-    strKey = root->name();
-
-    if (strKey != "SSMCore")
+    try
     {
-        return SSM_E_FAIL;
-    }
+        xmlDoc.parse<0>((char *)copyDescription.c_str());
 
-    for (itemSSMCore = root->first_node(); itemSSMCore; itemSSMCore = itemSSMCore->next_sibling())
-    {
-        strKey = itemSSMCore->name();
+        root = xmlDoc.first_node();
 
-        if (strKey == "Device")
+        if (!root)
         {
-            for (itemDevice = itemSSMCore->first_node(); itemDevice; itemDevice = itemDevice->next_sibling())
-            {
-                strKey = itemDevice->name();
+            throw rapidxml::parse_error("No Root Element", 0);
+        }
 
-                if (strKey == "Name")
+        strKey = root->name();
+
+        if (strKey != "SSMCore")
+        {
+            throw rapidxml::parse_error("Invalid root tag name", 0);
+        }
+
+        for (itemSSMCore = root->first_node(); itemSSMCore; itemSSMCore = itemSSMCore->next_sibling())
+        {
+            strKey = itemSSMCore->name();
+
+            if (strKey == "Device")
+            {
+                for (itemDevice = itemSSMCore->first_node(); itemDevice; itemDevice = itemDevice->next_sibling())
                 {
-                    name = itemDevice->value();
-                }
-                else if (strKey == "Type")
-                {
-                    type = itemDevice->value();
-                }
-                else
-                {
-                    ;/*NULL*/
+                    strKey = itemDevice->name();
+
+                    if (strKey == "Name")
+                    {
+                        name = itemDevice->value();
+                    }
+                    else if (strKey == "Type")
+                    {
+                        type = itemDevice->value();
+                    }
+                    else
+                    {
+                        ;/*NULL*/
+                    }
                 }
             }
-        }
-        else if (strKey == "Config")
-        {
-            for (itemDevice = itemSSMCore->first_node(); itemDevice; itemDevice = itemDevice->next_sibling())
+            else if (strKey == "Config")
             {
-                strKey = itemDevice->name();
+                for (itemDevice = itemSSMCore->first_node(); itemDevice; itemDevice = itemDevice->next_sibling())
+                {
+                    strKey = itemDevice->name();
 
-                if (strKey == "SoftSensorRepository")
-                {
-                    pathSoftSensors = itemDevice->value();
-                }
-                else if (strKey == "SoftSensorDescription")
-                {
-                    pathDescription = itemDevice->value();
-                }
-                else
-                {
-                    ;/*NULL*/
+                    if (strKey == "SoftSensorRepository")
+                    {
+                        pathSoftSensors = itemDevice->value();
+                    }
+                    else if (strKey == "SoftSensorDescription")
+                    {
+                        pathDescription = itemDevice->value();
+                    }
+                    else
+                    {
+                        ;/*NULL*/
+                    }
                 }
             }
-        }
-        else
-        {
-            ;/*NULL*/
+            else
+            {
+                ;/*NULL*/
+            }
         }
     }
+    catch (rapidxml::parse_error &e)
+    {
+        SSM_CLEANUP_ASSERT(SSM_E_INVALIDXML);
+    }
 
-    SSM_CLEANUP_ASSERT(CreateGlobalInstance(OID_IContextRepository, (IBase **)&m_pContextRepository));
     SSM_CLEANUP_ASSERT(CreateGlobalInstance(OID_ISensingEngine, (IBase **)&m_pSensingEngine));
+    SSM_CLEANUP_ASSERT(m_pSensingEngine->queryInterface(OID_IContextRepository,
+                       (IBase **)&m_pContextRepository));
     SSM_CLEANUP_ASSERT(m_pContextRepository->initRepository(name, type, pathSoftSensors,
                        pathDescription));
 
@@ -137,14 +153,22 @@ CLEANUP:
 
 SSMRESULT CSoftSensorManager::startCore()
 {
-    //m_pSharingLayer->Start();
-    return SSM_S_OK;
+    SSMRESULT res = SSM_E_FAIL;
+
+    SSM_CLEANUP_ASSERT(m_pContextRepository->startResourceFinder());
+
+CLEANUP:
+    return res;
 }
 
 SSMRESULT CSoftSensorManager::stopCore()
 {
-    //m_pSharingLayer->Stop();
-    return SSM_S_OK;
+    SSMRESULT res = SSM_E_FAIL;
+
+    SSM_CLEANUP_ASSERT(m_pContextRepository->stopResourceFinder());
+
+CLEANUP:
+    return res;
 }
 
 SSMRESULT CSoftSensorManager::terminateCore(bool factoryResetFlag)
@@ -152,7 +176,7 @@ SSMRESULT CSoftSensorManager::terminateCore(bool factoryResetFlag)
     return SSM_S_OK;
 }
 
-SSMRESULT CSoftSensorManager::createQueryEngine(OUT IQueryEngine **ppQueryEngine)
+SSMRESULT CSoftSensorManager::createQueryEngine(IQueryEngine **ppQueryEngine)
 {
     SSMRESULT res = SSM_E_FAIL;
     IQueryEngineInternal    *pQueryEngineInternal = NULL;
@@ -163,7 +187,7 @@ CLEANUP:
     return res;
 }
 
-unsigned long CSoftSensorManager::releaseQueryEngine(IN IQueryEngine *pQueryEngine)
+unsigned long CSoftSensorManager::releaseQueryEngine(IQueryEngine *pQueryEngine)
 {
     IQueryEngineInternal    *pQueryEngineInternal = NULL;
     pQueryEngineInternal = (IQueryEngineInternal *)(CQueryEngine *)pQueryEngine;
@@ -171,7 +195,7 @@ unsigned long CSoftSensorManager::releaseQueryEngine(IN IQueryEngine *pQueryEngi
     return pQueryEngineInternal->release();
 }
 
-SSMRESULT CSoftSensorManager::getInstalledModelList(OUT std::vector<ISSMResource *> *pList)
+SSMRESULT CSoftSensorManager::getInstalledModelList(std::vector<ISSMResource *> *pList)
 {
     m_pSensingEngine->getList(pList);
 
@@ -182,7 +206,7 @@ CSimpleMutex                *g_mtxGlobalInstance = NULL;
 std::map<OID, IBase *>       *g_globalInstance = NULL;
 IThreadPool                 *g_pThreadPool = NULL;
 
-SSMRESULT CreateGlobalInstance(IN const OID &objectID, OUT IBase **ppvObject)
+SSMRESULT CreateGlobalInstance(const OID &objectID, IBase **ppvObject)
 {
     SSMRESULT res = SSM_E_NOINTERFACE;
 
@@ -271,7 +295,7 @@ CLEANUP:
     return res;
 }
 
-SSMRESULT CreateInstance(IN const OID &objectID, OUT IBase **ppObject)
+SSMRESULT CreateInstance(const OID &objectID, IBase **ppObject)
 {
     SSMRESULT res = SSM_E_NOINTERFACE;
 

@@ -1,3 +1,23 @@
+#******************************************************************
+#
+# Copyright 2014 Intel Mobile Communications GmbH All Rights Reserved.
+#
+#-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+#-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
 # Ignore output dirs
 /release
 resource/release
@@ -22,6 +42,9 @@ resource/oc_logger/lib/
 resource/oc_logger/samples/linux/release/
 resource/oc_logger/samples/linux/debug
 
+resource/unittests/release/
+resource/unittests/debug/
+
 service/things-manager/build/linux/release
 service/things-manager/build/linux/debug
 service/things-manager/sdk/build/linux/
@@ -32,9 +55,9 @@ service/things-manager/sdk/build/linux/
 
 # Ignore Eclipse workspace files
 *.settings/
-*.cproject
-*.project
 
+# Ignore CTags default data
+tags
 # Ignore dependencies folder, which should be generated
 dependencies/
 
@@ -53,8 +76,24 @@ out/
 platform
 
 # Ignore downloaded dependencies
-extlibs/gtest*
+extlibs/gtest/gtest-*
+extlibs/hippomocks-master/
+extlibs/master.zip
+extlibs/cereal/cereal
+extlibs/expat/expat*
 extlibs/cereal
+extlibs/android/gradle/gradle-2.2.1
+extlibs/android/ndk/android-ndk-r10d
+extlibs/android/sdk/android-sdk_r24.2
+extlibs/boost/boost_1_58_0
+*.tgz
+*.zip
+extlibs/arduino/arduino-1.5.8
+build_common/arduino/extlibs/arduino/arduino-1.5.8
 
+# Ignore editor (e.g. Emacs) backup and autosave files
 *~
-cscope.out
+*#*#
+
+# Ignore byte-compiled Python scripts
+*.pyc

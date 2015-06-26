@@ -18,10 +18,12 @@
 //
 //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
-/// @file OCResourceRequest.h
-
-/// @brief  This file contains the declaration of classes and its members related to
-///         ResourceRequest.
+/**
+ * @file
+ *
+ * This file contains the declaration of classes and its members related to
+ * ResourceRequest.
+ */
 
 #ifndef __OCRESOURCEREQUEST_H
 #define __OCRESOURCEREQUEST_H
@@ -44,6 +46,21 @@ namespace OC
     public:
         typedef std::shared_ptr<OCResourceRequest> Ptr;
 
+        OCResourceRequest():
+            m_requestType{},
+            m_resourceUri{},
+            m_queryParameters{},
+            m_requestHandlerFlag{},
+            m_representation{},
+            m_observationInfo{},
+            m_headerOptions{},
+            m_requestHandle{nullptr},
+            m_resourceHandle{nullptr}
+        {
+        }
+
+        OCResourceRequest(OCResourceRequest&&) = default;
+        OCResourceRequest& operator=(OCResourceRequest&&) = default;
         /**
         *  Virtual destructor
         */
@@ -157,34 +174,7 @@ namespace OC
             m_requestType = requestType;
         }
 
-        void setPayload(const std::string& requestPayload)
-        {
-            if(requestPayload.empty())
-            {
-                return;
-            }
-
-            MessageContainer info;
-            info.setJSONRepresentation(requestPayload);
-
-            const std::vector<OCRepresentation>& reps = info.representations();
-            if(reps.size() >0)
-            {
-                std::vector<OCRepresentation>::const_iterator itr = reps.begin();
-                std::vector<OCRepresentation>::const_iterator back = reps.end();
-                m_representation = *itr;
-                ++itr;
-
-                for(;itr != back; ++itr)
-                {
-                    m_representation.addChild(*itr);
-                }
-            }
-            else
-            {
-                throw OCException(OC::Exception::INVALID_REPRESENTATION);
-            }
-        }
+        void setPayload(const std::string& requestPayload);
 
         void setQueryParams(QueryParamsMap& queryParams)
         {

@@ -43,7 +43,7 @@ void CEvaluationEngine::finalRelease()
     terminateEngine();
 }
 
-SSMRESULT CEvaluationEngine::executeSQL_NoReturn(IN std::string strSQL)
+SSMRESULT CEvaluationEngine::executeSQL_NoReturn(std::string strSQL)
 {
     SSMRESULT       res = SSM_E_FAIL;
     sqlite3_stmt    *stmt = NULL;
@@ -57,7 +57,7 @@ CLEANUP:
     return res;
 }
 
-SSMRESULT CEvaluationEngine::executeSQL_IntReturn(IN std::string strSQL, OUT int *pResult)
+SSMRESULT CEvaluationEngine::executeSQL_IntReturn(std::string strSQL, int *pResult)
 {
     SSMRESULT       res = SSM_E_FAIL;
     sqlite3_stmt    *stmt = NULL;
@@ -72,15 +72,15 @@ CLEANUP:
     return res;
 }
 
-void CEvaluationEngine::onSQLTrigger(IN sqlite3_context *context, IN int argc,
-                                     IN sqlite3_value **argv)
+void CEvaluationEngine::onSQLTrigger(sqlite3_context *context, int argc,
+                                     sqlite3_value **argv)
 {
-    CEvaluationEngine *pEvaluationEngine = (CEvaluationEngine *)sqlite3_value_int(argv[0]);
+    CEvaluationEngine *pEvaluationEngine = (CEvaluationEngine *)sqlite3_value_int64(argv[0]);
 
     pEvaluationEngine->onWatcherTriggered(sqlite3_value_int(argv[1]), sqlite3_value_int(argv[2]));
 }
 
-void CEvaluationEngine::onExecute(IN void *pArg)
+void CEvaluationEngine::onExecute(void *pArg)
 {
     std::map<int, IEvaluationEngineEvent *>::iterator itor;
     intptr_t *pData = (intptr_t *)pArg;
@@ -95,13 +95,13 @@ void CEvaluationEngine::onExecute(IN void *pArg)
     m_mtxTriggerId.unlock();
 }
 
-void CEvaluationEngine::onTerminate(IN void *pArg)
+void CEvaluationEngine::onTerminate(void *pArg)
 {
     intptr_t *pData = (intptr_t *)pArg;
     SAFE_ARRAY_DELETE(pData);
 }
 
-SSMRESULT CEvaluationEngine::onWatcherTriggered(IN int triggerId, IN int dataId)
+SSMRESULT CEvaluationEngine::onWatcherTriggered(int triggerId, int dataId)
 {
     intptr_t     *pData = new intptr_t[2];
     pData[0] = triggerId;
@@ -198,7 +198,6 @@ void CEvaluationEngine::terminateEngine()
         SSM_CLEANUP_ASSERT(executeSQL_NoReturn(sstream.str()));
         sstream.str("");
     }
-    m_mtxTriggerId.unlock();
 
     if (strlen(LOCATION_SSM_DB_DUMP) > 0)
     {
@@ -216,12 +215,14 @@ void CEvaluationEngine::terminateEngine()
     m_pSQLite3 = NULL;
 
     res = SSM_S_OK;
+
 CLEANUP:
+    m_mtxTriggerId.unlock();
     return;
 }
 
-SSMRESULT CEvaluationEngine::createModel(IN int parentModelId, IN const char *newModelName,
-        IN ModelPropertyVec *pModelDescs, OUT int *pModelId)
+SSMRESULT CEvaluationEngine::createModel(int parentModelId, const char *newModelName,
+        ModelPropertyVec *pModelDescs, int *pModelId)
 {
     SSMRESULT res = SSM_E_FAIL;
     std::stringstream sstream;
@@ -291,8 +292,7 @@ SSMRESULT CEvaluationEngine::createModel(IN int parentModelId, IN const char *ne
                 break;
 
             default:
-                res = SSM_E_FAIL;
-                goto CLEANUP;
+                SSM_CLEANUP_ASSERT(SSM_E_FAIL);
         }
     }
 
@@ -304,8 +304,8 @@ CLEANUP:
     return res;
 }
 
-SSMRESULT CEvaluationEngine::addModelData(IN int modelId, IN int parentModelId, IN int parentDataId,
-        IN ModelPropertyVec *pModelValues, OUT int *pDataId)
+SSMRESULT CEvaluationEngine::addModelData(int modelId, int parentModelId, int parentDataId,
+        ModelPropertyVec *pModelValues, int *pDataId)
 {
     SSMRESULT           res = SSM_E_FAIL;
     std::stringstream   sstream;
@@ -366,8 +366,7 @@ SSMRESULT CEvaluationEngine::addModelData(IN int modelId, IN int parentModelId, 
                 break;
 
             default:
-                res = SSM_E_FAIL;
-                goto CLEANUP;
+                SSM_CLEANUP_ASSERT(SSM_E_FAIL);
         }
 
         i++;
@@ -404,8 +403,8 @@ CLEANUP:
     return res;
 }
 
-SSMRESULT CEvaluationEngine::updateModelData(IN int modelId, IN int dataId,
-        IN ModelPropertyVec *pModelValues)
+SSMRESULT CEvaluationEngine::updateModelData(int modelId, int dataId,
+        ModelPropertyVec *pModelValues)
 {
     SSMRESULT res = SSM_E_FAIL;
     std::stringstream sstream;
@@ -451,8 +450,7 @@ SSMRESULT CEvaluationEngine::updateModelData(IN int modelId, IN int dataId,
                 break;
 
             default:
-                res = SSM_E_FAIL;
-                goto CLEANUP;
+                SSM_CLEANUP_ASSERT(SSM_E_FAIL);
         }
 
         i++;
@@ -468,7 +466,7 @@ CLEANUP:
     return res;
 }
 /*
-SSMRESULT CEvaluationEngine::DeleteModel(IN int modelId)
+SSMRESULT CEvaluationEngine::DeleteModel(int modelId)
 {
     SSMRESULT       res = SSM_E_FAIL;
     std::stringstream sstream;
@@ -515,7 +513,7 @@ CLEANUP:
     return res;
 }
 */
-SSMRESULT CEvaluationEngine::deleteModelData(IN int modelId, IN int dataId)
+SSMRESULT CEvaluationEngine::deleteModelData(int modelId, int dataId)
 {
     SSMRESULT res = SSM_E_FAIL;
     std::stringstream sstream;
@@ -562,8 +560,8 @@ CLEANUP:
     return res;
 }
 
-SSMRESULT CEvaluationEngine::getModelDataSet(IN int modelId, IN int startIndex, IN int count,
-        OUT std::vector<ModelPropertyVec> *pDataSet, OUT int *pLastIndex)
+SSMRESULT CEvaluationEngine::getModelDataSet(int modelId, int startIndex, int count,
+        std::vector<ModelPropertyVec> *pDataSet, int *pLastIndex)
 {
     SSMRESULT res = SSM_E_FAIL;
     std::stringstream sstream;
@@ -637,8 +635,8 @@ CLEANUP:
     return res;
 }
 
-SSMRESULT CEvaluationEngine::getModelData(IN int modelId, IN int dataId,
-        OUT ModelPropertyVec *pModelProperties)
+SSMRESULT CEvaluationEngine::getModelData(int modelId, int dataId,
+        ModelPropertyVec *pModelProperties)
 {
     SSMRESULT       res = SSM_E_FAIL;
     std::stringstream sstream;
@@ -704,7 +702,7 @@ CLEANUP:
     return res;
 }
 /*
-SSMRESULT CEvaluationEngine::GetModelSchema(IN int modelId, OUT ModelPropertyVec *pModelProperties)
+SSMRESULT CEvaluationEngine::GetModelSchema(int modelId, ModelPropertyVec *pModelProperties)
 {
     SSMRESULT       res = SSM_E_FAIL;
     std::stringstream sstream;
@@ -753,8 +751,8 @@ CLEANUP:
     return res;
 }
 */
-SSMRESULT CEvaluationEngine::getConditionedModelData(IN int modelId,
-        IN ModelConditionVec *pModelConditions, OUT IntVec *pDataIds)
+SSMRESULT CEvaluationEngine::getConditionedModelData(int modelId,
+        ModelConditionVec *pModelConditions, IntVec *pDataIds)
 {
     SSMRESULT res = SSM_E_FAIL;
     std::stringstream sstream;
@@ -795,8 +793,7 @@ SSMRESULT CEvaluationEngine::getConditionedModelData(IN int modelId,
                 break;
 
             default:
-                res = SSM_E_FAIL;
-                goto CLEANUP;
+                SSM_CLEANUP_ASSERT(SSM_E_FAIL);
         }
 
         switch (itor->modelProperty.propertyType)
@@ -812,8 +809,7 @@ SSMRESULT CEvaluationEngine::getConditionedModelData(IN int modelId,
                 break;
 
             default:
-                res = SSM_E_FAIL;
-                goto CLEANUP;
+                SSM_CLEANUP_ASSERT(SSM_E_FAIL);
         }
 
         if (itor < pModelConditions->end() - 1)
@@ -840,8 +836,8 @@ CLEANUP:
     return res;
 }
 
-SSMRESULT CEvaluationEngine::watchModelData(IN int modelId, IN ModelConditionVec *pModelConditions,
-        IN IEvaluationEngineEvent *pEvaluationEngineEvent, OUT int *pTriggerId)
+SSMRESULT CEvaluationEngine::watchModelData(int modelId, ModelConditionVec *pModelConditions,
+        IEvaluationEngineEvent *pEvaluationEngineEvent, int *pTriggerId)
 {
     SSMRESULT res = SSM_E_FAIL;
     std::stringstream sstream;
@@ -878,8 +874,7 @@ SSMRESULT CEvaluationEngine::watchModelData(IN int modelId, IN ModelConditionVec
                 break;
 
             default:
-                res = SSM_E_FAIL;
-                goto CLEANUP;
+                SSM_CLEANUP_ASSERT(SSM_E_FAIL);
         }
 
         switch (itor->modelProperty.propertyType)
@@ -895,8 +890,7 @@ SSMRESULT CEvaluationEngine::watchModelData(IN int modelId, IN ModelConditionVec
                 break;
 
             default:
-                res = SSM_E_FAIL;
-                goto CLEANUP;
+                SSM_CLEANUP_ASSERT(SSM_E_FAIL);
         }
 
         if (itor < pModelConditions->end() - 1)
@@ -933,7 +927,7 @@ CLEANUP:
     return res;
 }
 
-SSMRESULT CEvaluationEngine::dropWatchModelData(IN int triggerId)
+SSMRESULT CEvaluationEngine::dropWatchModelData(int triggerId)
 {
     SSMRESULT res = SSM_E_FAIL;
     std::stringstream sstream;
@@ -957,8 +951,8 @@ CLEANUP:
     return res;
 }
 
-SSMRESULT CEvaluationEngine::getParentDataId(IN int modelId, IN int dataId, IN int parentModelId,
-        OUT int *pParentDataId)
+SSMRESULT CEvaluationEngine::getParentDataId(int modelId, int dataId, int parentModelId,
+        int *pParentDataId)
 {
     SSMRESULT res = SSM_E_FAIL;
     std::stringstream sstream;
@@ -977,8 +971,8 @@ CLEANUP:
     return res;
 }
 
-SSMRESULT CEvaluationEngine::getChildDataId(IN int modelId, IN int dataId, IN int ChildModelId,
-        OUT IntVec *pChildDataIds)
+SSMRESULT CEvaluationEngine::getChildDataId(int modelId, int dataId, int ChildModelId,
+        IntVec *pChildDataIds)
 {
     SSMRESULT res = SSM_E_FAIL;
     std::stringstream sstream;
@@ -1009,7 +1003,7 @@ CLEANUP:
     return res;
 }
 /*
-SSMRESULT CEvaluationEngine::GetPathToRoot(IN int currentModelId, OUT IntVec *pPath)
+SSMRESULT CEvaluationEngine::GetPathToRoot(int currentModelId, IntVec *pPath)
 {
     SSMRESULT res = SSM_E_FAIL;
     std::stringstream sstream;
@@ -1035,7 +1029,7 @@ CLEANUP:
     return res;
 }
 
-SSMRESULT CEvaluationEngine::GetModelId(IN const char *modelName, OUT int *pModelId)
+SSMRESULT CEvaluationEngine::GetModelId(const char *modelName, int *pModelId)
 {
     SSMRESULT res = SSM_E_FAIL;
     std::stringstream sstream;
@@ -1048,7 +1042,7 @@ CLEANUP:
     return res;
 }
 
-SSMRESULT CEvaluationEngine::GetModelHierarchy(IN int rootModelId, OUT StringVec *pPath)
+SSMRESULT CEvaluationEngine::GetModelHierarchy(int rootModelId, StringVec *pPath)
 {
     SSMRESULT res = SSM_E_FAIL;
     std::stringstream sstream;
@@ -1111,7 +1105,7 @@ CLEANUP:
     return res;
 }
 
-SSMRESULT CEvaluationEngine::GetDataHierarchy(IN int rootModelId, IN int dataId, OUT StringVec *pPath)
+SSMRESULT CEvaluationEngine::GetDataHierarchy(int rootModelId, int dataId, StringVec *pPath)
 {
     SSMRESULT res = SSM_E_FAIL;
     std::stringstream sstream;

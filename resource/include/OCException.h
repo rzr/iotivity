@@ -42,9 +42,9 @@ class OCException : public std::runtime_error
             return reason(m_reason);
         }
 
-        std::string reason(const OC::OCException& e) const
+        OCStackResult code() const
         {
-            return e.reason();
+            return m_reason;
         }
 
     private:

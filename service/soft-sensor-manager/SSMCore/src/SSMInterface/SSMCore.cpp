@@ -23,7 +23,7 @@
 
 static ISoftSensorManager       *g_pSoftSensorManager = NULL;
 
-SSMRESULT CreateQueryEngine(OUT IQueryEngine **ppQueryEngine)
+SSMRESULT CreateQueryEngine(IQueryEngine **ppQueryEngine)
 {
     SSMRESULT res = SSM_E_FAIL;
 
@@ -34,7 +34,7 @@ CLEANUP:
     return res;
 }
 
-unsigned long ReleaseQueryEngine(IN IQueryEngine *pQueryEngine)
+unsigned long ReleaseQueryEngine(IQueryEngine *pQueryEngine)
 {
     if (pQueryEngine == NULL)
     {
@@ -49,19 +49,25 @@ unsigned long ReleaseQueryEngine(IN IQueryEngine *pQueryEngine)
     return g_pSoftSensorManager->releaseQueryEngine(pQueryEngine);
 }
 
-SSMRESULT InitializeSSMCore(IN std::string xmlDescription)
+SSMRESULT InitializeSSMCore(std::string xmlDescription)
 {
     SSMRESULT res = SSM_E_FAIL;
+
+    if (g_pSoftSensorManager != NULL)
+        SSM_CLEANUP_ASSERT(SSM_E_INITIALIZED);
 
     SSM_CLEANUP_ASSERT(CreateGlobalInstanceRepo());
     SSM_CLEANUP_ASSERT(CreateInstance(OID_ISoftSensorManager, (IBase **)&g_pSoftSensorManager));
     SSM_CLEANUP_ASSERT(g_pSoftSensorManager->initializeCore(xmlDescription));
 
 CLEANUP:
-    if (res != SSM_S_OK)
+    if (res != SSM_S_OK &&
+        res != SSM_E_INITIALIZED)
     {
         SAFE_RELEASE(g_pSoftSensorManager);
+        DestroyGlobalInstanceRepo();
     }
+
     return res;
 }
 
@@ -122,6 +128,18 @@ const char *GetSSMError(SSMRESULT res)
             msg = "SSM_E_FAIL";
             break;
 
+        case SSM_E_NOTINIT:
+            msg = "SSM_E_NOTINIT";
+            break;
+
+        case SSM_E_INITIALIZED:
+            msg = "SSM_E_INITIALIZED";
+            break;
+
+        case SSM_E_INVALIDXML:
+            msg = "SSM_E_INVALIDXML";
+            break;
+
         case SSM_E_NOINTERFACE:
             msg = "SSM_E_NOINTERFACE";
             break;
@@ -138,7 +156,7 @@ const char *GetSSMError(SSMRESULT res)
     return msg;
 }
 
-SSMRESULT GetInstalledModelList(OUT std::vector<ISSMResource *> *pList)
+SSMRESULT GetInstalledModelList(std::vector<ISSMResource *> *pList)
 {
     SSMRESULT res = SSM_E_FAIL;
 

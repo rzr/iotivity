@@ -32,6 +32,9 @@
 #include "rapidxml.hpp"
 #include <fstream>
 #include <vector>
+#ifdef ANDROID
+#include <jni.h>
+#endif
 
 using namespace rapidxml;
 
@@ -72,11 +75,11 @@ namespace OIC
             *
             * @return config pointer Address.
             */
-            static Config *Getinstance()
+            static Config *Getinstance(void *args = NULL)
             {
                 if (NULL == s_configinstance)
                 {
-                    s_configinstance = new Config();
+                    s_configinstance = new Config(args);
                 }
 
                 return s_configinstance;
@@ -89,12 +92,13 @@ namespace OIC
             static Config *s_configinstance;
             typedef std::map<std::string, std::string> configmap;
             configmap m_configurationMap;
+
             /**
             * Constructor for Config.
             * During construction time, configuration file  will be loaded.
             *
             */
-            Config();
+            Config(void *args = NULL);
 
             /**
             * Virtual destructor
@@ -114,7 +118,7 @@ namespace OIC
             }
             void setValue(const std::string key, const std::string value);
             PMRESULT loadConfigFile(const std::string configfilepath);
-            PMRESULT parsing(std::vector<char> buffer, xml_document<> *doc);
+            PMRESULT parsing(char *xmlData, xml_document<> *doc);
             PMRESULT getXmlData(  xml_node<> *pluginInfo, std::string key);
     };
 }

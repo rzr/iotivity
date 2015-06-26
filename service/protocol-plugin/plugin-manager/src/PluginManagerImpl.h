@@ -20,14 +20,17 @@
 
 /// @file PluginManagerImpl.h
 
-/// @brief
+/// @brief PluginManagerImple provides abstraction of the plugin manager interface
 
 #ifndef __PLUGINMANAGERIMPL_H__
 #define __PLUGINMANAGERIMPL_H__
 
 #include "Plugin.h"
 #include "CpluffAdapter.h"
+
+#ifdef ANDROID
 #include "FelixAdapter.h"
+#endif
 
 namespace OIC
 {
@@ -40,7 +43,7 @@ namespace OIC
             * During construction time, all plugins under the root plugin path will be loaded.
             *
             */
-            PluginManagerImpl();
+            PluginManagerImpl(void *args);
 
             /**
             * Virtual destructor
@@ -59,7 +62,6 @@ namespace OIC
             *
             */
             int registerPlugin(std::string path);
-
 
 
             /**
@@ -174,11 +176,11 @@ namespace OIC
             */
             virtual std::vector<Plugin> &getAllPlugins(void);
 
-            static PluginManagerImpl *Getinstance()
+            static PluginManagerImpl *Getinstance(void *args)
             {
                 if (NULL == s_pinstance)
                 {
-                    s_pinstance = new PluginManagerImpl();
+                    s_pinstance = new PluginManagerImpl(args);
                 }
 
                 return s_pinstance;
@@ -187,7 +189,10 @@ namespace OIC
         private:
 
             CpluffAdapter *cppm;
+            void *m_args;
+#ifdef ANDROID
             FelixAdapter *javappm;
+#endif
 
             std::vector<Plugin> m_plugins;
             static PluginManagerImpl *s_pinstance;

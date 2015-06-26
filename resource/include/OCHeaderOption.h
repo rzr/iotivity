@@ -18,10 +18,12 @@
 //
 //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
-/// @file OCHeaderOption.h
-
-/// @brief  This file contains the declaration of classes and its members related to
-///         OCHeaderOption.
+/**
+ * @file
+ *
+ * This file contains the declaration of classes and its members related to
+ * OCHeaderOption.
+ */
 
 #ifndef __OCHEADEROPTION_H
 #define __OCHEADEROPTION_H
@@ -63,6 +65,16 @@ namespace OC
                     throw OCException(OC::Exception::OPTION_ID_RANGE_INVALID);
                 }
             }
+
+            virtual ~OCHeaderOption(){}
+
+            OCHeaderOption(const OCHeaderOption&) = default;
+
+            OCHeaderOption(OCHeaderOption&&) = default;
+
+            OCHeaderOption& operator=(const OCHeaderOption&) = default;
+
+            OCHeaderOption& operator=(OCHeaderOption&&) = default;
 
             /**
             * API to get Option ID

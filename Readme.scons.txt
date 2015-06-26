@@ -1,3 +1,33 @@
+== Quick guide: build and run IoTivity projects on Ubuntu ==
+
+1. Build
+	Go to the top directory of 'iotivity' project(Note: should always run 'scons'
+command in this directory)
+
+    Install external libraries:
+      $ sudo apt-get install libboost-dev libboost-program-options-dev libexpat1-dev libboost-thread-dev uuid-dev
+
+    Build release binaries:
+      $ scons
+(Note: C++ sdk requires cereal. Please follow the instruction in the build
+message to install cereal)
+
+    Build debug binaries:
+      $scons RELEASE=false
+
+    Help:
+      $ scons -h
+
+    Clear:
+      $ scons -c
+
+2. Run the samples
+      $ export LD_LIBRARY_PATH=<iotivity>/out/linux/x86_64/release
+      Run the c++ samples in <iotivity>/out/linux/x86_64/release/resource/examples
+      Run the c samples in <iotivity>/out/linux/x86_64/release/resource/csdk/stack/samples/linux/SimpleClientServer
+('<iotivity>' is the path to 'iotivity' project. If your device is x86, arm,
+or arm64, please change 'x86_64' to the proper arch)
+
 == How to build IoTivity projects ==
 
 IoTivity includes a series of projects. You can find all these projects here:
@@ -8,7 +38,7 @@ Linux, Tizen, Android, Arduino, Windows, MAC OSX, IOS ...).
 The output of the build is in:
   <top directory of the project>/out/<target_os>/<target_arch>/<build_type>/
 e.g.
-	oic-resource/out/android/armeabi-v7a/release/.
+	iotivity/out/android/armeabi-v7a/release/.
 
 This document takes 'iotivity' project as example, the way to build other
 projects is almost the same.
@@ -26,7 +56,16 @@ information(include build options). To see the help information:
       $ scons [options] -h
 
 Note: If no value is specified for an option, the default value will be used.
-The change of options value may impact the output.
+The change of options value may impact the help information and the behavior
+of the building.
+
+Generally, it's required to specify the target OS and target ARCH, that's to say
+tell Scons which OS and which ARCH you'd like build this project for. By default,
+the target OS and ARCH is the same as the host.
+
+Some more options may be required, please care the 'error' notification when build.
+For help about how to set an option, please run:
+     $ scons TARGET_OS=xxx TARGET_ARCH=yyy [XXX=zzz ...] -h
 
 
 === Prerequites ===
@@ -46,7 +85,7 @@ To build for Android, Andorid NDK and SDK are required.
   Android NDK: http://developer.android.com/tools/sdk/ndk/index.html
   Android SDK: http://developer.android.com/sdk/index.html
 (Note: as in some IoTivity projects, C++11 features are used, recommend Android
- NDK >= r10, according to our test result r10c is the best one currently)
+ NDK >= r10)
 
 Arduino:
 To build for Arduino, Arduino IDE is required.
@@ -76,33 +115,32 @@ Java codes, this isn't required)
 so you don't need to add it in command line each time. The build script will
 guide you to do that.)
 
-* 3. External libraries
-For Android and IOS build, most of the external libraries are provided as
-binary in oic-utilities project (https://oic-review.01.org/gerrit/oic-utilities).
-Please download it in the same directory as other IoTivity projects. If it's
-in different directory, an additional option (OIC_UITLS) will be required. The
-build command should be:
-      $ scons OIC_UITLS=<path to oic-utilities> [other options] [target]
+Tizen:
+To build for tizen platform cereal library is needed.
+Please download cereal if it is not present in extlibs/cereal folder
+and apply the patch as following:
+	$ git clone https://github.com/USCiLab/cereal.git extlibs/cereal/cereal
+	$ cd  extlibs/cereal/cereal
+	$ git reset --hard 7121e91e6ab8c3e6a6516d9d9c3e6804e6f65245
+	$ git apply ../../../resource/patches/cereal_gcc46.patch
 
-(Note: for convenience, you can also add it in environment variable. So you
-don't need to add this option in command line each time.)
-  e.g.:
-      $ export OIC_UITLS=<path to oic-utilities project>
+
+* 3. External libraries
+IoTivity project depends on some external libraries, such as boost, expat ...
+During building, the existence of external library will be checked, if it doesn't
+exist, the build script will try to download, unpack and build the library or
+notify user to install it.
+
+Downloading and unpacking may fail due to network problem or required unpacking
+tool isn't installed. An message will be displayed, please follow the message
+to skip it.
 
 
 === Build IoTivity project on Linux(Ubuntu) ===
 
-Generally, it's required to specify the target OS and target ARCH, that's to say
-tell Scons which OS and which ARCH you'd like build this project for. By default,
-the target OS and ARCH is the same as the host.
-
-Some more options may be required, please care the 'error' notification when build.
-For help about how to set an option, please run:
-	$ scons TARGET_OS=xxx TARGET_ARCH=yyy [XXX=zzz ...] -h
-
 1. Build IoTivity project for Linux
       $ cd <top directory of the project>
-      $ sudo apt-get install libboost-dev libboost-program-options-dev libexpat1-dev
+      $ sudo apt-get install libboost-dev libexpat1-dev libboost-thread-dev
       $ scons
 
 2. Build IoTivity project for Android
@@ -110,10 +148,6 @@ For help about how to set an option, please run:
       $ scons TARGET_OS=android TARGET_ARCH=xxx
 (xxx can be x86, armeabi, armeabi-v7a, armeabi-v7a-hard. To see all of its
 allowed value, please execute command 'scons TARGET_OS=android -Q -h')
-
-Note: Currently as x86_64/arm64_v8a external library binaries aren't provided,
-you may meet link problem if build executable binary which depends on external
-library for x86_64/arm64_v8a.
 
 3. Build IoTivity project for Arduino
       $ cd <top directory of the project>
@@ -127,13 +161,13 @@ it's unnecessary to specify it)
 
 4. Build Iotivity project for Tizen
       $ cd <top directory of the project>
-      $ gbs build -A xxx --packaging-dir tools/tizen/
-(xxx can be i586 or armv7l, we provide the spec file required by gbs tool at
-toools/tizen directory. gbs is default build tool for Tizen platfrom, we can
-refer the following wiki to setup Tizen development environment:
+      $ sh gbsbuild.sh
+(we provide the spec file required by gbs tool at toools/tizen directory.
+gbs is default build tool for Tizen platfrom, we can refer the following
+wiki to setup Tizen development environment:
 https://source.tizen.org/documentation/developer-guide/getting-started-guide)
 
-=== Build IoTivity project on Windows ===
+=== Build IoTivity project on Android ===
 
 1. Build IoTivity project for Android(It's the same as on Ubuntu)
       $ cd <top directory of the project>
@@ -183,7 +217,7 @@ Note:
 at once. Following is the usage:
 
 To build:
-     $ auto_build.sh <path-to-android-ndk> <path-to-arduino-home>
+     $ auto_build.sh <path-to-android-ndk>
 To clean:
      $ auto_build.sh -c
 

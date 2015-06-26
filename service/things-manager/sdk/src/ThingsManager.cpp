@@ -18,7 +18,10 @@
 //
 //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
-/// @file    ThingsManager.cpp
+/**
+ * @file
+ *
+ */
 
 #include "ThingsManager.h"
 #include "GroupManager.h"
@@ -76,6 +79,13 @@ namespace OIC
         return result;
     }
 
+    OCStackResult ThingsManager::bindResourceToGroup(OCResourceHandle& childHandle, std::shared_ptr< OCResource > resource, OCResourceHandle& collectionHandle)
+    {
+        OCStackResult result = g_groupManager->bindResourceToGroup(childHandle,resource,collectionHandle);
+
+        return result;
+    }
+
     OCStackResult ThingsManager::findGroup(std::vector< std::string > collectionResourceTypes,
             FindCallback callback)
     {
@@ -113,6 +123,13 @@ namespace OIC
         OCStackResult result = g_groupSync->leaveGroup(collectionResourceType, resourceHandle);
 
         return result;
+    }
+
+    OCStackResult ThingsManager::leaveGroup(const std::shared_ptr< OCResource > resource,
+                            std::string collectionResourceType,
+                            OCResourceHandle resourceHandle)
+    {
+        return g_groupSync->leaveGroup(resource, collectionResourceType, resourceHandle);
     }
 
     void ThingsManager::deleteGroup(std::string collectionResourceType)
@@ -174,6 +191,16 @@ namespace OIC
             std::string actionsetName, PostCallback cb)
     {
         return g_groupManager->executeActionSet(resource, actionsetName, cb);
+    }
+    OCStackResult ThingsManager::executeActionSet(std::shared_ptr< OCResource > resource,
+                    std::string actionsetName, long int delay, PostCallback cb)
+    {
+        return g_groupManager->executeActionSet(resource, actionsetName, delay, cb);
+    }
+    OCStackResult ThingsManager::cancelActionSet(std::shared_ptr< OCResource > resource,
+                    std::string actionsetName, PostCallback cb)
+    {
+        return g_groupManager->cancelActionSet(resource, actionsetName, cb);
     }
     OCStackResult ThingsManager::getActionSet(std::shared_ptr< OCResource > resource,
             std::string actionsetName, GetCallback cb)

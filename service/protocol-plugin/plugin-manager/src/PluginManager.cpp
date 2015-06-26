@@ -29,22 +29,32 @@ using namespace OIC;
 
 PluginManager::PluginManager()
 {
+/**
+ * For Tizen Platform, specifiy the absolute location of dynamic library. It is required for
+ * Tizen 2.3 EFL App to work.
+ */
+#ifdef __TIZEN__
+    handle = dlopen("/opt/usr/apps/org.iotivity.service.ppm.ppmsampleapp/lib/libpmimpl.so",
+                                                                                        RTLD_LAZY);
+#else
     handle = dlopen("./libpmimpl.so", RTLD_LAZY);
+#endif //#ifdef __TIZEN__
+
     if (!handle)
     {
         fprintf(stderr, "%s\n", dlerror());
         exit(EXIT_FAILURE);
     }
-    PluginManagerImpl* (*create)();
-    create = (PluginManagerImpl * (*)())dlsym(handle, "create_object");
+    PluginManagerImpl* (*create)(void *);
+    create = (PluginManagerImpl * (*)(void *))dlsym(handle, "create_object");
     destroy = (void (*)(PluginManagerImpl *))dlsym(handle, "destroy_object");
-    pluginManagerImpl = (PluginManagerImpl *)create();
+    pluginManagerImpl = (PluginManagerImpl *)create(NULL);
 }
 
 PluginManager::~PluginManager(void)
 {
     destroy(pluginManagerImpl);
-    free(handle);
+    dlclose(handle);
 }
 
 int PluginManager::startPlugins(const std::string key, const std::string value)

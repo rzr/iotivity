@@ -73,7 +73,7 @@ struct plugin_data_t
     bool flag;
 };
 
-
+struct mosquitto *myMosquitto;
 class FanResource
 {
     public:
@@ -176,6 +176,14 @@ class FanResource
                 if (rep.getValue("power", m_power))
                 {
                     cout << "\t\t\t\t" << "power: " << m_power << endl;
+                    if (m_power == 1)
+                    {
+                        mosquitto_publish(myMosquitto, NULL, "actuators/fan", 32, "onfan", 0, true);
+                    }
+                    else
+                    {
+                        mosquitto_publish(myMosquitto, NULL, "actuators/fan", 32, "offfan", 0, true);
+                    }
                 }
                 else
                 {
@@ -260,12 +268,6 @@ class FanResource
                 std::string requestType = request->getRequestType();
                 int requestFlag = request->getRequestHandlerFlag();
 
-                if (requestFlag & RequestHandlerFlag::InitFlag)
-                {
-                    cout << "\t\trequestFlag : Init\n";
-
-                    // entity handler to perform resource initialization operations
-                }
                 if (requestFlag & RequestHandlerFlag::RequestFlag)
                 {
                     cout << "\t\trequestFlag : Request   ===  Handle by FanServer\n";
@@ -384,7 +386,6 @@ class FanResource
 };
 
 // Create the instance of the resource class (in this case instance of class 'FanResource').
-struct mosquitto *myMosquitto;
 
 // ChangeFanRepresentaion is an observation function,
 // which notifies any changes to the resource to stack
@@ -491,8 +492,12 @@ void *start_fanserver(void *d)      // 2
             printf("Mosquitto is working\n");
         }
 
-        mosquitto_connect(myMosquitto, "127.0.0.1", 1883, 60);
-        printf("Mosquitto Connection is done\n");
+        if (mosquitto_connect(myMosquitto, "127.0.0.1", 1883, 60) != MOSQ_ERR_SUCCESS)
+        {
+            printf("Mosquitto Connection is failed.\n");
+            pthread_exit((void *)0);
+        }
+        printf("Mosquitto Connection is done.\n");
         myFanResource.createResource();
         // Get time of day
         timer = time(NULL);

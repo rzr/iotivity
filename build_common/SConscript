@@ -15,14 +15,14 @@ host_target_map = {
 # Map of os and allowed archs (os: allowed archs)
 os_arch_map = {
 		'linux': ['x86', 'x86_64', 'arm', 'arm64'],
-		'tizen': ['x86', 'x86_64', 'arm', 'arm64'],
+		'tizen': ['x86', 'x86_64', 'arm', 'arm64', 'armeabi-v7a'],
 		'android': ['x86', 'x86_64', 'armeabi', 'armeabi-v7a', 'armeabi-v7a-hard', 'arm64-v8a'],
 		'windows': ['x86', 'amd64', 'arm'],
 		'winrt': ['arm'],
 		'darwin': ['i386', 'x86_64'],
 		'ios': ['i386', 'x86_64', 'armv7', 'armv7s', 'arm64'],
 		'arduino': ['avr', 'arm'],
-		'yocto': ['x86', 'x86_64'],
+		'yocto': ['i586', 'x86_64', 'arm', 'powerpc', 'powerpc64', 'mips', 'mipsel'],
 		}
 
 host = platform.system().lower()
@@ -46,18 +46,42 @@ if default_arch not in os_arch_map[target_os]:
 
 target_arch = ARGUMENTS.get('TARGET_ARCH', default_arch) # target arch
 
+# True if binary needs to be installed on board. (Might need root permissions)
+# set to 'no', 'false' or 0 for only compilation
+require_upload = ARGUMENTS.get('UPLOAD', False)
+
+if ARGUMENTS.get('TEST'):
+	logging_default = False
+else:
+	logging_default = (ARGUMENTS.get('RELEASE', True) == 'false')
+
+
+
 ######################################################################
 # Common build options (release, target os, target arch)
 ######################################################################
+targets_disallow_multitransport = ['arduino']
+
 help_vars = Variables()
+help_vars.Add(BoolVariable('VERBOSE', 'Show compilation', False))
 help_vars.Add(BoolVariable('RELEASE', 'Build for release?', True)) # set to 'no', 'false' or 0 for debug
 help_vars.Add(EnumVariable('TARGET_OS', 'Target platform', host, host_target_map[host]))
-help_vars.Add(EnumVariable('TARGET_ARCH', 'Target architecture', default_arch, os_arch_map[target_os]))
 
+if target_os in targets_disallow_multitransport:
+    help_vars.Add(ListVariable('TARGET_TRANSPORT', 'Target transport', 'IP', ['BT', 'BLE', 'IP']))
+else:
+    help_vars.Add(ListVariable('TARGET_TRANSPORT', 'Target transport', 'ALL', ['ALL', 'BT', 'BLE', 'IP']))
+
+help_vars.Add(EnumVariable('TARGET_ARCH', 'Target architecture', default_arch, os_arch_map[target_os]))
+help_vars.Add(EnumVariable('SECURED', 'Build with DTLS', '0', allowed_values=('0', '1')))
+help_vars.Add(EnumVariable('TEST', 'Run unit tests', '0', allowed_values=('0', '1')))
+help_vars.Add(BoolVariable('LOGGING', 'Enable stack logging', logging_default))
+help_vars.Add(BoolVariable('UPLOAD', 'Upload binary ? (For Arduino)', require_upload))
+help_vars.Add(EnumVariable('BUILD_SAMPLE', 'Build with sample', 'ON', allowed_values=('ON', 'OFF')))
 ######################################################################
 # Platform(build target) specific options: SDK/NDK & toolchain
 ######################################################################
-targets_support_cc = ['linux', 'arduino']
+targets_support_cc = ['linux', 'arduino', 'tizen']
 
 if target_os in targets_support_cc:
 	# Set cross compile toolchain
@@ -82,6 +106,12 @@ tc_set_msg = '''
 * cause inexplicable errors.                                                  *
 *******************************************************************************
 '''
+if env.get('VERBOSE') == False:
+	env['CCCOMSTR'] = "Compiling $TARGET"
+	env['CXXCOMSTR'] = "Compiling $TARGET"
+	env['LINKCOMSTR'] = "Linking $TARGET"
+	env['ARCOMSTR'] = "Archiving $TARGET"
+	env['RANLIBCOMSTR'] = "Indexing Archive $TARGET"
 
 if target_os in targets_support_cc:
 	prefix = env.get('TC_PREFIX')
@@ -144,8 +174,10 @@ def __install(ienv, targets, name):
 	Alias(name, i_n)
 	env.AppendUnique(TS = [name])
 
-def __append_target(ienv, target):
-	env.AppendUnique(TS = [target])
+def __append_target(ienv, name, targets = None):
+	if targets:
+		env.Alias(name, targets)
+	env.AppendUnique(TS = [name])
 
 def __print_targets(env):
 	Help('''
@@ -166,6 +198,7 @@ env.AddMethod(__src_to_obj, 'SrcToObj')
 env.AddMethod(__append_target, 'AppendTarget')
 env.AddMethod(__install, 'InstallTarget')
 env.SetDir(env.GetLaunchDir())
+env['ROOT_DIR']=env.GetLaunchDir()+'/..'
 
 Export('env')
 
@@ -174,8 +207,8 @@ Export('env')
 ######################################################################
 if target_os == "yocto":
     '''
-    This code injects Yocto cross-compilation tools+flags into scons' 
-    build environment in order to invoke the relevant tools while 
+    This code injects Yocto cross-compilation tools+flags into scons'
+    build environment in order to invoke the relevant tools while
     performing a build.
     '''
     import os.path
@@ -203,6 +236,7 @@ if target_os == "yocto":
                     if os.path.isfile(os.path.join(path, tools[tool])):
                         env[tool] = os.path.join(path, os.environ[tool])
                         break
+        env['CROSS_COMPILE'] = target_prefix[:len(target_prefix) - 1]
     except:
         print "ERROR in Yocto cross-toolchain environment"
         Exit(1)
@@ -213,19 +247,27 @@ if target_os == "yocto":
     env['TARGET_OS'] = 'linux'
     '''
     We want to preserve debug symbols to allow BitBake to generate both DEBUG and
-    RELEASE packages for OIC. 
+    RELEASE packages for OIC.
     '''
-    env['CCFLAGS'].append('-g')
+    env.AppendUnique(CCFLAGS = ['-g'])
+    '''
+    Additional flags to pass to the Yocto toolchain.
+    '''
+    if env.get('RELEASE'):
+        env.AppendUnique(CPPDEFINES = ['NDEBUG'])
+    if env.get('LOGGING'):
+        env.AppendUnique(CPPDEFINES = ['TB_LOG'])
+    env.AppendUnique(CPPDEFINES = ['WITH_POSIX', '__linux__', '_GNU_SOURCE'])
+    env.AppendUnique(CFLAGS = ['-std=gnu99'])
+    env.AppendUnique(CCFLAGS = ['-Wall', '-fPIC'])
+    env.AppendUnique(LINKFLAGS = ['-ldl', '-lpthread'])
     Export('env')
 else:
     '''
     If target_os is not Yocto, continue with the regular build process
     '''
     # Load config of target os
-    if target_os in ['linux', 'tizen']:
-		env.SConscript('linux/SConscript')
-    else:
-		env.SConscript(target_os + '/SConscript')
+    env.SConscript(target_os + '/SConscript')
 
 # Delete the temp files of configuration
 if env.GetOption('clean'):
@@ -233,7 +275,30 @@ if env.GetOption('clean'):
 
 	if os.path.exists(dir + '/config.log'):
 		Execute(Delete(dir + '/config.log'))
+	if os.path.exists(dir + '/.sconsign.dblite'):
 		Execute(Delete(dir + '/.sconsign.dblite'))
+	if os.path.exists(dir + '/.sconf_temp'):
 		Execute(Delete(dir + '/.sconf_temp'))
 
+######################################################################
+# Check for PThreads support
+######################################################################
+import iotivityconfig
+from iotivityconfig import *
+
+conf = Configure(env,
+        custom_tests =
+        {
+            'CheckPThreadsSupport' : iotivityconfig.check_pthreads
+        } )
+
+# Identify whether we have pthreads support, which is necessary for
+# threading and mutexes.  This will set the environment variable
+# POSIX_SUPPORTED, 1 if it is supported, 0 otherwise
+conf.CheckPThreadsSupport()
+
+env = conf.Finish()
+######################################################################
+
+env.SConscript('external_libs.scons')
 Return('env')

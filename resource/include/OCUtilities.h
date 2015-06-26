@@ -27,34 +27,30 @@
 #include <utility>
 #include <exception>
 
-#include "OCException.h"
+#include <OCException.h>
+#include <StringConstants.h>
 
 namespace OC {
     namespace Utilities {
 
         typedef std::map<std::string, std::string> QueryParamsKeyVal;
+
         /*
-         * @brief Helper function to get query parameter from a URI
-         * @remarks      Its okay to return a copy of the container.\
-         *               The size is not expected to be huge.
-         * @remarks      Temporary: The URI must strictly have\
-         *               coap as the protocol in the fully qualified URI\
-         *               e.g., coap://1.2.3.4:5657/foo?bar=0)
-         * @remarks      If a separate class for URI parser is needed,\
-         *               please talk to Erich Keane.
-         * @todo         If more URI elements need to be parsed,\
-         *               please move the common parsing logic to a
-         *               different function
+         * @brief helper function that parses the query parameters component
+         * of a URI into a key-value map.  This function expects the uri
+         * parameter to contain the query parameters component of a URI
+         * (everything after the '?', excluding anything anchors).
+         *
+         * Note that output will not perform URL decoding
          */
         QueryParamsKeyVal getQueryParams(const std::string& uri);
-
     }
 }
 
 /* The C++11 standard unfortunately forgot to provide make_unique<>! However, if we're
 using C++14 or later, we want to take the standard library's implementation: */
-#if defined(__cplusplus) && __cplusplus < 201300
 namespace OC {
+#if defined(__cplusplus) && __cplusplus < 201300
 
     template<typename T, typename ...XS>
     std::unique_ptr<T> make_unique(XS&& ...xs)
@@ -62,14 +58,12 @@ namespace OC {
         return std::unique_ptr<T>(new T(std::forward<XS>(xs)...));
     }
 
-} // namespace OC
 #else
     using std::make_unique;
 #endif
+} // namespace OC
 
 namespace OC {
-
-    using OC::make_unique;
 
     /* Examine an OCStackResult, and either forward its value or raise an exception: */
     OCStackResult result_guard(const OCStackResult r);
@@ -98,4 +92,24 @@ namespace OC {
 
 } // namespace OC
 
+namespace OC
+{
+    template<typename T, typename = void>
+    struct is_vector
+    {
+        constexpr static bool value = false;
+    };
+
+    template<typename T>
+    struct is_vector<T,
+        typename std::enable_if<
+            std::is_same<T, std::vector<typename T::value_type, typename T::allocator_type>>::value
+        >::type
+    >
+    {
+        constexpr static bool value = true;
+    };
+} // namespace OC
+
 #endif
+
