@@ -79,9 +79,9 @@ platform
 extlibs/gtest/gtest-*
 extlibs/hippomocks-master/
 extlibs/master.zip
-extlibs/cereal/cereal
+#extlibs/cereal/cereal
 extlibs/expat/expat*
-extlibs/cereal
+#extlibs/cereal
 extlibs/android/gradle/gradle-2.2.1
 extlibs/android/ndk/android-ndk-r10d
 extlibs/android/sdk/android-sdk_r24.2
