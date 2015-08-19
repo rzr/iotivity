@@ -388,6 +388,11 @@ typedef struct
 
 typedef struct
 {
+    int32_t ifindex;
+} CAIfItem_t;
+
+typedef struct
+{
     CATransportFlags_t clientFlags;
     CATransportFlags_t serverFlags;
     bool client;
@@ -413,12 +418,18 @@ typedef struct
         bool terminate;     // the IP adapter needs to stop
         bool ipv6enabled;   // IPv6 enabled by OCInit flags
         bool ipv4enabled;   // IPv4 enabled by OCInit flags
+
+        struct networkmonitors
+        {
+            CAIfItem_t *ifitems;// current network interface index list
+            int numifitems;     // number of current network interfaces
+        } nm;
     } ip;
 
     struct calayer
     {
-        CATransportFlags_t previousRequestFlags; // address family filtering
-        uint16_t previousRequestMessageId;       // address family filtering
+        CATransportFlags_t previousRequestFlags;/**< address family filtering */
+        uint16_t previousRequestMessageId;      /**< address family filtering */
     } ca;
 } CAGlobals_t;
 

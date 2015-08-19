@@ -303,6 +303,9 @@ CAResult_t CAInitializeIP(CARegisterConnectivityCallback registerCallback,
 CAResult_t CAStartIP()
 {
     OIC_LOG(DEBUG, TAG, "IN");
+#ifdef __TIZEN__
+    CAIPInitializeNetworkMonitor();
+#endif
 
 #ifdef SINGLE_THREAD
     uint16_t unicastPort = 55555;
@@ -429,7 +432,9 @@ CAResult_t CAStopIP()
 
     CAIPDeinitializeQueueHandles();
 #endif
-
+#ifdef __TIZEN__
+    CAIPTerminateNetworkMonitor();
+#endif
     CAIPStopServer();
 
     OIC_LOG(DEBUG, TAG, "OUT");

@@ -20,13 +20,6 @@
 
 #include "caipinterface.h"
 
-#ifndef __APPLE__
-#include <asm/types.h>
-#else
-    #ifndef IPV6_ADD_MEMBERSHIP
-        #define IPV6_ADD_MEMBERSHIP IPV6_JOIN_GROUP
-    #endif
-#endif
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <stdio.h>
@@ -106,6 +99,7 @@ static void CAHandleNetlink();
 static void CAApplyInterfaces();
 static void CAFindReadyMessage();
 static void CASelectReturned(fd_set *readFds, int ret);
+static void CAProcessNewInterface(CAInterface_t *ifchanged);
 static CAResult_t CAReceiveMessage(int fd, CATransportFlags_t flags);
 
 #define SET(TYPE, FDS) \
@@ -201,6 +195,11 @@ static void CASelectReturned(fd_set *readFds, int ret)
         }
         else
         {
+            CAInterface_t *ifchanged = CAFindInterfaceChange();
+            if (ifchanged)
+            {
+                CAProcessNewInterface(ifchanged);
+            }
             break;
         }
 
@@ -468,6 +467,8 @@ CAResult_t CAIPStartServer(const ca_thread_pool_t threadPool)
     // create source of network interface change notifications
     CAInitializeNetlink();
 
+    caglobals.ip.selectTimeout = CAGetPollingInterval(caglobals.ip.selectTimeout);
+
     CAApplyInterfaces();
 
     caglobals.ip.terminate = false;
@@ -502,6 +503,14 @@ void CAIPStopServer()
     OIC_LOG(DEBUG, TAG, "OUT");
 }
 
+void CAWakeUpForChange()
+{
+    if (caglobals.ip.shutdownFds[1] != -1)
+    {
+        write(caglobals.ip.shutdownFds[1], "w", 1);
+    }
+}
+
 static void applyMulticastToInterface4(struct in_addr inaddr)
 {
     if (!caglobals.ip.ipv4enabled)
@@ -532,7 +541,7 @@ static void applyMulticast6(int fd, struct in6_addr *addr, uint32_t interface)
     struct ipv6_mreq mreq;
     mreq.ipv6mr_multiaddr = *addr;
     mreq.ipv6mr_interface = interface;
-    if (setsockopt(fd, IPPROTO_IPV6, IPV6_ADD_MEMBERSHIP, &mreq, sizeof (mreq)))
+    if (setsockopt(fd, IPPROTO_IPV6, IPV6_JOIN_GROUP, &mreq, sizeof (mreq)))
     {
         if (EADDRINUSE != errno)
         {
@@ -600,6 +609,14 @@ static void CAApplyInterfaces()
     u_arraylist_destroy(iflist);
 }
 
+static void CAProcessNewInterface(CAInterface_t *ifitem)
+{
+    applyMulticastToInterface6(ifitem->index);
+    struct in_addr inaddr;
+    inaddr.s_addr = ifitem->ipv4addr;
+    applyMulticastToInterface4(inaddr);
+}
+
 static void CAHandleNetlink()
 {
 #ifdef __linux__
@@ -638,10 +655,7 @@ for (nh = (struct nlmsghdr *)buf; NLMSG_OK(nh, len); nh = NLMSG_NEXT(nh, len))
                 continue;
             }
 
-            applyMulticastToInterface6(newIndex);
-            struct in_addr inaddr;
-            inaddr.s_addr = ifitem->ipv4addr;
-            applyMulticastToInterface4(inaddr);
+            CAProcessNewInterface(ifitem);
             break;  // we found the one we were looking for
         }
         u_arraylist_destroy(iflist);
