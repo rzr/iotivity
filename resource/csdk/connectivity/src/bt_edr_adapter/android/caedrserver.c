@@ -32,7 +32,8 @@
 #include "camutex.h"
 #include "uarraylist.h"
 #include "caadapterutils.h"
-#include "org_iotivity_jar_caedrinterface.h"
+#include "org_iotivity_ca_CaEdrInterface.h"
+#include "oic_string.h"
 
 //#define DEBUG_MODE
 #define TAG PCF("CA_EDR_SERVER")

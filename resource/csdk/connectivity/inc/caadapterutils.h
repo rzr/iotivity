@@ -32,6 +32,10 @@
 #include <jni.h>
 #endif
 
+#ifndef WITH_ARDUINO
+#include <sys/socket.h>
+#endif
+
 #include "cacommon.h"
 #include "logger.h"
 #include "pdu.h"
@@ -83,8 +87,9 @@ extern "C"
  */
 #define IPV4_ADDR_ONE_OCTECT_LEN 4
 
+#ifdef SINGLE_THREAD
 /**
- * @brief Network Interface Information.
+ * @brief Network Interface Information. Only needed for Arduino.
  */
 typedef struct
 {
@@ -92,6 +97,7 @@ typedef struct
     char subnetMask[CA_IPADDR_SIZE];            /**< Maintains interface subnetmask **/
     char interfaceName[CA_INTERFACE_NAME_SIZE]; /**< Interface  name**/
 } CANetInfo_t;
+#endif
 
 /**
  * @brief unicast and multicast server information.
@@ -99,9 +105,7 @@ typedef struct
 typedef struct
 {
     int socketFd;                               /**< Socket decriptor **/
-    char ipAddress[CA_IPADDR_SIZE];             /**< Address of the ip **/
-    uint16_t port;                              /**< Server port number **/
-    bool isSecured;                             /**< Indicates secured server **/
+    CAEndpoint_t endpoint;                      /**< endpoint description **/
     bool isServerStarted;                       /**< Indicates server started **/
     bool isMulticastServer;                     /**< Indicates multicast server **/
     char ifAddr[CA_IPADDR_SIZE];                /**< Address of the multicast interface  **/
@@ -113,44 +117,6 @@ typedef struct
  * @brief To log the PDU data
  */
 void CALogPDUData(coap_pdu_t *pdu);
-
-/**
- * @fn CAAdapterCreateLocalEndpoint
- * @brief Create CALocalConnectivity_t instance.
- */
-CALocalConnectivity_t *CAAdapterCreateLocalEndpoint(CATransportType_t type, const char *address);
-
-/**
- * @fn CAAdapterCopyLocalEndpoint
- * @brief Create CALocalConnectivity_t duplicate instance.
- */
-CALocalConnectivity_t *CAAdapterCopyLocalEndpoint(const CALocalConnectivity_t *connectivity);
-
-/**
- * @fn CAAdapterFreeLocalEndpoint
- * @brief Deallocate CALocalConnectivity_t instance.
- */
-void CAAdapterFreeLocalEndpoint(CALocalConnectivity_t *localEndPoint);
-
-/**
- * @fn CAAdapterCreateRemoteEndpoint
- * @brief Allocate CARemoteEndpoint_t instance.
- */
-CARemoteEndpoint_t *CAAdapterCreateRemoteEndpoint(CATransportType_t type, const char *address,
-                                                  const char *resourceUri);
-
-/**
- * @fn CAAdapterCopyRemoteEndpoint
- * @brief Create CARemoteEndpoint_t duplicate instance.
- */
-CARemoteEndpoint_t *CAAdapterCopyRemoteEndpoint(
-    const CARemoteEndpoint_t *remoteEndpoint);
-
-/**
- * @fn CAAdapterFreeRemoteEndpoint
- * @brief Deallocate CARemoteEndpoint_t instance.
- */
-void CAAdapterFreeRemoteEndpoint(CARemoteEndpoint_t *remoteEndPoint);
 
 /**
  * @fn CAParseIPv4AddressInternal
@@ -215,15 +181,13 @@ uint16_t CAGetServerPort(const u_arraylist_t *serverInfoList, const char *ipAddr
  * @brief  Used to get the socket fd for given server information.
  *
  * @param   serverInfoList  [IN] Server information list.
- * @param   ipAddress       [IN] Ip address of the server.
- * @param   isSecured       [IN] To check whether it is secured server or not.
  * @param   isMulticast     [IN] To check whether it is multicast server or not.
- * @param   type            [IN] CA_IPV4, CA_IPV6 etc.
+ * @param   endpoint        [IN] network address
 
  * @return  positive value on success and -1 on error.
  */
-int CAGetSocketFdForUnicastServer(const u_arraylist_t *serverInfoList, const char *ipAddress,
-                                  bool isSecured, bool isMulticast, CATransportType_t type);
+int CAGetSocketFdForUnicastServer(const u_arraylist_t *serverInfoList,
+                         bool isMulticast, const CAEndpoint_t *endpoint);
 
 /**
  * @brief  Used to add the server information into serverinfo list
@@ -267,6 +231,22 @@ void CAClearNetInterfaceInfoList(u_arraylist_t *infoList);
  * @return  None
  */
 void CAClearServerInfoList(u_arraylist_t *serverInfoList);
+
+/**
+ * @brief   Convert address from binary to string
+ * @param   ipaddr  [IN] IP address info
+ * @param   host    [OUT] address string (must be CA_IPADDR_SIZE)
+ * @param   port    [OUT] host order port number
+ */
+void CAConvertAddrToName(const struct sockaddr_storage *sockaddr, char *host, uint16_t *port);
+
+/**
+ * @brief   Convert address from string to binary
+ * @param   host    [IN] address string
+ * @param   port    [IN] host order port number
+ * @param   ipaddr  [OUT] IP address info
+ */
+void CAConvertNameToAddr(const char *host, uint16_t port, struct sockaddr_storage *sockaddr);
 
 #ifdef __ANDROID__
 /**

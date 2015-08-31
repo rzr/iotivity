@@ -47,6 +47,7 @@ extern "C" {
 // Global variables
 //-----------------------------------------------------------------------------
 extern OCDeviceEntityHandler defaultDeviceHandler;
+extern void* defaultDeviceHandlerCallbackParameter;
 
 //-----------------------------------------------------------------------------
 // Defines
@@ -68,19 +69,15 @@ typedef struct
     // resource query send by client
     char query[MAX_QUERY_LENGTH];
     // reqJSON is retrieved from the payload of the received request PDU
-    char reqJSONPayload[MAX_REQUEST_LENGTH];
+    uint8_t payload[MAX_REQUEST_LENGTH];
     // qos is indicating if the request is CON or NON
     OCQualityOfService qos;
     // An array of the received vendor specific header options
     uint8_t numRcvdVendorSpecificHeaderOptions;
     OCHeaderOption rcvdVendorSpecificHeaderOptions[MAX_HEADER_OPTIONS];
 
-    /** Remote Endpoint address **/
-    //////////////////////////////////////////////////////////
-    // TODO: bundle this up as endpoint
-    CAAddress_t addressInfo;
-    /** Connectivity of the endpoint**/
-    CATransportType_t connectivityType;
+    /** Remote endpoint address **/
+    OCDevAddr devAddr;
 
     //token for the observe request
     CAToken_t requestToken;
@@ -88,8 +85,6 @@ typedef struct
     // The ID of CoAP pdu
     uint16_t coapID;
     uint8_t delayedResNeeded;
-    uint8_t secured;
-    //////////////////////////////////////////////////////////
     uint8_t reqMorePacket;
     uint32_t reqPacketNum;
     uint16_t reqPacketSize;
@@ -135,21 +130,25 @@ OCStackResult OCStackFeedBack(CAToken_t token, uint8_t tokenLength, uint8_t stat
 
 OCStackResult HandleStackRequests(OCServerProtocolRequest * protocolRequest);
 
-OCStackResult SendDirectStackResponse(const CARemoteEndpoint_t* endPoint, const uint16_t coapID,
+OCStackResult SendDirectStackResponse(const CAEndpoint_t* endPoint, const uint16_t coapID,
         const CAResponseResult_t responseResult, const CAMessageType_t type,
         const uint8_t numOptions, const CAHeaderOption_t *options,
         CAToken_t token, uint8_t tokenLength);
 
-
 #ifdef WITH_PRESENCE
+
 /**
  * Notify Presence subscribers that a resource has been modified.
  *
  * @param resourceType Handle to the resourceType linked list of resource
  *                     that was modified.
+ * @param trigger The simplified reason this API was invoked. Valid values are
+ *                  @ref OC_PRESENCE_TRIGGER_CREATE, @ref OC_PRESENCE_TRIGGER_CHANGE,
+ *                  @ref OC_PRESENCE_TRIGGER_DELETE.
  * @return ::OC_STACK_OK on success, some other value upon failure.
  */
-OCStackResult SendPresenceNotification(OCResourceType *resourceType);
+OCStackResult SendPresenceNotification(OCResourceType *resourceType,
+        OCPresenceTrigger trigger);
 
 /**
  * Send Stop Notification to Presence subscribers.
@@ -235,6 +234,14 @@ CAMessageType_t qualityOfServiceToMessageType(OCQualityOfService qos);
 OCStackResult OCChangeResourceProperty(OCResourceProperty * inputProperty,
         OCResourceProperty resourceProperties, uint8_t enable);
 #endif
+
+const char *convertTriggerEnumToString(OCPresenceTrigger trigger);
+
+OCPresenceTrigger convertTriggerStringToEnum(const char * triggerStr);
+
+void CopyEndpointToDevAddr(const CAEndpoint_t *in, OCDevAddr *out);
+
+void CopyDevAddrToEndpoint(const OCDevAddr *in, CAEndpoint_t *out);
 
 #ifdef __cplusplus
 }

@@ -30,18 +30,34 @@
  * These details are exposed in ocstackconfig.h file in the form of documentation.
  * Remember to update the documentation there if these are changed.
  */
-#define OC_JSON_PREFIX                     "{\"oc\":["
+#define OC_JSON_PREFIX                     "{\"oic\":["
 #define OC_JSON_PREFIX_LEN                 (sizeof(OC_JSON_PREFIX) - 1)
 #define OC_JSON_SUFFIX                     "]}"
 #define OC_JSON_SUFFIX_LEN                 (sizeof(OC_JSON_SUFFIX) - 1)
 #define OC_JSON_SEPARATOR                  ','
 #define OC_JSON_SEPARATOR_STR              ","
+#define OC_KEY_VALUE_DELIMITER             "="
 
 /**
  * Static values for various JSON attributes.
  */
 #define OC_RESOURCE_OBSERVABLE   1
 #define OC_RESOURCE_SECURE       1
+
+/**
+ * OIC Virtual resources supported by every OIC device.
+ */
+typedef enum
+{
+    OC_UNKNOWN_URI =0,
+    OC_WELL_KNOWN_URI,          ///< "/oic/res"
+    OC_DEVICE_URI,              ///< "/oic/d"
+    OC_PLATFORM_URI,            ///< "/oic/p"
+    OC_RESOURCE_TYPES_URI,      ///< "/oic/res/types/d"
+#ifdef WITH_PRESENCE
+    OC_PRESENCE,                ///< "/oic/ad"
+#endif
+} OCVirtualResources;
 
 /**
  * The type of query a request/response message is.
@@ -74,12 +90,7 @@ typedef enum
  * no entity handler.
  */
 OCEntityHandlerResult defaultResourceEHandler(OCEntityHandlerFlag flag,
-        OCEntityHandlerRequest * request);
-
-/**
- * Get string value associated with a virtual resource type.
- */
-const char * GetVirtualResourceUri(OCVirtualResources resource);
+        OCEntityHandlerRequest * request, void* callbackParam);
 
 /**
  * Find and retrieve pointer to a resource associated with a specific resource
@@ -116,6 +127,14 @@ OCStackResult ProcessRequest(ResourceHandling resHandling,
 OCStackResult SavePlatformInfo(OCPlatformInfo info);
 
 /**
+ * Internal API used to save all of the device's information for use in platform
+ * discovery requests.
+ * The device name is received from the appliation.
+ * The deviceID, spec version and data model verson are initialized by the stack.
+ */
+OCStackResult SaveDeviceInfo(OCDeviceInfo info);
+
+/**
  * Internal API used to clear the platform information.
  */
 void DeletePlatformInfo();
@@ -125,15 +144,18 @@ void DeletePlatformInfo();
  */
 void DeleteDeviceInfo();
 
+/*
+ * Prepare payload for resource representation.
+ */
+OCStackResult BuildResponseRepresentation(const OCResource *resourcePtr,
+                    OCRepPayload** payload);
+
 /**
- * Prepares a JSON string for response.
+ * Prepares a Payload for response.
  */
 OCStackResult BuildVirtualResourceResponse(const OCResource *resourcePtr,
-                                           uint8_t filterOn,
-                                           const char *filterValue,
-                                           char * out,
-                                           uint16_t *remaining,
-                                           CATransportType_t connType);
+                                           OCDiscoveryPayload* payload,
+                                           OCDevAddr *endpoint);
 
 /**
  * A helper function that Maps an @ref OCEntityHandlerResult type to an

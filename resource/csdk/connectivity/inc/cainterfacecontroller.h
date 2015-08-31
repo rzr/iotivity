@@ -28,19 +28,30 @@
 #define CA_INTERFACE_CONTROLLER_H_
 
 #include "caadapterinterface.h"
+
+#ifndef SINGLE_THREAD
 #include "cathreadpool.h" /* for thread pool */
+#endif
 
 #ifdef __cplusplus
 extern "C"
 {
 #endif
 
+#ifdef SINGLE_THREAD
+/**
+ * @brief   Initializes different adapters based on the compilation flags.
+ * @return   none
+ */
+void CAInitializeAdapters();
+#else
 /**
  * @brief   Initializes different adapters based on the compilation flags.
  * @param   handle         [IN]    thread pool handle created by message handler for different adapters.
  * @return  none
  */
 void CAInitializeAdapters(ca_thread_pool_t handle);
+#endif
 
 /**
  * @brief   Set the received packets callback for message handler
@@ -48,6 +59,13 @@ void CAInitializeAdapters(ca_thread_pool_t handle);
  * @return  none
  */
 void CASetPacketReceivedCallback(CANetworkPacketReceivedCallback callback);
+
+/**
+ * @brief   Set the error handler callback for message handler
+ * @param   errorCallback       [IN]    error handler callback from adapters
+ * @return  none
+ */
+void CASetErrorHandleCallback(CAErrorHandleCallback errorCallback);
 
 /**
  * @brief   Set the network status changed callback for message handler
@@ -61,14 +79,24 @@ void CASetNetworkChangeCallback(CANetworkChangeCallback callback);
  * @param   transportType   [IN]    interested network for starting
  * @return  CA_STATUS_OK or ERROR CODES ( CAResult_t error codes in cacommon.h)
  */
-CAResult_t CAStartAdapter(CATransportType_t transportType);
+CAResult_t CAStartAdapter(CATransportAdapter_t transportType);
 
 /**
  * @brief   Stopping different connectivity adapters based on the network un-selection.
  * @param   transportType   [IN]    network type that want to stop
  * @return  none
  */
-void CAStopAdapter(CATransportType_t transportType);
+void CAStopAdapter(CATransportAdapter_t transportType);
+
+#ifdef RA_ADAPTER
+/**
+ * @brief   Set Remote Access information for XMPP Client.
+ * @param   caraInfo            [IN] remote access info.
+ *
+ * @return  CA_STATUS_OK
+ */
+CAResult_t CASetAdapterRAInfo(const CARAInfo_t *caraInfo);
+#endif
 
 /**
  * @brief   Get network information such as ipaddress and mac information
@@ -76,7 +104,7 @@ void CAStopAdapter(CATransportType_t transportType);
  * @param   size           [OUT]    number of connectivity information structures
  * @return  CA_STATUS_OK or ERROR CODES ( CAResult_t error codes in cacommon.h)
  */
-CAResult_t CAGetNetworkInfo(CALocalConnectivity_t **info, uint32_t *size);
+CAResult_t CAGetNetworkInfo(CAEndpoint_t **info, uint32_t *size);
 
 /**
  * @brief   Sends unicast data to the remote endpoint
@@ -85,16 +113,17 @@ CAResult_t CAGetNetworkInfo(CALocalConnectivity_t **info, uint32_t *size);
  * @param   length         [IN]    length of the data that needs to be sent
  * @return  CA_STATUS_OK or ERROR CODES ( CAResult_t error codes in cacommon.h)
  */
-CAResult_t CASendUnicastData(const CARemoteEndpoint_t *endpoint, const void *data, uint32_t length);
+CAResult_t CASendUnicastData(const CAEndpoint_t *endpoint, const void *data, uint32_t length);
 
 /**
  * @brief   Sends multicast data to all endpoints in the network.
+ * @param   endpoint       [IN]    endpoint information where the data has to be sent
  * @param   data           [IN]    data that needs to be sent
  * @param   length         [IN]    length of the data that needs to be sent
  * @return  CA_STATUS_OK or ERROR CODES ( CAResult_t error codes in cacommon.h)
  */
 
-CAResult_t CASendMulticastData(const void *data, uint32_t length);
+CAResult_t CASendMulticastData(const CAEndpoint_t *endpoint, const void *data, uint32_t length);
 
 /**
  * @brief   Start listening servers to receive search requests from clients
@@ -113,6 +142,14 @@ CAResult_t CAStartDiscoveryServerAdapters();
  * @return  none
  */
 void CATerminateAdapters();
+
+#ifdef SINGLE_THREAD
+/**
+ * @brief   Checks for available data and reads it
+ * @return   CA_STATUS_OK or ERROR CODES ( CAResult_t error codes in cacommon.h)
+ */
+CAResult_t CAReadData();
+#endif
 
 #ifdef __cplusplus
 } /* extern "C" */

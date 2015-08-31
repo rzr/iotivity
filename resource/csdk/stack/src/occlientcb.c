@@ -22,7 +22,7 @@
 #include "occlientcb.h"
 #include "utlist.h"
 #include "logger.h"
-#include "ocmalloc.h"
+#include "oic_malloc.h"
 #include <string.h>
 
 #ifdef WITH_ARDUINO
@@ -45,7 +45,8 @@ OCStackResult
 AddClientCB (ClientCB** clientCB, OCCallbackData* cbData,
              CAToken_t token, uint8_t tokenLength,
              OCDoHandle *handle, OCMethod method,
-             char * requestUri, char * resourceTypeName, OCConnectivityType conType, uint32_t ttl)
+             OCDevAddr *devAddr, char * requestUri,
+             char * resourceTypeName, uint32_t ttl)
 {
     if(!clientCB || !cbData || !handle || !requestUri || tokenLength > CA_MAX_TOKEN_LEN)
     {
@@ -63,7 +64,7 @@ AddClientCB (ClientCB** clientCB, OCCallbackData* cbData,
 
     if(!cbNode)// If it does not already exist, create new node.
     {
-        cbNode = (ClientCB*) OCMalloc(sizeof(ClientCB));
+        cbNode = (ClientCB*) OICMalloc(sizeof(ClientCB));
         if(!cbNode)
         {
             *clientCB = NULL;
@@ -71,6 +72,8 @@ AddClientCB (ClientCB** clientCB, OCCallbackData* cbData,
         }
         else
         {
+            OC_LOG(INFO, TAG, PCF("Adding client callback with token"));
+            OC_LOG_BUFFER(INFO, TAG, (const uint8_t *)token, tokenLength);
             cbNode->callBack = cbData->cb;
             cbNode->context = cbData->context;
             cbNode->deleteCallback = cbData->cd;
@@ -96,8 +99,9 @@ AddClientCB (ClientCB** clientCB, OCCallbackData* cbData,
             {
                 cbNode->TTL = ttl;
             }
-            cbNode->requestUri = requestUri;
-            cbNode->conType = conType;
+            cbNode->requestUri = requestUri;    // I own it now
+            cbNode->devAddr = devAddr;          // I own it now
+            OC_LOG_V(INFO, TAG, "Added Callback for uri : %s", requestUri);
             LL_APPEND(cbList, cbNode);
             *clientCB = cbNode;
         }
@@ -113,9 +117,10 @@ AddClientCB (ClientCB** clientCB, OCCallbackData* cbData,
             cbData->cd(cbData->context);
         }
 
-        OCFree(token);
-        OCFree(*handle);
-        OCFree(requestUri);
+        OICFree(token);
+        OICFree(*handle);
+        OICFree(requestUri);
+        OICFree(devAddr);
         *handle = cbNode->handle;
     }
 
@@ -124,13 +129,14 @@ AddClientCB (ClientCB** clientCB, OCCallbackData* cbData,
     {
         // Amend the found or created node by adding a new resourceType to it.
         return InsertResourceTypeFilter(cbNode,(char *)resourceTypeName);
+        // I own resourceTypName now.
     }
     else
     {
-        OCFree(resourceTypeName);
+        OICFree(resourceTypeName);
     }
     #else
-    OCFree(resourceTypeName);
+    OICFree(resourceTypeName);
     #endif
 
     return OC_STACK_OK;
@@ -144,11 +150,13 @@ void DeleteClientCB(ClientCB * cbNode)
     if(cbNode)
     {
         LL_DELETE(cbList, cbNode);
-        OC_LOG(INFO, TAG, PCF("deleting tokens"));
+        OC_LOG (INFO, TAG, PCF("Deleting token"));
         OC_LOG_BUFFER(INFO, TAG, (const uint8_t *)cbNode->token, cbNode->tokenLength);
         CADestroyToken (cbNode->token);
-        OCFree(cbNode->handle);
-        OCFree(cbNode->requestUri);
+        OICFree(cbNode->devAddr);
+        OICFree(cbNode->handle);
+        OC_LOG_V (INFO, TAG, "Deleting callback with uri %s", cbNode->requestUri);
+        OICFree(cbNode->requestUri);
         if(cbNode->deleteCallback)
         {
             cbNode->deleteCallback(cbNode->context);
@@ -157,8 +165,8 @@ void DeleteClientCB(ClientCB * cbNode)
         #ifdef WITH_PRESENCE
         if(cbNode->presence)
         {
-            OCFree(cbNode->presence->timeOut);
-            OCFree(cbNode->presence);
+            OICFree(cbNode->presence->timeOut);
+            OICFree(cbNode->presence);
         }
         if(cbNode->method == OC_REST_PRESENCE)
         {
@@ -167,13 +175,13 @@ void DeleteClientCB(ClientCB * cbNode)
             while(pointer)
             {
                 next = pointer->next;
-                OCFree(pointer->resourcetypename);
-                OCFree(pointer);
+                OICFree(pointer->resourcetypename);
+                OICFree(pointer);
                 pointer = next;
             }
         }
         #endif // WITH_PRESENCE
-        OCFree(cbNode);
+        OICFree(cbNode);
         cbNode = NULL;
     }
 }
@@ -213,10 +221,11 @@ ClientCB* GetClientCB(const CAToken_t token, uint8_t tokenLength,
 
     if(token && *token && tokenLength <= CA_MAX_TOKEN_LEN && tokenLength > 0)
     {
+        OC_LOG (INFO, TAG, PCF ("Looking for token"));
+        OC_LOG_BUFFER(INFO, TAG, (const uint8_t *)token, tokenLength);
+        OC_LOG(INFO, TAG, PCF("\tFound in callback list"));
         LL_FOREACH(cbList, out)
         {
-            OC_LOG(INFO, TAG, PCF("comparing tokens"));
-            OC_LOG_BUFFER(INFO, TAG, (const uint8_t *)token, tokenLength);
             OC_LOG_BUFFER(INFO, TAG, (const uint8_t *)out->token, tokenLength);
 
             if(memcmp(out->token, token, tokenLength) == 0)
@@ -239,8 +248,10 @@ ClientCB* GetClientCB(const CAToken_t token, uint8_t tokenLength,
     }
     else if(requestUri)
     {
+        OC_LOG_V(INFO, TAG, "Looking for uri %s", requestUri);
         LL_FOREACH(cbList, out)
         {
+            OC_LOG_V(INFO, TAG, "\tFound %s", out->requestUri);
             if(out->requestUri && strcmp(out->requestUri, requestUri ) == 0)
             {
                 return out;
@@ -259,7 +270,7 @@ OCStackResult InsertResourceTypeFilter(ClientCB * cbNode, char * resourceTypeNam
     if(cbNode && resourceTypeName)
     {
         // Form a new resourceType member.
-        newResourceType = (OCResourceType *) OCMalloc(sizeof(OCResourceType));
+        newResourceType = (OCResourceType *) OICMalloc(sizeof(OCResourceType));
         if(!newResourceType)
         {
             return OC_STACK_NO_MEMORY;
@@ -311,7 +322,7 @@ OCStackResult AddMCPresenceNode(OCMulticastNode** outnode, char* uri, uint32_t n
 
     OCMulticastNode *node;
 
-    node = (OCMulticastNode*) OCMalloc(sizeof(OCMulticastNode));
+    node = (OCMulticastNode*) OICMalloc(sizeof(OCMulticastNode));
 
     if (node)
     {

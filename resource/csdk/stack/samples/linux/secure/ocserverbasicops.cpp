@@ -26,7 +26,7 @@
 #include <pthread.h>
 #include "ocstack.h"
 #include "logger.h"
-#include "cJSON.h"
+#include "ocpayload.h"
 #include "ocserverbasicops.h"
 #include "common.h"
 
@@ -41,77 +41,81 @@ static LEDResource gLedInstance[SAMPLE_MAX_NUM_POST_INSTANCE];
 
 char *gResourceUri= (char *)"/a/led";
 
-//File containing Server's Identity and the PSK credentials
+//Secure Virtual Resource database for Iotivity Server
+//It contains Server's Identity and the PSK credentials
 //of other devices which the server trusts
-//This can be generated using 'gen_sec_bin' application
-static char CRED_FILE[] = "server_cred.bin";
+static char CRED_FILE[] = "oic_svr_db_server.json";
+
+OCRepPayload* getPayload(const char* uri, int64_t power, bool state)
+{
+    OCRepPayload* payload = OCRepPayloadCreate();
+    if(!payload)
+    {
+        OC_LOG(ERROR, TAG, PCF("Failed to allocate Payload"));
+        return nullptr;
+    }
+
+    OCRepPayloadSetUri(payload, uri);
+    OCRepPayloadSetPropBool(payload, "state", state);
+    OCRepPayloadSetPropInt(payload, "power", power);
+
+    return payload;
+}
 
 //This function takes the request as an input and returns the response
-//in JSON format.
-char* constructJsonResponse (OCEntityHandlerRequest *ehRequest)
+OCRepPayload* constructResponse (OCEntityHandlerRequest *ehRequest)
 {
-    cJSON *json = cJSON_CreateObject();
-    cJSON *format;
-    char *jsonResponse;
+    if(ehRequest->payload && ehRequest->payload->type != PAYLOAD_TYPE_REPRESENTATION)
+    {
+        OC_LOG(ERROR, TAG, PCF("Incoming payload not a representation"));
+        return nullptr;
+    }
+
+    OCRepPayload* input = reinterpret_cast<OCRepPayload*>(ehRequest->payload);
+
     LEDResource *currLEDResource = &LED;
 
     if (ehRequest->resource == gLedInstance[0].handle)
     {
         currLEDResource = &gLedInstance[0];
-        gResourceUri = (char *) "a/led/0";
+        gResourceUri = (char *) "/a/led/0";
     }
     else if (ehRequest->resource == gLedInstance[1].handle)
     {
         currLEDResource = &gLedInstance[1];
-        gResourceUri = (char *) "a/led/1";
+        gResourceUri = (char *) "/a/led/1";
     }
 
     if(OC_REST_PUT == ehRequest->method)
     {
-        cJSON *putJson = cJSON_Parse(ehRequest->reqJSONPayload);
-        if(!putJson)
+        // Get pointer to query
+        int64_t pow;
+        if(OCRepPayloadGetPropInt(input, "power", &pow))
         {
-            OC_LOG_V(ERROR, TAG, "Failed to parse JSON: %s", ehRequest->reqJSONPayload);
-            return NULL;
+            currLEDResource->power =pow;
         }
 
-        currLEDResource->state = ( !strcmp(cJSON_GetObjectItem(putJson,"state")->valuestring ,
-                "on") ? true:false);
-        currLEDResource->power = cJSON_GetObjectItem(putJson,"power")->valuedouble;
-        cJSON_Delete(putJson);
+        bool state;
+        if(OCRepPayloadGetPropBool(input, "state", &state))
+        {
+            currLEDResource->state = state;
+        }
     }
 
-    cJSON_AddStringToObject(json,"href",gResourceUri);
-    cJSON_AddItemToObject(json, "rep", format=cJSON_CreateObject());
-    cJSON_AddStringToObject(format, "state", (char *) (currLEDResource->state ? "on":"off"));
-    cJSON_AddNumberToObject(format, "power", currLEDResource->power);
-
-    jsonResponse = cJSON_Print(json);
-    cJSON_Delete(json);
-    return jsonResponse;
+    return getPayload(gResourceUri, currLEDResource->power, currLEDResource->state);
 }
 
 OCEntityHandlerResult ProcessGetRequest (OCEntityHandlerRequest *ehRequest,
-                        char *payload, size_t maxPayloadSize)
+        OCRepPayload **payload)
 {
     OCEntityHandlerResult ehResult;
 
-    char *getResp = constructJsonResponse(ehRequest);
+    OCRepPayload *getResp = constructResponse(ehRequest);
+
     if(getResp)
     {
-        if (maxPayloadSize > strlen (getResp))
-        {
-            strcpy(payload, getResp);
-            ehResult = OC_EH_OK;
-        }
-        else
-        {
-            OC_LOG_V (INFO, TAG, "Response buffer: %d bytes is too small",
-                    maxPayloadSize);
-            ehResult = OC_EH_ERROR;
-        }
-
-        free(getResp);
+        *payload = getResp;
+        ehResult = OC_EH_OK;
     }
     else
     {
@@ -122,27 +126,16 @@ OCEntityHandlerResult ProcessGetRequest (OCEntityHandlerRequest *ehRequest,
 }
 
 OCEntityHandlerResult ProcessPutRequest (OCEntityHandlerRequest *ehRequest,
-                        char *payload, size_t maxPayloadSize)
+        OCRepPayload **payload)
 {
     OCEntityHandlerResult ehResult;
 
-    char *putResp = constructJsonResponse(ehRequest);
+    OCRepPayload *putResp = constructResponse(ehRequest);
 
     if(putResp)
     {
-        if (maxPayloadSize > strlen (putResp))
-        {
-            strcpy(payload, putResp);
-            ehResult = OC_EH_OK;
-        }
-        else
-        {
-            OC_LOG_V (INFO, TAG, "Response buffer: %d bytes is too small",
-                    maxPayloadSize);
-            ehResult = OC_EH_ERROR;
-        }
-
-        free(putResp);
+        *payload = putResp;
+        ehResult = OC_EH_OK;
     }
     else
     {
@@ -153,12 +146,10 @@ OCEntityHandlerResult ProcessPutRequest (OCEntityHandlerRequest *ehRequest,
 }
 
 OCEntityHandlerResult ProcessPostRequest (OCEntityHandlerRequest *ehRequest,
-                        char *payload, size_t maxPayloadSize)
+        OCEntityHandlerResponse *response, OCRepPayload **payload)
 {
-    char *respPLPost_led = NULL;
-    cJSON *json;
-    cJSON *format;
-    OCEntityHandlerResult ehResult;
+    OCRepPayload *respPLPost_led = nullptr;
+    OCEntityHandlerResult ehResult = OC_EH_OK;
 
     /*
      * The entity handler determines how to process a POST request.
@@ -180,11 +171,9 @@ OCEntityHandlerResult ProcessPostRequest (OCEntityHandlerRequest *ehRequest,
             int newLedUriLength = strlen(newLedUri);
             snprintf (newLedUri + newLedUriLength, sizeof(newLedUri)-newLedUriLength, "%d", gCurrLedInstance);
 
-            json = cJSON_CreateObject();
-
-            cJSON_AddStringToObject(json,"href",gResourceUri);
-            cJSON_AddItemToObject(json, "rep", format=cJSON_CreateObject());
-            cJSON_AddStringToObject(format, "createduri", (char *) newLedUri);
+            respPLPost_led = OCRepPayloadCreate();
+            OCRepPayloadSetUri(respPLPost_led, gResourceUri);
+            OCRepPayloadSetPropString(respPLPost_led, "createduri", newLedUri);
 
             if (0 == createLEDResource (newLedUri, &gLedInstance[gCurrLedInstance], false, 0))
             {
@@ -192,14 +181,13 @@ OCEntityHandlerResult ProcessPostRequest (OCEntityHandlerRequest *ehRequest,
                 gLedInstance[gCurrLedInstance].state = 0;
                 gLedInstance[gCurrLedInstance].power = 0;
                 gCurrLedInstance++;
-                respPLPost_led = cJSON_Print(json);
+                strncpy ((char *)response->resourceUri, newLedUri, MAX_URI_LENGTH);
+                ehResult = OC_EH_RESOURCE_CREATED;
             }
-
-            cJSON_Delete(json);
         }
         else
         {
-            respPLPost_led = constructJsonResponse(ehRequest);
+            respPLPost_led = constructResponse(ehRequest);
         }
     }
     else
@@ -210,43 +198,49 @@ OCEntityHandlerResult ProcessPostRequest (OCEntityHandlerRequest *ehRequest,
             {
                 if (i == 0)
                 {
-                    respPLPost_led = constructJsonResponse(ehRequest);
+                    respPLPost_led = constructResponse(ehRequest);
                     break;
                 }
                 else if (i == 1)
                 {
-                    respPLPost_led = constructJsonResponse(ehRequest);
+                    respPLPost_led = constructResponse(ehRequest);
                 }
             }
         }
     }
 
-    if ((respPLPost_led != NULL) && (maxPayloadSize > strlen (respPLPost_led)))
+    if (respPLPost_led != NULL)
     {
-        strcpy(payload, respPLPost_led);
+        *payload = respPLPost_led;
         ehResult = OC_EH_OK;
     }
     else
     {
-        OC_LOG_V (INFO, TAG, "Response buffer: %d bytes is too small",
-                maxPayloadSize);
+        OC_LOG_V (INFO, TAG, "Payload was NULL");
         ehResult = OC_EH_ERROR;
     }
-
-    free(respPLPost_led);
 
     return ehResult;
 }
 
 OCEntityHandlerResult
 OCEntityHandlerCb (OCEntityHandlerFlag flag,
-        OCEntityHandlerRequest *entityHandlerRequest)
+        OCEntityHandlerRequest *entityHandlerRequest,
+        void* callbackParam)
 {
     OC_LOG_V (INFO, TAG, "Inside entity handler - flags: 0x%x", flag);
 
     OCEntityHandlerResult ehResult = OC_EH_ERROR;
     OCEntityHandlerResponse response;
-    char payload[MAX_RESPONSE_LENGTH] = {0};
+
+    // Validate pointer
+    if (!entityHandlerRequest)
+    {
+        OC_LOG (ERROR, TAG, "Invalid request pointer");
+        return OC_EH_ERROR;
+    }
+
+    OCRepPayload* payload = nullptr;
 
     if (flag & OC_REQUEST_FLAG)
     {
@@ -256,17 +250,17 @@ OCEntityHandlerCb (OCEntityHandlerFlag flag,
             if (OC_REST_GET == entityHandlerRequest->method)
             {
                 OC_LOG (INFO, TAG, "Received OC_REST_GET from client");
-                ehResult = ProcessGetRequest (entityHandlerRequest, payload, sizeof(payload));
+                ehResult = ProcessGetRequest (entityHandlerRequest, &payload);
             }
             else if (OC_REST_PUT == entityHandlerRequest->method)
             {
                 OC_LOG (INFO, TAG, "Received OC_REST_PUT from client");
-                ehResult = ProcessPutRequest (entityHandlerRequest, payload, sizeof(payload));
+                ehResult = ProcessPutRequest (entityHandlerRequest, &payload);
             }
             else if (OC_REST_POST == entityHandlerRequest->method)
             {
                 OC_LOG (INFO, TAG, "Received OC_REST_POST from client");
-                ehResult = ProcessPostRequest (entityHandlerRequest, payload, sizeof(payload));
+                ehResult = ProcessPostRequest (entityHandlerRequest, &response, &payload);
             }
             else
             {
@@ -275,14 +269,13 @@ OCEntityHandlerCb (OCEntityHandlerFlag flag,
                 ehResult = OC_EH_ERROR;
             }
 
-            if (ehResult == OC_EH_OK)
+            if (ehResult == OC_EH_OK && ehResult != OC_EH_FORBIDDEN)
             {
                 // Format the response.  Note this requires some info about the request
                 response.requestHandle = entityHandlerRequest->requestHandle;
                 response.resourceHandle = entityHandlerRequest->resource;
                 response.ehResult = ehResult;
-                response.payload = payload;
-                response.payloadSize = strlen(payload);
+                response.payload = reinterpret_cast<OCPayload*>(payload);
                 response.numSendVendorSpecificHeaderOptions = 0;
                 memset(response.sendVendorSpecificHeaderOptions, 0, sizeof response.sendVendorSpecificHeaderOptions);
                 memset(response.resourceUri, 0, sizeof(response.resourceUri));
@@ -298,6 +291,8 @@ OCEntityHandlerCb (OCEntityHandlerFlag flag,
             }
         }
     }
+
+    OCPayloadDestroy(response.payload);
     return ehResult;
 }
 
@@ -310,11 +305,26 @@ void handleSigInt(int signum)
     }
 }
 
+FILE* server_fopen(const char *path, const char *mode)
+{
+    (void)path;
+    return fopen(CRED_FILE, mode);
+}
+
 int main(int argc, char* argv[])
 {
     struct timespec timeout;
 
     OC_LOG(DEBUG, TAG, "OCServer is starting...");
+
+    // Initialize Persistent Storage for SVR database
+    OCPersistentStorage ps = {};
+    ps.open = server_fopen;
+    ps.read = fread;
+    ps.write = fwrite;
+    ps.close = fclose;
+    ps.unlink = unlink;
+    OCRegisterPersistentStorageHandler(&ps);
 
     if (OCInit(NULL, 0, OC_SERVER) != OC_STACK_OK)
     {
@@ -322,15 +332,6 @@ int main(int argc, char* argv[])
         return 0;
     }
 
-    /*
-     * Read DTLS PSK credentials from persistent storage and
-     * set in the OC stack.
-     */
-    if (SetCredentials(CRED_FILE) != OC_STACK_OK)
-    {
-        OC_LOG(ERROR, TAG, "SetCredentials failed");
-        return 0;
-    }
     /*
      * Declare and create the example resource: LED
      */
@@ -377,6 +378,7 @@ int createLEDResource (char *uri, LEDResource *ledResource, bool resourceState, 
             OC_RSRVD_INTERFACE_DEFAULT,
             uri,
             OCEntityHandlerCb,
+            NULL,
             OC_DISCOVERABLE|OC_OBSERVABLE | OC_SECURE);
     OC_LOG_V(INFO, TAG, "Created LED resource with result: %s", getResult(res));
 

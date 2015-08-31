@@ -32,12 +32,18 @@
 
 using namespace OC;
 
+static void printUsage()
+{
+    std::cout << "Usage devicediscoveryclient <0|1>" << std::endl;
+    std::cout << "connectivityType: Default IP" << std::endl;
+    std::cout << "connectivityType 0: IP" << std::endl;
+}
 //Callback after device information is received
 void receivedPlatformInfo(const OCRepresentation& rep)
 {
     std::cout << "\nPlatform Information received ---->\n";
     std::string value;
-    std::string values[22] =
+    std::string values[] =
     {
         "pi",   "Platform ID                    ",
         "mnmn", "Manufacturer name              ",
@@ -52,7 +58,7 @@ void receivedPlatformInfo(const OCRepresentation& rep)
         "st",   "Manufacturer system time       "
     };
 
-    for (int i = 0; i < 22; i += 2)
+    for (unsigned int i = 0; i < sizeof(values) / sizeof(values[0]) ; i += 2)
     {
         if(rep.getValue(values[i], value))
         {
@@ -63,7 +69,23 @@ void receivedPlatformInfo(const OCRepresentation& rep)
 
 void receivedDeviceInfo(const OCRepresentation& rep)
 {
-    std::cout << "Implement me !" << std::endl;
+    std::cout << "\nDevice Information received ---->\n";
+    std::string value;
+    std::string values[] =
+    {
+        "di",   "Device ID        ",
+        "n",    "Device name      ",
+        "lcv",  "Spec version url ",
+        "dmv",  "Data Model Model ",
+    };
+
+    for (unsigned int i = 0; i < sizeof(values) / sizeof(values[0]) ; i += 2)
+    {
+        if(rep.getValue(values[i], value))
+        {
+            std::cout << values[i + 1] << " : "<< value << std::endl;
+        }
+    }
 }
 
 int main(int argc, char* argv[]) {
@@ -74,7 +96,8 @@ int main(int argc, char* argv[]) {
     std::string platformDiscoveryURI = "/oic/p";
     std::string deviceDiscoveryURI   = "/oic/d";
 
-    OCConnectivityType connectivityType = OC_IPV4;
+    //Default Connectivity type
+    OCConnectivityType connectivityType = CT_ADAPTER_IP;
 
     if(argc == 2)
     {
@@ -87,37 +110,29 @@ int main(int argc, char* argv[]) {
             {
                 if(optionSelected == 0)
                 {
-                    connectivityType = OC_IPV4;
-                }
-                else if(optionSelected == 1)
-                {
-                    // TODO: re-enable IPv4/IPv6 command line selection when IPv6 is supported
-                    //connectivityType = OC_IPV6;
-                    connectivityType = OC_IPV4;
-                    std::cout << "IPv6 not currently supported. Using default IPv4" << std::endl;
+                    std::cout << "Using IP."<< std::endl;
+                    connectivityType = CT_ADAPTER_IP;
                 }
                 else
                 {
-                    std::cout << "Invalid connectivity type selected. Using default IPv4"
-                    << std::endl;
+                    std::cout << "Invalid connectivity type selected." << std::endl;
+                    printUsage();
+                    return -1;
                 }
             }
             else
             {
-                std::cout << "Invalid connectivity type selected. Using default IPv4" << std::endl;
+                std::cout << "Invalid connectivity type selected. Using default IP" << std::endl;
             }
         }
         catch(std::exception&)
         {
-            std::cout << "Invalid input argument. Using IPv4 as connectivity type" << std::endl;
+            std::cout << "Invalid input argument. Using IP as connectivity type" << std::endl;
         }
     }
     else
     {
-        std::cout << "Usage devicediscoveryclient <connectivityType(0|1)>" << std::endl;
-        std::cout << "connectivityType: Default IPv4" << std::endl;
-        std::cout << "connectivityType 0: IPv4" << std::endl;
-        std::cout << "connectivityType 1: IPv6 (not currently supported)" << std::endl;
+        printUsage();
     }
     // Create PlatformConfig object
     PlatformConfig cfg {
@@ -150,23 +165,20 @@ int main(int argc, char* argv[]) {
             std::cout << "failed." << std::endl;
         }
 
-        bool is_oic_d_implemented = false;
-        if (is_oic_d_implemented)
+        std::cout<< "Querying for device information... ";
+
+        ret = OCPlatform::getDeviceInfo("", deviceDiscoveryRequest.str(), connectivityType,
+                &receivedDeviceInfo);
+
+        if (ret == OC_STACK_OK)
         {
-            std::cout<< "Querying for device information... ";
-
-            ret = OCPlatform::getDeviceInfo("", deviceDiscoveryRequest.str(), connectivityType,
-                    &receivedDeviceInfo);
-
-            if (ret == OC_STACK_OK)
-            {
-                std::cout << "done." << std::endl;
-            }
-            else
-            {
-                std::cout << "failed." << std::endl;
-            }
+            std::cout << "done." << std::endl;
         }
+        else
+        {
+            std::cout << "failed." << std::endl;
+        }
+
         // A condition variable will free the mutex it is given, then do a non-
         // intensive block until 'notify' is called on it.  In this case, since we
         // don't ever call cv.notify, this should be a non-processor intensive version

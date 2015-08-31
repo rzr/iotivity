@@ -40,7 +40,11 @@ if target_os not in host_target_map[host]:
 	print "\nError: Unknown target os: %s (Allow values: %s)\n" % (target_os, host_target_map[host])
 	Exit(1)
 
-default_arch = platform.machine()
+if target_os == 'android':
+	default_arch = 'x86'
+else:
+	default_arch = platform.machine()
+
 if default_arch not in os_arch_map[target_os]:
 	default_arch = os_arch_map[target_os][0].lower()
 
@@ -50,27 +54,36 @@ target_arch = ARGUMENTS.get('TARGET_ARCH', default_arch) # target arch
 # set to 'no', 'false' or 0 for only compilation
 require_upload = ARGUMENTS.get('UPLOAD', False)
 
+# Get the device name. This name can be used as network display name wherever possible
+device_name = ARGUMENTS.get('DEVICE_NAME', "OIC-DEVICE")
+
 if ARGUMENTS.get('TEST'):
 	logging_default = False
 else:
-	logging_default = (ARGUMENTS.get('RELEASE', True) == 'false')
+	release_mode = False
+	if ARGUMENTS.get('RELEASE', True) in ['y', 'yes', 'true', 't', '1', 'on', 'all', True]:
+		release_mode = True
+	logging_default = (release_mode == False)
 
 
 
 ######################################################################
 # Common build options (release, target os, target arch)
 ######################################################################
-targets_disallow_multitransport = ['arduino']
+targets_disallow_multitransport = ['arduino', 'android']
 
 help_vars = Variables()
 help_vars.Add(BoolVariable('VERBOSE', 'Show compilation', False))
 help_vars.Add(BoolVariable('RELEASE', 'Build for release?', True)) # set to 'no', 'false' or 0 for debug
 help_vars.Add(EnumVariable('TARGET_OS', 'Target platform', host, host_target_map[host]))
 
+
+help_vars.Add(BoolVariable('WITH_RA', 'Build with Remote Access module', False))
+
 if target_os in targets_disallow_multitransport:
-    help_vars.Add(ListVariable('TARGET_TRANSPORT', 'Target transport', 'IP', ['BT', 'BLE', 'IP']))
+	help_vars.Add(ListVariable('TARGET_TRANSPORT', 'Target transport', 'IP', ['BT', 'BLE', 'IP']))
 else:
-    help_vars.Add(ListVariable('TARGET_TRANSPORT', 'Target transport', 'ALL', ['ALL', 'BT', 'BLE', 'IP']))
+	help_vars.Add(ListVariable('TARGET_TRANSPORT', 'Target transport', 'ALL', ['ALL', 'BT', 'BLE', 'IP']))
 
 help_vars.Add(EnumVariable('TARGET_ARCH', 'Target architecture', default_arch, os_arch_map[target_os]))
 help_vars.Add(EnumVariable('SECURED', 'Build with DTLS', '0', allowed_values=('0', '1')))
@@ -78,6 +91,16 @@ help_vars.Add(EnumVariable('TEST', 'Run unit tests', '0', allowed_values=('0', '
 help_vars.Add(BoolVariable('LOGGING', 'Enable stack logging', logging_default))
 help_vars.Add(BoolVariable('UPLOAD', 'Upload binary ? (For Arduino)', require_upload))
 help_vars.Add(EnumVariable('BUILD_SAMPLE', 'Build with sample', 'ON', allowed_values=('ON', 'OFF')))
+help_vars.AddVariables(('DEVICE_NAME', 'Network display name for device (For Arduino)', device_name, None, None),)
+
+AddOption('--prefix',
+                  dest='prefix',
+                  type='string',
+                  nargs=1,
+                  action='store',
+                  metavar='DIR',
+                  help='installation prefix')
+
 ######################################################################
 # Platform(build target) specific options: SDK/NDK & toolchain
 ######################################################################
@@ -95,7 +118,7 @@ if target_os in ['android', 'arduino']: # Android/Arduino always uses GNU compil
 			tools = ['gnulink', 'gcc', 'g++', 'ar', 'as']
 			)
 else:
-	env = Environment(variables = help_vars, TARGET_ARCH = target_arch, TARGET_OS = target_os)
+	env = Environment(variables = help_vars, TARGET_ARCH = target_arch, TARGET_OS = target_os, PREFIX = GetOption('prefix'))
 
 Help(help_vars.GenerateHelpText(env))
 
@@ -108,8 +131,11 @@ tc_set_msg = '''
 '''
 if env.get('VERBOSE') == False:
 	env['CCCOMSTR'] = "Compiling $TARGET"
+	env['SHCCCOMSTR'] = "Compiling $TARGET"
 	env['CXXCOMSTR'] = "Compiling $TARGET"
+	env['SHCXXCOMSTR'] = "Compiling $TARGET"
 	env['LINKCOMSTR'] = "Linking $TARGET"
+	env['SHLINKCOMSTR'] = "Linking $TARGET"
 	env['ARCOMSTR'] = "Archiving $TARGET"
 	env['RANLIBCOMSTR'] = "Indexing Archive $TARGET"
 
@@ -117,12 +143,11 @@ if target_os in targets_support_cc:
 	prefix = env.get('TC_PREFIX')
 	tc_path = env.get('TC_PATH')
 	if prefix:
-		env.Replace(CC = prefix + 'gcc')
-		env.Replace(CXX = prefix + 'g++')
-		env.Replace(AR = prefix + 'ar')
-		env.Replace(AS = prefix + 'as')
-		env.Replace(LINK = prefix + 'ld')
-		env.Replace(RANLIB = prefix + 'ranlib')
+		env.Replace(CC = prefix + env.get('CC', 'gcc'))
+		env.Replace(CXX = prefix + env.get('CXX', 'g++'))
+		env.Replace(AR = prefix + env.get('AR', 'ar'))
+		env.Replace(AS = prefix + env.get('AS', 'as'))
+		env.Replace(RANLIB = prefix + env.get('RANLIB', 'ranlib'))
 
 	if tc_path:
 		env.PrependENVPath('PATH', tc_path)
@@ -174,6 +199,22 @@ def __install(ienv, targets, name):
 	Alias(name, i_n)
 	env.AppendUnique(TS = [name])
 
+def __installlib(ienv, targets, name):
+	user_prefix = env.get('PREFIX')
+	if user_prefix:
+		i_n = ienv.Install(user_prefix + '/lib', targets)
+	else:
+		i_n = ienv.Install(env.get('BUILD_DIR'), targets)
+	ienv.Alias("install", i_n)
+
+def __installbin(ienv, targets, name):
+	user_prefix = env.get('PREFIX')
+	if user_prefix:
+		i_n = ienv.Install(user_prefix + '/bin', targets)
+	else:
+		i_n = ienv.Install(env.get('BUILD_DIR'), targets)
+	ienv.Alias("install", i_n)
+
 def __append_target(ienv, name, targets = None):
 	if targets:
 		env.Alias(name, targets)
@@ -197,6 +238,8 @@ env.AddMethod(__print_targets, 'PrintTargets')
 env.AddMethod(__src_to_obj, 'SrcToObj')
 env.AddMethod(__append_target, 'AppendTarget')
 env.AddMethod(__install, 'InstallTarget')
+env.AddMethod(__installlib, 'UserInstallTargetLib')
+env.AddMethod(__installbin, 'UserInstallTargetBin')
 env.SetDir(env.GetLaunchDir())
 env['ROOT_DIR']=env.GetLaunchDir()+'/..'
 
@@ -261,6 +304,7 @@ if target_os == "yocto":
     env.AppendUnique(CFLAGS = ['-std=gnu99'])
     env.AppendUnique(CCFLAGS = ['-Wall', '-fPIC'])
     env.AppendUnique(LINKFLAGS = ['-ldl', '-lpthread'])
+    env.AppendUnique(LIBS = ['uuid'])
     Export('env')
 else:
     '''

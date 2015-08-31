@@ -33,7 +33,7 @@
 #include <OCResourceResponse.h>
 #include <ocstack.h>
 #include <OCApi.h>
-#include <ocmalloc.h>
+#include <oic_malloc.h>
 #include <OCPlatform.h>
 #include <OCUtilities.h>
 
@@ -104,14 +104,12 @@ void formResourceRequest(OCEntityHandlerFlag flag,
             else if(OC_REST_PUT == entityHandlerRequest->method)
             {
                 pRequest->setRequestType(OC::PlatformCommands::PUT);
-                pRequest->setPayload(std::string(reinterpret_cast<const char*>
-                                            (entityHandlerRequest->reqJSONPayload)));
+                pRequest->setPayload(entityHandlerRequest->payload);
             }
             else if(OC_REST_POST == entityHandlerRequest->method)
             {
                 pRequest->setRequestType(OC::PlatformCommands::POST);
-                pRequest->setPayload(std::string(reinterpret_cast<const char*>
-                                            (entityHandlerRequest->reqJSONPayload)));
+                pRequest->setPayload(entityHandlerRequest->payload);
             }
             else if(OC_REST_DELETE == entityHandlerRequest->method)
             {
@@ -137,7 +135,8 @@ void formResourceRequest(OCEntityHandlerFlag flag,
 
 OCEntityHandlerResult DefaultEntityHandlerWrapper(OCEntityHandlerFlag flag,
                                                   OCEntityHandlerRequest * entityHandlerRequest,
-                                                  char* uri)
+                                                  char* uri,
+                                                  void * callbackParam)
 {
     OCEntityHandlerResult result = OC_EH_ERROR;
 
@@ -176,7 +175,8 @@ OCEntityHandlerResult DefaultEntityHandlerWrapper(OCEntityHandlerFlag flag,
 
 
 OCEntityHandlerResult EntityHandlerWrapper(OCEntityHandlerFlag flag,
-                                           OCEntityHandlerRequest * entityHandlerRequest)
+                                           OCEntityHandlerRequest * entityHandlerRequest,
+                                           void* callbackParam)
 {
     OCEntityHandlerResult result = OC_EH_ERROR;
 
@@ -260,10 +260,14 @@ namespace OC
         else
         {
             throw InitializeException(OC::InitException::NOT_CONFIGURED_AS_SERVER,
-                                      OC_STACK_INVALID_PARAM);
+                                         OC_STACK_INVALID_PARAM);
         }
 
-        OCStackResult result = OCInit(cfg.ipAddress.c_str(), cfg.port, initType);
+        OCTransportFlags serverFlags =
+                            static_cast<OCTransportFlags>(cfg.serverConnectivity & CT_MASK_FLAGS);
+        OCTransportFlags clientFlags =
+                            static_cast<OCTransportFlags>(cfg.clientConnectivity & CT_MASK_FLAGS);
+        OCStackResult result = OCInit1(initType, serverFlags, clientFlags);
 
         if(OC_STACK_OK != result)
         {
@@ -344,6 +348,7 @@ namespace OC
                             resourceInterface.c_str(), //const char * resourceInterfaceName //TODO fix this
                             resourceURI.c_str(), // const char * uri
                             EntityHandlerWrapper, // OCEntityHandler entityHandler
+                            NULL,
                             resourceProperties // uint8_t resourceProperties
                             );
             }
@@ -354,6 +359,7 @@ namespace OC
                             resourceInterface.c_str(), //const char * resourceInterfaceName //TODO fix this
                             resourceURI.c_str(), // const char * uri
                             NULL, // OCEntityHandler entityHandler
+                            NULL,
                             resourceProperties // uint8_t resourceProperties
                             );
             }
@@ -377,65 +383,7 @@ namespace OC
         return result;
     }
 
-    OCStackResult InProcServerWrapper::registerResourceWithHost(
-                    OCResourceHandle& resourceHandle,
-                    std::string& resourceHOST,
-                    std::string& resourceURI,
-                    const std::string& resourceTypeName,
-                    const std::string& resourceInterface,
-                    EntityHandler& eHandler,
-                    uint8_t resourceProperties)
 
-    {
-        OCStackResult result = OC_STACK_ERROR;
-
-        auto cLock = m_csdkLock.lock();
-
-        if (cLock)
-        {
-            std::lock_guard < std::recursive_mutex > lock(*cLock);
-
-            if (NULL != eHandler)
-            {
-                result = OCCreateResourceWithHost(&resourceHandle, // OCResourceHandle *handle
-                        resourceTypeName.c_str(), // const char * resourceTypeName
-                        resourceInterface.c_str(), //const char * resourceInterfaceName //TODO fix
-                        resourceHOST.c_str(), // const char * host
-                        (resourceHOST + resourceURI).c_str(), // const char * uri
-                        EntityHandlerWrapper, // OCEntityHandler entityHandler
-                        resourceProperties // uint8_t resourceProperties
-                        );
-            }
-            else
-            {
-                result = OCCreateResourceWithHost(&resourceHandle, // OCResourceHandle *handle
-                        resourceTypeName.c_str(), // const char * resourceTypeName
-                        resourceInterface.c_str(), //const char * resourceInterfaceName //TODO fix
-                        resourceHOST.c_str(), // const char * host
-                        (resourceHOST + resourceURI).c_str(), // const char * uri
-                        nullptr, // OCEntityHandler entityHandler
-                        resourceProperties // uint8_t resourceProperties
-                        );
-            }
-
-            if (result != OC_STACK_OK)
-            {
-                resourceHandle = nullptr;
-            }
-            else
-            {
-                std::lock_guard<std::mutex> lock(OC::details::serverWrapperLock);
-                OC::details::entityHandlerMap[resourceHandle] = eHandler;
-                OC::details::resourceUriMap[resourceHandle] = resourceURI;
-            }
-        }
-        else
-        {
-            result = OC_STACK_ERROR;
-        }
-
-        return result;
-    }
 
     OCStackResult InProcServerWrapper::setDefaultDeviceEntityHandler
                                         (EntityHandler entityHandler)
@@ -449,12 +397,12 @@ namespace OC
 
         if(entityHandler)
         {
-            result = OCSetDefaultDeviceEntityHandler(DefaultEntityHandlerWrapper);
+            result = OCSetDefaultDeviceEntityHandler(DefaultEntityHandlerWrapper, NULL);
         }
         else
         {
             // If Null passed we unset
-            result = OCSetDefaultDeviceEntityHandler(NULL);
+            result = OCSetDefaultDeviceEntityHandler(NULL, NULL);
         }
 
         return result;
@@ -582,25 +530,15 @@ namespace OC
         else
         {
             OCEntityHandlerResponse response;
-            std::string payLoad;
-            HeaderOptions serverHeaderOptions;
-
-            payLoad = pResponse->getPayload();
-            serverHeaderOptions = pResponse->getHeaderOptions();
+//            OCRepPayload* payLoad = pResponse->getPayload();
+            HeaderOptions serverHeaderOptions = pResponse->getHeaderOptions();
 
             response.requestHandle = pResponse->getRequestHandle();
             response.resourceHandle = pResponse->getResourceHandle();
             response.ehResult = pResponse->getResponseResult();
 
-            response.payload = static_cast<char*>(OCMalloc(payLoad.length() + 1));
-            if(!response.payload)
-            {
-                result = OC_STACK_NO_MEMORY;
-                throw OCException(OC::Exception::NO_MEMORY, OC_STACK_NO_MEMORY);
-            }
+            response.payload = reinterpret_cast<OCPayload*>(pResponse->getPayload());
 
-            strncpy(response.payload, payLoad.c_str(), payLoad.length()+1);
-            response.payloadSize = payLoad.length() + 1;
             response.persistentBufferFlag = 0;
 
             response.numSendVendorSpecificHeaderOptions = serverHeaderOptions.size();
@@ -612,18 +550,20 @@ namespace OC
                     static_cast<uint16_t>(it->getOptionID());
                 response.sendVendorSpecificHeaderOptions[i].optionLength =
                     (it->getOptionData()).length() + 1;
-                memcpy(response.sendVendorSpecificHeaderOptions[i].optionData,
-                    (it->getOptionData()).c_str(),
-                    (it->getOptionData()).length() + 1);
+                std::string optionData = it->getOptionData();
+                std::copy(optionData.begin(),
+                         optionData.end(),
+                         response.sendVendorSpecificHeaderOptions[i].optionData);
+                response.sendVendorSpecificHeaderOptions[i].optionData[it->getOptionData().length()]
+                    = '\0';
                 i++;
             }
 
             if(OC_EH_RESOURCE_CREATED == response.ehResult)
             {
-                std::string createdUri = pResponse->getNewResourceUri();
-                strncpy(reinterpret_cast<char*>(response.resourceUri),
-                        createdUri.c_str(),
-                        createdUri.length() + 1);
+                pResponse->getNewResourceUri().copy(response.resourceUri,
+                        sizeof (response.resourceUri) - 1);
+                response.resourceUri[pResponse->getNewResourceUri().length()] = '\0';
             }
 
             if(cLock)
@@ -633,7 +573,7 @@ namespace OC
             }
             else
             {
-                OCFree(response.payload);
+                OICFree(response.payload);
                 result = OC_STACK_ERROR;
             }
 

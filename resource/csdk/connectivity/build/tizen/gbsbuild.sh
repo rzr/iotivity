@@ -25,7 +25,6 @@ export RELEASE=$4
 echo $5
 export LOGGING=$5
 
-
 echo $TARGET_TRANSPORT
 echo $BUILD_SAMPLE
 
@@ -36,6 +35,7 @@ sourcedir=`pwd`
 
 echo `pwd`
 
+rm -rf ./tmp
 mkdir ./tmp
 mkdir ./tmp/con/
 cp -R $cur_dir/* $sourcedir/tmp/con
@@ -48,10 +48,21 @@ cp -R $cur_dir/lib/libcoap-4.1.1/SConscript $sourcedir/tmp/con/lib/libcoap-4.1.1
 cp -R $cur_dir/samples/tizen/ $sourcedir/tmp/con/sample/
 mkdir -p $sourcedir/tmp/con/sample/lib/tizen/ble/libs
 cp -R $cur_dir/lib/tizen/ble/libs/* $sourcedir/tmp/con/sample/lib/tizen/ble/libs/
+mkdir -p $sourcedir/tmp/con/sample/external/inc
+cp -R $cur_dir/external/inc/* $sourcedir/tmp/con/sample/external/inc/
+mkdir -p $sourcedir/tmp/con/extlibs/
+cp -R ./extlibs/tinydtls/ $sourcedir/tmp/con/extlibs/
+mkdir -p $sourcedir/tmp/con/c_common
+cp -R ./resource/c_common/* $sourcedir/tmp/con/c_common/
+
+# copy dependency RPMs and conf files for tizen build
+cp ./tools/tizen/*.rpm $sourcedir/tmp
+cp ./tools/tizen/*.rpm $sourcedir/tmp/con/sample
+cp ./tools/tizen/.gbs.conf ./tmp
+cp ./tools/tizen/.gbs.conf ./tmp/con/sample
 
 cd $sourcedir
 cd $cur_dir/build/tizen
-
 cp -R ./* $sourcedir/tmp/
 rm -f $sourcedir/tmp/SConscript
 cp SConstruct $sourcedir/tmp/
@@ -77,15 +88,15 @@ if [ ! -d .git ]; then
 fi
 
 echo "Calling core gbs build command"
-gbscommand="gbs build -A armv7l --include-all --define 'TARGET_TRANSPORT $1' --define 'SECURED $2' --define 'RELEASE $4' --define 'LOGGING $5' --repository ./"
+gbscommand="gbs build -A armv7l --include-all  --repository ./ --define 'TARGET_TRANSPORT $1' --define 'SECURED $2' --define 'RELEASE $4' --define 'LOGGING $5'"
 echo $gbscommand
 if eval $gbscommand; then
    echo "Core build is successful"
 else
-   echo "Core build failed. Try 'sudo find . -type f -exec dos2unix {} \;' in the 'connectivity/' folder"
+   echo "Core build failed. Try 'find . -type f -exec dos2unix {} \;' in the 'connectivity/' folder"
    cd $sourcedir
    rm -rf $sourcedir/tmp
-   exit
+   exit 1
 fi
 
 if echo $BUILD_SAMPLE|grep -qi '^ON$'; then
@@ -100,18 +111,19 @@ if echo $BUILD_SAMPLE|grep -qi '^ON$'; then
       git commit -m "Initial commit"
    fi
    echo "Calling sample gbs build command"
-   gbscommand="gbs build -A armv7l --include-all --define 'TARGET_TRANSPORT $1' --define 'SECURED $2' --define 'LOGGING $5' --repository ./"
+   gbscommand="gbs build -A armv7l --include-all --define 'TARGET_TRANSPORT $1' --define 'SECURED $2' --define 'RELEASE $4' --define 'LOGGING $5' --repository ./"
    echo $gbscommand
    if eval $gbscommand; then
       echo "Sample build is successful"
    else
-      echo "Sample build is failed. Try 'sudo find . -type f -exec dos2unix {} \;' in the 'connectivity/' folder"
+      echo "Sample build is failed. Try 'find . -type f -exec dos2unix {} \;' in the 'connectivity/' folder"
+      exit 1
    fi
 else
 	echo "Sample build is not enabled"
 fi
 
-
 cd $sourcedir
 rm -rf $sourcedir/tmp
 
+exit 0

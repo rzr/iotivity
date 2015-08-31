@@ -38,7 +38,7 @@
 //-----------------------------------------------------------------------------
 
 /**
- * List of methods that can be inititated from the client
+ * List of methods that can be initiated from the client
  */
 typedef enum {
     TEST_DISCOVER_REQ = 1,
@@ -61,9 +61,20 @@ typedef enum {
 #endif
     TEST_OBS_REQ_NON_CANCEL_IMM,
     TEST_GET_REQ_NON_WITH_VENDOR_HEADER_OPTIONS,
+    TEST_DISCOVER_PLATFORM_REQ,
     TEST_DISCOVER_DEV_REQ,
     MAX_TESTS
 } CLIENT_TEST;
+
+/**
+ * List of connectivity types that can be initiated from the client
+ * Required for user input validation
+ */
+typedef enum {
+    CT_ADAPTER_DEFAULT = 0,
+    CT_IP,
+    MAX_CT
+} CLIENT_CONNECTIVITY_TYPE;
 
 #ifdef WITH_PRESENCE
 int InitPresence();
@@ -97,6 +108,7 @@ int InitPostRequest(OCQualityOfService qos);
 int InitDeleteRequest(OCQualityOfService qos);
 int InitGetRequest(OCQualityOfService qos);
 int InitDeviceDiscovery(OCQualityOfService qos);
+int InitPlatformDiscovery(OCQualityOfService qos);
 int InitDiscovery(OCQualityOfService qos);
 
 /* Function to retrieve ip address, port no. of the server

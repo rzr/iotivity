@@ -18,6 +18,7 @@ import org.iotivity.base.ResourceProperty;
 
 import android.content.Context;
 import android.content.Intent;
+import android.os.Message;
 import android.util.Log;
 
 public class TemperatureResource implements IMessageLogger
@@ -29,7 +30,7 @@ public class TemperatureResource implements IMessageLogger
         private OcResourceHandle mResourceHandle;
         private List<Byte> mObservationIds;
 
-        private static String TAG = "SampleProvider : ";
+        private static String TAG = "NMProvider : TemperatureResource";
 
         TemperatureResource(Context context)
         {
@@ -114,7 +115,7 @@ public class TemperatureResource implements IMessageLogger
             {
                 Log.e(TAG, "go exception");
                 logMessage(TAG + "RegisterResource error. " + e.getMessage());
-                Log.e(TAG, e.getMessage());
+                Log.e(TAG, "RegisterResource error. " + e.getMessage());
             }
 
             // logMessage(TAG + "Successfully registered resource");
@@ -125,8 +126,16 @@ public class TemperatureResource implements IMessageLogger
         {
             mtemp = rep.getValueInt(StringConstants.TEMPERATURE);
             mhumidity = rep.getValueInt(StringConstants.HUMIDITY);
-            logMessage(TAG + "temperature : " + mtemp + "humidity : " + mhumidity);
+            logMessage(TAG + "PUT Request" +"temperature : " + mtemp + "humidity : " + mhumidity);
+             notifyObserver();
             // " Power: " + mPower);
+             String message = mtemp+":"+mhumidity; 
+             Message msg = Message.obtain();
+             msg.what = 0;
+             SampleProvider mainActivityObj = SampleProvider.getSampleProviderObject();
+             SampleProvider.setmessage(message);
+             mainActivityObj.getmHandler().sendMessage(msg);
+
         }
 
         protected OcRepresentation get()
@@ -156,7 +165,7 @@ public class TemperatureResource implements IMessageLogger
                 {
                     try
                     {
-                        logMessage(TAG + "Request");
+                        logMessage(TAG + requestType + "Request");
                         OcResourceResponse ocResourceResponse = new OcResourceResponse();
                         ocResourceResponse.setRequestHandle(request
                                                             .getRequestHandle());
@@ -234,6 +243,7 @@ public class TemperatureResource implements IMessageLogger
         public void logMessage(String msg)
         {
             logMsg(msg);
+            Log.i(TAG, msg);
         }
 
         public void logMsg(final String text)

@@ -31,7 +31,7 @@ else:
 	env.AppendUnique(CCFLAGS = ['-g'])
 
 if env.get('LOGGING'):
-	env.AppendUnique(CPPDEFINES = ['-DTB_LOG'])
+	env.AppendUnique(CPPDEFINES = ['TB_LOG'])
 
 lib_env = env.Clone()
 SConscript(env.get('SRC_DIR') + '/service/third_party_libs.scons', 'lib_env')
@@ -42,9 +42,25 @@ target_os = env.get('TARGET_OS')
 # Build flags
 ######################################################################
 notimgr_env.AppendUnique(CPPPATH = ['NotificationManager/include'])
-notimgr_env.AppendUnique(CPPPATH = ['../../extlibs/cjson'])
-notimgr_env.AppendUnique(CPPPATH = ['../../resource/csdk/logger/include'])
-notimgr_env.PrependUnique(LIBS = ['oc', 'octbstack', 'oc_logger', 'connectivity_abstraction', 'libcoap'])
+notimgr_env.AppendUnique(CPPPATH = ['../resource-encapsulation/include'])
+notimgr_env.AppendUnique(CPPPATH = ['../resource-encapsulation/src/common/primitiveResource/include'])
+notimgr_env.AppendUnique(CPPPATH = ['../resource-encapsulation/src/serverBuilder/include'])
+notimgr_env.AppendUnique(CPPPATH = ['../resource-encapsulation/src/resourceBroker/include'])
+notimgr_env.AppendUnique(CPPPATH = ['../resource-encapsulation/src/resourceCache/include'])
+notimgr_env.AppendUnique(CPPPATH = ['../resource-encapsulation/src/common/expiryTimer/include'])
+notimgr_env.AppendUnique(CPPPATH = ['../resource-encapsulation/src/common/expiryTimer/src'])
+#notimgr_env.AppendUnique(CPPPATH = ['../../extlibs/cjson'])
+#notimgr_env.AppendUnique(CPPPATH = ['../../resource/csdk/logger/include'])
+notimgr_env.PrependUnique(LIBS = [
+	'rcs_client',
+	'rcs_server',
+	'rcs_common',
+	'oc',
+	'octbstack',
+	'oc_logger',
+	'connectivity_abstraction',
+	'libcoap'
+	])
 
 if target_os not in ['windows', 'winrt']:
 	notimgr_env.AppendUnique(CXXFLAGS = ['-O2', '-g', '-Wall', '-fmessage-length=0', '-std=c++0x'])
@@ -64,12 +80,11 @@ if target_os == 'android':
 ######################################################################
 NOTI_SRC_DIR = 'NotificationManager/src/'
 notimgr_src = [
-        NOTI_SRC_DIR + 'hosting.c',
-        NOTI_SRC_DIR + 'requestHandler.c',
-        NOTI_SRC_DIR + 'virtualResource.c']
-
-if target_os == 'android':
-        notimgr_src.append(NOTI_SRC_DIR + 'resourceCoordinator_JNI.cpp')
+        NOTI_SRC_DIR + 'hosting.cpp',
+        NOTI_SRC_DIR + 'ResourceHosting.cpp',
+        NOTI_SRC_DIR + 'HostingObject.cpp',
+        NOTI_SRC_DIR + 'RequestObject.cpp'
+        ]
 
 if target_os in ['tizen','android'] :
     notificationsdk = notimgr_env.SharedLibrary('NotificationManager', notimgr_src)
@@ -80,4 +95,3 @@ notimgr_env.InstallTarget(notificationsdk, 'libResouceHosting')
 
 # Go to build sample apps
 SConscript('SampleApp/SConscript')
-

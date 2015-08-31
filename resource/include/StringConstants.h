@@ -80,6 +80,7 @@ namespace OC
         static const char NOT_FOUND[]                  = "Resource Not Found";
         static const char RESOURCE_ERROR[]             = "Resource Error";
         static const char SLOW_RESOURCE[]              = "Slow Resource";
+        static const char DUPLICATE_REQUEST[]          = "Duplicate Request";
         static const char NO_OBSERVERS[]               = "No Observers";
         static const char OBSV_NO_FOUND[]              = "Stack observer not found";
         static const char OBSV_NOT_ADDED[]             = "Stack observer not added";
@@ -103,6 +104,7 @@ namespace OC
         static const char INVALID_JSON_TYPE_TAG[]      = "Invalid JSON Type Tag";
         static const char INVALID_ATTRIBUTE[]          = "Invalid Attribute: ";
         static const char INVALID_DEVICE_INFO[]        = "Invalid Device Information";
+        static const char UNAUTHORIZED_REQUEST[]       = "Unauthorized Request";
 
     }
 
@@ -121,16 +123,19 @@ namespace OC
 
     namespace Key
     {
-        static const std::string OCKEY                      = "oc";
+        static const std::string OCKEY                      = "oic";
         static const std::string URIKEY                     = "href";
-        static const std::string OBSERVABLEKEY              = "obs";
+        static const std::string POLICYKEY                  = "p";
+        static const std::string BMKEY                      = "bm";
         static const std::string RESOURCETYPESKEY           = "rt";
         static const std::string INTERFACESKEY              = "if";
         static const std::string PROPERTYKEY                = "prop";
         static const std::string REPKEY                     = "rep";
         static const std::string SECUREKEY                  = "sec";
         static const std::string PORTKEY                    = "port";
-        static const std::string SERVERIDKEY                = "sid";
+        static const std::string DEVICEIDKEY                = "di";
+        static const std::string LINKS                      = "links";
+
     }
 
 }
