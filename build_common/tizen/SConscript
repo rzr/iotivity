@@ -10,6 +10,7 @@ print "Reading linux configuration script"
 if env.get('RELEASE'):
 	env.AppendUnique(CCFLAGS = ['-Os'])
 	env.AppendUnique(CPPDEFINES = ['NDEBUG'])
+	env.AppendUnique(CCFLAGS = ['-g'])
 else:
 	env.AppendUnique(CCFLAGS = ['-g'])
 

@@ -2,7 +2,7 @@ Name: iotivity
 Version: 0.9.2
 Release: 0
 Summary: IoTivity Base Stack & IoTivity Services
-Group: System Environment/Libraries
+Group: Network & Connectivity/Other
 License: Apache-2.0
 URL: https://www.iotivity.org/
 Source0: %{name}-%{version}.tar.bz2
@@ -31,7 +31,7 @@ IoTivity Base (RICH & LITE) Stack & IoTivity Services
 
 %package service
 Summary: Development files for %{name}
-Group: Development/Libraries
+Group: Network & Connectivity/Service
 Requires: %{name} = %{version}-%{release}
 
 %description service
@@ -40,7 +40,7 @@ developing applications that use %{name}-service.
 
 %package test
 Summary: Development files for %{name}
-Group: Development/Libraries
+Group: Network & Connectivity/Testing
 Requires: %{name} = %{version}-%{release}
 
 %description test
@@ -49,7 +49,7 @@ how the iotivity works using %{name}-test
 
 %package devel
 Summary: Development files for %{name}
-Group: Development/Libraries
+Group: Network & Connectivity/Development
 Requires: %{name} = %{version}-%{release}
 
 %description devel
