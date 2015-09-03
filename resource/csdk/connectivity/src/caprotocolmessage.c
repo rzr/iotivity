@@ -538,7 +538,9 @@ uint32_t CAGetOptionCount(coap_opt_iterator_t opt_iter)
 
     while ((option = coap_option_next(&opt_iter)))
     {
-        if (COAP_OPTION_URI_PATH != opt_iter.type && COAP_OPTION_URI_QUERY != opt_iter.type)
+        if (COAP_OPTION_URI_PATH != opt_iter.type && COAP_OPTION_URI_QUERY != opt_iter.type
+            && COAP_OPTION_BLOCK1 != opt_iter.type && COAP_OPTION_BLOCK2 != opt_iter.type
+            && COAP_OPTION_SIZE1 != opt_iter.type && COAP_OPTION_SIZE2 != opt_iter.type)
         {
             count++;
         }
@@ -677,6 +679,11 @@ CAResult_t CAGetInfoFromPDU(const coap_pdu_t *pdu, uint32_t *outCode, CAInfo_t *
                         goto exit;
                     }
                 }
+            }
+            else if (COAP_OPTION_BLOCK1 == opt_iter.type || COAP_OPTION_BLOCK2 == opt_iter.type
+                    || COAP_OPTION_SIZE1 == opt_iter.type || COAP_OPTION_SIZE2 == opt_iter.type)
+            {
+                OIC_LOG_V(DEBUG, TAG, "option[%d] will be filtering", opt_iter.type);
             }
             else
             {

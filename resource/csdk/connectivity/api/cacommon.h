@@ -79,6 +79,10 @@ extern "C"
 #define COAP_MAX_PDU_SIZE           1400 /* maximum size of a CoAP PDU for big platforms*/
 #endif
 
+#ifdef WITH_BWT
+#define CA_DEFAULT_BLOCK_SIZE       CA_BLOCK_SIZE_1024_BYTE
+#endif
+
 /**
  *@brief Maximum length of the remoteEndpoint identity
  */
@@ -208,6 +212,21 @@ typedef enum
 } CAMethod_t;
 
 /**
+ * block size
+ * it depends on defined size in libCoAP.
+ */
+typedef enum
+{
+    CA_BLOCK_SIZE_16_BYTE = 0,    /**< 16byte */
+    CA_BLOCK_SIZE_32_BYTE = 1,    /**< 32byte */
+    CA_BLOCK_SIZE_64_BYTE = 2,    /**< 64byte */
+    CA_BLOCK_SIZE_128_BYTE = 3,   /**< 128byte */
+    CA_BLOCK_SIZE_256_BYTE = 4,   /**< 256byte */
+    CA_BLOCK_SIZE_512_BYTE = 5,   /**< 512byte */
+    CA_BLOCK_SIZE_1024_BYTE = 6     /**< 1Kbyte */
+} CABlockSize_t;
+
+/**
  * @brief Endpoint information for connectivities
  * Must be identical to OCDevAddr.
  */
@@ -260,11 +279,14 @@ typedef enum
     CA_VALID = 203,                  /**< Valid */
     CA_CHANGED = 204,                /**< Changed */
     CA_CONTENT = 205,                /**< Content */
+    CA_CONTINUE = 231,               /**< Continue */
     CA_BAD_REQ = 400,                /**< Bad Request */
     CA_UNAUTHORIZED_REQ = 401,       /**< Unauthorized Request */
     CA_BAD_OPT = 402,                /**< Bad Option */
     CA_FORBIDDEN_REQ = 403,          /**< Forbidden Request */
     CA_NOT_FOUND = 404,              /**< Not found */
+    CA_REQUEST_ENTITY_INCOMPLETE = 408, /**< Request Entity Incomplete */
+    CA_REQUEST_ENTITY_TOO_LARGE = 413,  /**< Request Entity Too Large */
     CA_INTERNAL_SERVER_ERROR = 500,  /**< Internal Server Error */
     CA_RETRANSMIT_TIMEOUT = 504      /**< Retransmit timeout */
     /* Response status code - END HERE */

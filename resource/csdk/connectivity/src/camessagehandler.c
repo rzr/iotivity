@@ -30,6 +30,11 @@
 #include "caprotocolmessage.h"
 #include "caretransmission.h"
 #include "caadapterutils.h"
+
+#ifdef WITH_BWT
+#include "cablockwisetransfer.h"
+#endif
+
 #include "uqueue.h"
 #include "logger.h"
 #include "config.h" /* for coap protocol */
@@ -44,30 +49,6 @@
 #define SINGLE_HANDLE
 
 #define MAX_THREAD_POOL_SIZE    20
-
-typedef enum
-{
-    SEND_TYPE_MULTICAST = 0, SEND_TYPE_UNICAST
-} CASendDataType_t;
-
-typedef enum
-{
-    CA_REQUEST_DATA = 1,
-    CA_RESPONSE_DATA = 2,
-    CA_ERROR_DATA = 3,
-} CADataType_t;
-
-typedef struct
-{
-    CASendDataType_t type;
-    CAEndpoint_t *remoteEndpoint;
-    CARequestInfo_t *requestInfo;
-    CAResponseInfo_t *responseInfo;
-    CAErrorInfo_t *errorInfo;
-    CAHeaderOption_t *options;
-    CADataType_t dataType;
-    uint8_t numOptions;
-} CAData_t;
 
 // thread pool handle
 static ca_thread_pool_t g_threadPoolHandle = NULL;
@@ -86,6 +67,30 @@ static CAErrorCallback g_errorHandler = NULL;
 static void CAErrorHandler(const CAEndpoint_t *endpoint,
                            const void *data, uint32_t dataLen,
                            CAResult_t result);
+
+#ifdef WITH_BWT
+void CAAddDataToSendThread(CAData_t *data)
+{
+    OIC_LOG(DEBUG, TAG, "IN");
+    VERIFY_NON_NULL_VOID(data, TAG, "data");
+
+    // add thread
+    CAQueueingThreadAddData(&g_sendThread, data, sizeof(CAData_t));
+
+    OIC_LOG(DEBUG, TAG, "OUT");
+}
+
+void CAAddDataToReceiveThread(CAData_t *data)
+{
+    OIC_LOG(DEBUG, TAG, "IN - CAAddDataToReceiveThread");
+    VERIFY_NON_NULL_VOID(data, TAG, "data");
+
+    // add thread
+    CAQueueingThreadAddData(&g_receiveThread, data, sizeof(CAData_t));
+
+    OIC_LOG(DEBUG, TAG, "OUT - CAAddDataToReceiveThread");
+}
+#endif
 
 static bool CAIsSelectedNetworkAvailable()
 {
@@ -247,6 +252,7 @@ static void CASendThreadProcess(void *threadData)
     CASendDataType_t type = data->type;
 
     coap_pdu_t *pdu = NULL;
+    CAInfo_t *info = NULL;
 
     if (SEND_TYPE_UNICAST == type)
     {
@@ -256,12 +262,14 @@ static void CASendThreadProcess(void *threadData)
         {
             OIC_LOG(DEBUG, TAG, "requestInfo is available..");
 
+            info = &data->requestInfo->info;
             pdu = CAGeneratePDU(data->requestInfo->method, &data->requestInfo->info);
         }
         else if (NULL != data->responseInfo)
         {
             OIC_LOG(DEBUG, TAG, "responseInfo is available..");
 
+            info = &data->responseInfo->info;
             pdu = CAGeneratePDU(data->responseInfo->result, &data->responseInfo->info);
         }
         else
@@ -273,6 +281,24 @@ static void CASendThreadProcess(void *threadData)
         // interface controller function call.
         if (NULL != pdu)
         {
+#ifdef WITH_BWT
+            if (CA_ADAPTER_GATT_BTLE != data->remoteEndpoint->adapter)
+            {
+                // Blockwise transfer
+                if (NULL != info)
+                {
+                    CAResult_t res = CAAddBlockOption(&pdu, *info,
+                                                      data->remoteEndpoint);
+                    if (CA_STATUS_OK != res)
+                    {
+                        OIC_LOG(INFO, TAG, "to write block option has failed");
+                        CAErrorHandler(data->remoteEndpoint, pdu->hdr, pdu->length, res);
+                        coap_delete_pdu(pdu);
+                        return;
+                    }
+                }
+            }
+#endif
             CALogPDUInfo(pdu);
 
             res = CASendUnicastData(data->remoteEndpoint, pdu->hdr, pdu->length);
@@ -314,6 +340,21 @@ static void CASendThreadProcess(void *threadData)
             pdu = CAGeneratePDU(CA_GET, info);
             if (NULL != pdu)
             {
+#ifdef WITH_BWT
+                if (CA_ADAPTER_GATT_BTLE != data->remoteEndpoint->adapter)
+                {
+                    // Blockwise transfer
+                    CAResult_t res = CAAddBlockOption(&pdu, data->requestInfo->info,
+                                                      data->remoteEndpoint);
+                    if (CA_STATUS_OK != res)
+                    {
+                        OIC_LOG(DEBUG, TAG, "CAAddBlockOption has failed");
+                        CAErrorHandler(data->remoteEndpoint, pdu->hdr, pdu->length, res);
+                        coap_delete_pdu(pdu);
+                        return;
+                    }
+                }
+#endif
                 CALogPDUInfo(pdu);
 
                 res = CASendMulticastData(data->remoteEndpoint, pdu->hdr, pdu->length);
@@ -457,7 +498,23 @@ static void CAReceivedPacketCallback(const CAEndpoint_t *endpoint, void *data, u
         cadata->remoteEndpoint = CACloneEndpoint(endpoint);
         cadata->requestInfo = ReqInfo;
         cadata->responseInfo = NULL;
+#ifdef WITH_BWT
+    if (CA_ADAPTER_GATT_BTLE != endpoint->adapter)
+    {
+        CAResult_t res = CAReceiveBlockWiseData(pdu, endpoint, cadata, dataLen);
+        if (CA_NOT_SUPPORTED == res)
+        {
+            OIC_LOG(ERROR, TAG, "this message does not have block option");
+            CAQueueingThreadAddData(&g_receiveThread, cadata, sizeof(CAData_t));
+        }
+        else
+        {
+            CADataDestroyer(cadata, sizeof(CAData_t));
+        }
+    }
+#else
         CAQueueingThreadAddData(&g_receiveThread, cadata, sizeof(CAData_t));
+#endif
     }
     else
     {
@@ -536,7 +593,23 @@ static void CAReceivedPacketCallback(const CAEndpoint_t *endpoint, void *data, u
         OICFree(retransmissionPdu);
         cadata->responseInfo = ResInfo;
 
+#ifdef WITH_BWT
+        if (CA_ADAPTER_GATT_BTLE != endpoint->adapter)
+        {
+            CAResult_t res = CAReceiveBlockWiseData(pdu, endpoint, cadata, dataLen);
+            if (CA_NOT_SUPPORTED == res)
+            {
+                OIC_LOG(ERROR, TAG, "this message does not have block option");
+                CAQueueingThreadAddData(&g_receiveThread, cadata, sizeof(CAData_t));
+            }
+            else
+            {
+                CADataDestroyer(cadata, sizeof(CAData_t));
+            }
+        }
+#else
         CAQueueingThreadAddData(&g_receiveThread, cadata, sizeof(CAData_t));
+#endif
     }
 
     if (pdu)
@@ -653,7 +726,26 @@ CAResult_t CADetachRequestMessage(const CAEndpoint_t *object, const CARequestInf
     }
 
     // add thread
+#ifdef WITH_BWT
+    if (CA_ADAPTER_GATT_BTLE != object->adapter)
+    {
+        // send block data
+        CAResult_t res = CASendBlockWiseData(data);
+        if(CA_NOT_SUPPORTED == res)
+        {
+            OIC_LOG(DEBUG, TAG, "normal msg will be sent");
+            CAQueueingThreadAddData(&g_sendThread, data, sizeof(CAData_t));
+            return CA_STATUS_OK;
+        }
+        else
+        {
+            CADataDestroyer(data, sizeof(CAData_t));
+        }
+        return res;
+    }
+#else
     CAQueueingThreadAddData(&g_sendThread, data, sizeof(CAData_t));
+#endif
     OIC_LOG(DEBUG, TAG, "OUT");
     return CA_STATUS_OK;
 
@@ -716,7 +808,27 @@ CAResult_t CADetachResponseMessage(const CAEndpoint_t *object,
     }
 
     // add thread
+#ifdef WITH_BWT
+    if (CA_ADAPTER_GATT_BTLE != object->adapter)
+    {
+        // send block data
+        CAResult_t res = CASendBlockWiseData(data);
+        if(CA_NOT_SUPPORTED == res)
+        {
+            OIC_LOG(DEBUG, TAG, "normal msg will be sent");
+            CAQueueingThreadAddData(&g_sendThread, data, sizeof(CAData_t));
+            return CA_STATUS_OK;
+        }
+        else
+        {
+            CADataDestroyer(data, sizeof(CAData_t));
+        }
+        return res;
+    }
+    else
+#else
     CAQueueingThreadAddData(&g_sendThread, data, sizeof(CAData_t));
+#endif
 
     OIC_LOG(DEBUG, TAG, "OUT");
     return CA_STATUS_OK;
@@ -807,6 +919,11 @@ CAResult_t CAInitializeMessageHandler()
     CARetransmissionInitialize(&g_retransmissionContext, g_threadPoolHandle, CASendUnicastData,
                                CATimeoutCallback, NULL);
 
+#ifdef WITH_BWT
+    // block-wise transfer initialize
+    CAInitializeBlockWiseTransfer(CAAddDataToSendThread, CAAddDataToReceiveThread);
+#endif
+
     // start retransmission
     res = CARetransmissionStart(&g_retransmissionContext);
 
@@ -872,6 +989,9 @@ void CATerminateMessageHandler()
         g_threadPoolHandle = NULL;
     }
 
+#ifdef WITH_BWT
+    CATerminateBlockWiseTransfer();
+#endif
     CARetransmissionDestroy(&g_retransmissionContext);
     CAQueueingThreadDestroy(&g_sendThread);
     CAQueueingThreadDestroy(&g_receiveThread);

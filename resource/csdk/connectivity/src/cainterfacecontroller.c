@@ -412,6 +412,10 @@ CAResult_t CASendMulticastData(const CAEndpoint_t *endpoint, const void *data, u
         }
 
         CATransportAdapter_t connType = *(CATransportAdapter_t *)ptrType;
+        if (0 == (endpoint->adapter & connType))
+        {
+            continue;
+        }
 
         int index = CAGetAdapterIndex(connType);
 

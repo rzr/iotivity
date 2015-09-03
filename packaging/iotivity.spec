@@ -86,7 +86,7 @@ cp %{SOURCE1001} ./%{name}-test.manifest
 %endif
 
 
-scons -j 4 TARGET_OS=tizen TARGET_ARCH=%{RPM_ARCH} TARGET_TRANSPORT=IP RELEASE=%{release_mode}
+scons -j 4 TARGET_OS=tizen TARGET_ARCH=%{RPM_ARCH} TARGET_TRANSPORT=IP,BT RELEASE=%{release_mode}
 
 %install
 rm -rf %{buildroot}

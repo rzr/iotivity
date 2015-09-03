@@ -517,13 +517,6 @@ OCStackResult HandleSingleResponse(OCEntityHandlerResponse * ehResponse)
             OC_LOG(ERROR, TAG, "Error converting payload");
             return result;
         }
-
-        if(responseInfo.info.payloadSize > MAX_RESPONSE_LENGTH)
-        {
-            OICFree(responseInfo.info.payload);
-            OC_LOG(ERROR, TAG, "Payload too long!");
-            return OC_STACK_INVALID_PARAM;
-        }
     }
     else
     {

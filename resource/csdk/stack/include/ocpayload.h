@@ -299,7 +299,7 @@ bool OCRepPayloadGetPropDouble(const OCRepPayload* payload, const char* name, do
 
 bool OCRepPayloadSetPropString(OCRepPayload* payload, const char* name, const char* value);
 bool OCRepPayloadSetPropStringAsOwner(OCRepPayload* payload, const char* name, char* value);
-bool OCRepPayloadGetPropString(const OCRepPayload* payload, const char* name, const char** value);
+bool OCRepPayloadGetPropString(const OCRepPayload* payload, const char* name, char** value);
 
 bool OCRepPayloadSetPropBool(OCRepPayload* payload, const char* name, bool value);
 bool OCRepPayloadGetPropBool(const OCRepPayload* payload, const char* name, bool* value);
@@ -349,7 +349,7 @@ void OCRepPayloadDestroy(OCRepPayload* payload);
 // Discovery Payload
 OCDiscoveryPayload* OCDiscoveryPayloadCreate();
 
-OCSecurityPayload* OCSecurityPayloadCreate(char* securityData);
+OCSecurityPayload* OCSecurityPayloadCreate(const char* securityData);
 void OCSecurityPayloadDestroy(OCSecurityPayload* payload);
 
 void OCDiscoveryPayloadAddResource(OCDiscoveryPayload* payload, const OCResource* res,
