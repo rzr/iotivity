@@ -32,7 +32,7 @@ IoTivity Base (RICH & LITE) Stack & IoTivity Services
 %package service
 Summary: Development files for %{name}
 Group: Network & Connectivity/Service
-Requires: %{name} = %{version}-%{release}
+Requires: %{name} = %{version}
 
 %description service
 The %{name}-service package contains service libraries files for
@@ -41,7 +41,7 @@ developing applications that use %{name}-service.
 %package test
 Summary: Development files for %{name}
 Group: Network & Connectivity/Testing
-Requires: %{name} = %{version}-%{release}
+Requires: %{name} = %{version}
 
 %description test
 The %{name}-test package contains example files to show
@@ -50,7 +50,7 @@ how the iotivity works using %{name}-test
 %package devel
 Summary: Development files for %{name}
 Group: Network & Connectivity/Development
-Requires: %{name} = %{version}-%{release}
+Requires: %{name} = %{version}
 
 %description devel
 The %{name}-devel package contains libraries and header files for
@@ -95,60 +95,35 @@ mkdir -p %{buildroot}%{_libdir}
 mkdir -p %{buildroot}%{_bindir}
 
 %if %{release_mode} == "true"
-
-cp out/tizen/*/release/resource/examples/devicediscoveryclient %{buildroot}%{_bindir}
-cp out/tizen/*/release/resource/examples/devicediscoveryserver %{buildroot}%{_bindir}
-cp out/tizen/*/release/resource/examples/fridgeclient %{buildroot}%{_bindir}
-cp out/tizen/*/release/resource/examples/fridgeserver %{buildroot}%{_bindir}
-cp out/tizen/*/release/resource/examples/garageclient %{buildroot}%{_bindir}
-cp out/tizen/*/release/resource/examples/garageserver %{buildroot}%{_bindir}
-cp out/tizen/*/release/resource/examples/groupclient %{buildroot}%{_bindir}
-cp out/tizen/*/release/resource/examples/groupserver %{buildroot}%{_bindir}
-cp out/tizen/*/release/resource/examples/lightserver %{buildroot}%{_bindir}
-cp out/tizen/*/release/resource/examples/presenceclient %{buildroot}%{_bindir}
-cp out/tizen/*/release/resource/examples/presenceserver %{buildroot}%{_bindir}
-cp out/tizen/*/release/resource/examples/roomclient %{buildroot}%{_bindir}
-cp out/tizen/*/release/resource/examples/roomserver %{buildroot}%{_bindir}
-cp out/tizen/*/release/resource/examples/simpleclient %{buildroot}%{_bindir}
-cp out/tizen/*/release/resource/examples/simpleclientHQ %{buildroot}%{_bindir}
-cp out/tizen/*/release/resource/examples/simpleclientserver %{buildroot}%{_bindir}
-cp out/tizen/*/release/resource/examples/simpleserver %{buildroot}%{_bindir}
-cp out/tizen/*/release/resource/examples/simpleserverHQ %{buildroot}%{_bindir}
-cp out/tizen/*/release/resource/examples/threadingsample %{buildroot}%{_bindir}
-cp out/tizen/*/release/lib*.so %{buildroot}%{_libdir}
-cp out/tizen/*/release/libSSMSDK.a %{buildroot}%{_libdir}
-cp out/tizen/*/release/libppm.a %{buildroot}%{_libdir}
-cp out/tizen/*/release/service/protocol-plugin/plugins/mqtt-fan/*.so %{buildroot}%{_libdir}
-cp out/tizen/*/release/service/protocol-plugin/plugins/mqtt-light/*.so %{buildroot}%{_libdir}
-
+%define out_mode release
 %else
-
-cp out/tizen/*/debug/resource/examples/devicediscoveryclient %{buildroot}%{_bindir}
-cp out/tizen/*/debug/resource/examples/devicediscoveryserver %{buildroot}%{_bindir}
-cp out/tizen/*/debug/resource/examples/fridgeclient %{buildroot}%{_bindir}
-cp out/tizen/*/debug/resource/examples/fridgeserver %{buildroot}%{_bindir}
-cp out/tizen/*/debug/resource/examples/garageclient %{buildroot}%{_bindir}
-cp out/tizen/*/debug/resource/examples/garageserver %{buildroot}%{_bindir}
-cp out/tizen/*/debug/resource/examples/groupclient %{buildroot}%{_bindir}
-cp out/tizen/*/debug/resource/examples/groupserver %{buildroot}%{_bindir}
-cp out/tizen/*/debug/resource/examples/lightserver %{buildroot}%{_bindir}
-cp out/tizen/*/debug/resource/examples/presenceclient %{buildroot}%{_bindir}
-cp out/tizen/*/debug/resource/examples/presenceserver %{buildroot}%{_bindir}
-cp out/tizen/*/debug/resource/examples/roomclient %{buildroot}%{_bindir}
-cp out/tizen/*/debug/resource/examples/roomserver %{buildroot}%{_bindir}
-cp out/tizen/*/debug/resource/examples/simpleclient %{buildroot}%{_bindir}
-cp out/tizen/*/debug/resource/examples/simpleclientHQ %{buildroot}%{_bindir}
-cp out/tizen/*/debug/resource/examples/simpleclientserver %{buildroot}%{_bindir}
-cp out/tizen/*/debug/resource/examples/simpleserver %{buildroot}%{_bindir}
-cp out/tizen/*/debug/resource/examples/simpleserverHQ %{buildroot}%{_bindir}
-cp out/tizen/*/debug/resource/examples/threadingsample %{buildroot}%{_bindir}
-cp out/tizen/*/debug/lib*.so %{buildroot}%{_libdir}
-cp out/tizen/*/debug/libSSMSDK.a %{buildroot}%{_libdir}
-cp out/tizen/*/debug/libppm.a %{buildroot}%{_libdir}
-cp out/tizen/*/debug/service/protocol-plugin/plugins/mqtt-fan/*.so %{buildroot}%{_libdir}
-cp out/tizen/*/debug/service/protocol-plugin/plugins/mqtt-light/*.so %{buildroot}%{_libdir}
-
+%define out_mode debug
 %endif
+
+cp out/tizen/*/%{out_mode}/resource/examples/devicediscoveryclient %{buildroot}%{_bindir}
+cp out/tizen/*/%{out_mode}/resource/examples/devicediscoveryserver %{buildroot}%{_bindir}
+cp out/tizen/*/%{out_mode}/resource/examples/fridgeclient %{buildroot}%{_bindir}
+cp out/tizen/*/%{out_mode}/resource/examples/fridgeserver %{buildroot}%{_bindir}
+cp out/tizen/*/%{out_mode}/resource/examples/garageclient %{buildroot}%{_bindir}
+cp out/tizen/*/%{out_mode}/resource/examples/garageserver %{buildroot}%{_bindir}
+cp out/tizen/*/%{out_mode}/resource/examples/groupclient %{buildroot}%{_bindir}
+cp out/tizen/*/%{out_mode}/resource/examples/groupserver %{buildroot}%{_bindir}
+cp out/tizen/*/%{out_mode}/resource/examples/lightserver %{buildroot}%{_bindir}
+cp out/tizen/*/%{out_mode}/resource/examples/presenceclient %{buildroot}%{_bindir}
+cp out/tizen/*/%{out_mode}/resource/examples/presenceserver %{buildroot}%{_bindir}
+cp out/tizen/*/%{out_mode}/resource/examples/roomclient %{buildroot}%{_bindir}
+cp out/tizen/*/%{out_mode}/resource/examples/roomserver %{buildroot}%{_bindir}
+cp out/tizen/*/%{out_mode}/resource/examples/simpleclient %{buildroot}%{_bindir}
+cp out/tizen/*/%{out_mode}/resource/examples/simpleclientHQ %{buildroot}%{_bindir}
+cp out/tizen/*/%{out_mode}/resource/examples/simpleclientserver %{buildroot}%{_bindir}
+cp out/tizen/*/%{out_mode}/resource/examples/simpleserver %{buildroot}%{_bindir}
+cp out/tizen/*/%{out_mode}/resource/examples/simpleserverHQ %{buildroot}%{_bindir}
+cp out/tizen/*/%{out_mode}/resource/examples/threadingsample %{buildroot}%{_bindir}
+cp out/tizen/*/%{out_mode}/lib*.so %{buildroot}%{_libdir}
+cp out/tizen/*/%{out_mode}/libSSMSDK.a %{buildroot}%{_libdir}
+cp out/tizen/*/%{out_mode}/libppm.a %{buildroot}%{_libdir}
+cp out/tizen/*/%{out_mode}/service/protocol-plugin/plugins/mqtt-fan/*.so %{buildroot}%{_libdir}
+cp out/tizen/*/%{out_mode}/service/protocol-plugin/plugins/mqtt-light/*.so %{buildroot}%{_libdir}
 
 cp resource/csdk/stack/include/*.h %{buildroot}%{_includedir}
 cp resource/csdk/logger/include/*.h %{buildroot}%{_includedir}
