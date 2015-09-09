@@ -16,6 +16,7 @@ BuildRequires:  boost-devel
 BuildRequires:  boost-thread
 BuildRequires:  boost-system
 BuildRequires:  boost-filesystem
+BuildRequires:  pkgconfig(glib-2.0)
 BuildRequires:  pkgconfig(dlog)
 BuildRequires:  pkgconfig(uuid)
 BuildRequires:  pkgconfig(capi-network-wifi)

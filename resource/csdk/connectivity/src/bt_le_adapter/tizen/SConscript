@@ -10,7 +10,7 @@ env.PrependUnique(CPPPATH = [ os.path.join(src_dir, 'tizen'),
                               os.path.join(root_dir, 'lib/tizen/ble/inc'),
                               os.path.join(root_dir, 'lib/tizen/ble/inc/mobile')])
 
-env.ParseConfig("pkg-config --cflags --libs capi-network-bluetooth")
+env.ParseConfig("pkg-config --cflags --libs capi-network-bluetooth glib-2.0")
 
 src_files = [ 'cableclient.c',
               'cableserver.c',
