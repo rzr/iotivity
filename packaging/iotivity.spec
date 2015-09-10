@@ -123,8 +123,6 @@ cp out/tizen/*/%{out_mode}/resource/examples/threadingsample %{buildroot}%{_bind
 cp out/tizen/*/%{out_mode}/lib*.so %{buildroot}%{_libdir}
 cp out/tizen/*/%{out_mode}/libSSMSDK.a %{buildroot}%{_libdir}
 cp out/tizen/*/%{out_mode}/libppm.a %{buildroot}%{_libdir}
-cp out/tizen/*/%{out_mode}/service/protocol-plugin/plugins/mqtt-fan/*.so %{buildroot}%{_libdir}
-cp out/tizen/*/%{out_mode}/service/protocol-plugin/plugins/mqtt-light/*.so %{buildroot}%{_libdir}
 
 cp resource/csdk/stack/include/*.h %{buildroot}%{_includedir}
 cp resource/csdk/logger/include/*.h %{buildroot}%{_includedir}
@@ -170,8 +168,6 @@ cp LICENSE.APLv2 %{buildroot}/%{_datadir}/license/%{name}-test
 %{_libdir}/libpmimpl.so
 %{_libdir}/libSSMCore.so
 %{_libdir}/libTGMSDKLibrary.so
-%{_libdir}/fanserver*.so
-%{_libdir}/lightserver*.so
 %if 0%{?tizen_version_major} < 3
 %{_datadir}/license/%{name}-service
 %else
