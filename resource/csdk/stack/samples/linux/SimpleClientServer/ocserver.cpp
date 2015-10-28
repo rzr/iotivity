@@ -50,8 +50,12 @@ static LightResource gLightInstance[SAMPLE_MAX_NUM_POST_INSTANCE];
 
 Observers interestedObservers[SAMPLE_MAX_NUM_OBSERVATIONS];
 
+pthread_t threadId_observe;
+pthread_t threadId_presence;
+
+static bool observeThreadStarted = false;
+
 #ifdef WITH_PRESENCE
-static int stopPresenceCount = 10;
 #define numPresenceResources (2)
 #endif
 
@@ -367,7 +371,7 @@ OCEntityHandlerResult ProcessDeleteRequest (OCEntityHandlerRequest *ehRequest)
     return ehResult;
 }
 
-OCEntityHandlerResult ProcessNonExistingResourceRequest(OCEntityHandlerRequest *ehRequest)
+OCEntityHandlerResult ProcessNonExistingResourceRequest(OCEntityHandlerRequest * /*ehRequest*/)
 {
     OC_LOG_V(INFO, TAG, "\n\nExecuting %s ", __func__);
 
@@ -378,6 +382,12 @@ void ProcessObserveRegister (OCEntityHandlerRequest *ehRequest)
 {
     OC_LOG_V (INFO, TAG, "Received observation registration request with observation Id %d",
             ehRequest->obsInfo.obsId);
+
+    if (!observeThreadStarted)
+    {
+        pthread_create (&threadId_observe, NULL, ChangeLightRepresentation, (void *)NULL);
+        observeThreadStarted = 1;
+    }
     for (uint8_t i = 0; i < SAMPLE_MAX_NUM_OBSERVATIONS; i++)
     {
         if (interestedObservers[i].valid == false)
@@ -414,7 +424,9 @@ void ProcessObserveDeregister (OCEntityHandlerRequest *ehRequest)
 
 OCEntityHandlerResult
 OCDeviceEntityHandlerCb (OCEntityHandlerFlag flag,
-        OCEntityHandlerRequest *entityHandlerRequest, char* uri, void* callbackParam)
+                         OCEntityHandlerRequest *entityHandlerRequest,
+                         char* uri,
+                         void* /*callbackParam*/)
 {
     OC_LOG_V (INFO, TAG, "Inside device default entity handler - flags: 0x%x, uri: %s", flag, uri);
 
@@ -501,8 +513,9 @@ OCDeviceEntityHandlerCb (OCEntityHandlerFlag flag,
 }
 
 OCEntityHandlerResult
-OCNOPEntityHandlerCb (OCEntityHandlerFlag flag,
-        OCEntityHandlerRequest *entityHandlerRequest, void* callbackParam)
+OCNOPEntityHandlerCb (OCEntityHandlerFlag /*flag*/,
+                      OCEntityHandlerRequest * /*entityHandlerRequest*/,
+                      void* /*callbackParam*/)
 {
     // This is callback is associated with the 2 presence notification
     // resources. They are non-operational.
@@ -511,12 +524,12 @@ OCNOPEntityHandlerCb (OCEntityHandlerFlag flag,
 
 OCEntityHandlerResult
 OCEntityHandlerCb (OCEntityHandlerFlag flag,
-        OCEntityHandlerRequest *entityHandlerRequest, void* callback)
+        OCEntityHandlerRequest *entityHandlerRequest, void* /*callback*/)
 {
     OC_LOG_V (INFO, TAG, "Inside entity handler - flags: 0x%x", flag);
 
     OCEntityHandlerResult ehResult = OC_EH_OK;
-    OCEntityHandlerResponse response = { 0 };
+    OCEntityHandlerResponse response = { 0, 0, OC_EH_ERROR, 0, 0, { },{ 0 }, false };
 
     // Validate pointer
     if (!entityHandlerRequest)
@@ -693,17 +706,6 @@ void *ChangeLightRepresentation (void *param)
                 OC_LOG (ERROR, TAG, "Incorrect notification type selected");
             }
         }
-#ifdef WITH_PRESENCE
-        if(stopPresenceCount > 0)
-        {
-            OC_LOG_V(INFO, TAG, "================  Counting down to stop presence %d", stopPresenceCount);
-        }
-        if(!stopPresenceCount--)
-        {
-            OC_LOG(INFO, TAG, "================ stopping presence");
-            OCStopPresence();
-        }
-#endif
     }
     return NULL;
 }
@@ -711,7 +713,9 @@ void *ChangeLightRepresentation (void *param)
 #ifdef WITH_PRESENCE
 void *presenceNotificationGenerator(void *param)
 {
-    sleep(10);
+    uint8_t secondsBeforePresence = 10;
+    OC_LOG_V(INFO, TAG, "Will send out presence in %u seconds", secondsBeforePresence);
+    sleep(secondsBeforePresence);
     (void)param;
     OCDoHandle presenceNotificationHandles[numPresenceResources];
     OCStackResult res = OC_STACK_OK;
@@ -762,6 +766,10 @@ void *presenceNotificationGenerator(void *param)
         OC_LOG_V(INFO, TAG, PCF("Deleted %s for presence notification"),
                                 presenceNotificationUris[i].c_str());
     }
+
+    OC_LOG(INFO, TAG, "================ stopping presence");
+    OCStopPresence();
+
     return NULL;
 }
 #endif
@@ -927,8 +935,6 @@ static void PrintUsage()
 
 int main(int argc, char* argv[])
 {
-    pthread_t threadId;
-    pthread_t threadId_presence;
     int opt;
 
     while ((opt = getopt(argc, argv, "o:")) != -1)
@@ -949,7 +955,7 @@ int main(int argc, char* argv[])
         PrintUsage();
         return -1;
     }
-    #ifdef RA_ADAPTER
+#ifdef RA_ADAPTER
     OCRAInfo_t rainfo;
     rainfo.hostname = "localhost";
     rainfo.port = 5222;
@@ -960,7 +966,7 @@ int main(int argc, char* argv[])
     rainfo.user_jid = "";
 
     OCSetRAInfo(&rainfo);
-    #endif
+#endif
 
     OC_LOG(DEBUG, TAG, "OCServer is starting...");
 
@@ -1025,10 +1031,6 @@ int main(int argc, char* argv[])
         interestedObservers[i].valid = false;
     }
 
-    /*
-     * Create a thread for changing the representation of the Light
-     */
-    pthread_create (&threadId, NULL, ChangeLightRepresentation, (void *)NULL);
 
     /*
      * Create a thread for generating changes that cause presence notifications
@@ -1054,15 +1056,14 @@ int main(int argc, char* argv[])
             OC_LOG(ERROR, TAG, "OCStack process error");
             return 0;
         }
-
-        sleep(2);
     }
 
-    /*
-     * Cancel the Light thread and wait for it to terminate
-     */
-    pthread_cancel(threadId);
-    pthread_join(threadId, NULL);
+    if (observeThreadStarted)
+    {
+        pthread_cancel(threadId_observe);
+        pthread_join(threadId_observe, NULL);
+    }
+
     pthread_cancel(threadId_presence);
     pthread_join(threadId_presence, NULL);
 

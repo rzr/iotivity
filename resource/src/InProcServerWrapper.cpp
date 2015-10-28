@@ -128,6 +128,12 @@ void formResourceRequest(OCEntityHandlerFlag flag,
             OC::ObservationInfo observationInfo;
             observationInfo.action = (OC::ObserveAction) entityHandlerRequest->obsInfo.action;
             observationInfo.obsId = entityHandlerRequest->obsInfo.obsId;
+
+            observationInfo.connectivityType = static_cast<OCConnectivityType>(
+                    (entityHandlerRequest->devAddr.adapter << CT_ADAPTER_SHIFT) |
+                    (entityHandlerRequest->devAddr.flags & CT_MASK_FLAGS));
+            observationInfo.address = entityHandlerRequest->devAddr.addr;
+            observationInfo.port = entityHandlerRequest->devAddr.port;
             pRequest->setObservationInfo(observationInfo);
         }
     }
@@ -136,7 +142,7 @@ void formResourceRequest(OCEntityHandlerFlag flag,
 OCEntityHandlerResult DefaultEntityHandlerWrapper(OCEntityHandlerFlag flag,
                                                   OCEntityHandlerRequest * entityHandlerRequest,
                                                   char* uri,
-                                                  void * callbackParam)
+                                                  void * /*callbackParam*/)
 {
     OCEntityHandlerResult result = OC_EH_ERROR;
 
@@ -176,7 +182,7 @@ OCEntityHandlerResult DefaultEntityHandlerWrapper(OCEntityHandlerFlag flag,
 
 OCEntityHandlerResult EntityHandlerWrapper(OCEntityHandlerFlag flag,
                                            OCEntityHandlerRequest * entityHandlerRequest,
-                                           void* callbackParam)
+                                           void* /*callbackParam*/)
 {
     OCEntityHandlerResult result = OC_EH_ERROR;
 
@@ -256,6 +262,10 @@ namespace OC
         else if (cfg.mode == ModeType::Both)
         {
             initType = OC_CLIENT_SERVER;
+        }
+        else if (cfg.mode == ModeType::Gateway)
+        {
+            initType = OC_GATEWAY;
         }
         else
         {

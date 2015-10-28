@@ -26,16 +26,18 @@
 
 #include <RequestHandler.h>
 #include <AssertUtils.h>
+#include <AtomicHelper.h>
 #include <ResourceAttributesConverter.h>
+#include <ResourceAttributesUtils.h>
 
 #include <logger.h>
 #include <OCPlatform.h>
 
+#define LOG_TAG "RCSResourceObject"
+
 namespace
 {
     using namespace OIC::Service;
-
-    constexpr char LOG_TAG[]{ "RCSResourceObject" };
 
     inline bool hasProperty(uint8_t base, uint8_t target)
     {
@@ -69,7 +71,7 @@ namespace
         }
         catch (const OC::OCException& e)
         {
-            OC_LOG(WARNING, LOG_TAG, e.what());
+            OC_LOG_V(WARNING, LOG_TAG, "Error (%s)", e.what());
         }
 
         return OC_EH_ERROR;
@@ -194,11 +196,12 @@ namespace OIC
                 m_setRequestHandler{ },
                 m_autoNotifyPolicy { AutoNotifyPolicy::UPDATED },
                 m_setRequestHandlerPolicy { SetRequestHandlerPolicy::NEVER },
-                m_keyAttributesUpdatedListeners{ },
+                m_attributeUpdatedListeners{ },
                 m_lockOwner{ },
                 m_mutex{ },
-                m_mutexKeyAttributeUpdate{ }
+                m_mutexAttributeUpdatedListeners{ }
         {
+            m_lockOwner.reset(new AtomicThreadId);
         }
 
         RCSResourceObject::~RCSResourceObject()
@@ -306,10 +309,20 @@ namespace OIC
 
         void RCSResourceObject::expectOwnLock() const
         {
-            if (m_lockOwner != std::this_thread::get_id())
+            if (getLockOwner() != std::this_thread::get_id())
             {
                 throw NoLockException{ "Must acquire the lock first using LockGuard." };
             }
+        }
+
+        std::thread::id RCSResourceObject::getLockOwner() const noexcept
+        {
+            return *m_lockOwner;
+        }
+
+        void RCSResourceObject::setLockOwner(std::thread::id&& id) const noexcept
+        {
+            m_lockOwner->store(std::move(id));
         }
 
         bool RCSResourceObject::isObservable() const
@@ -344,22 +357,26 @@ namespace OIC
         void RCSResourceObject::addAttributeUpdatedListener(const std::string& key,
                 AttributeUpdatedListener h)
         {
-            std::lock_guard<std::mutex> lock(m_mutexKeyAttributeUpdate);
-            m_keyAttributesUpdatedListeners[key] = std::move(h);
+            std::lock_guard< std::mutex > lock(m_mutexAttributeUpdatedListeners);
+
+            m_attributeUpdatedListeners[key] =
+                    std::make_shared< AttributeUpdatedListener >(std::move(h));
         }
 
         void RCSResourceObject::addAttributeUpdatedListener(std::string&& key,
                 AttributeUpdatedListener h)
         {
-           std::lock_guard<std::mutex> lock(m_mutexKeyAttributeUpdate);
-           m_keyAttributesUpdatedListeners[std::move(key)] = std::move(h);
+            std::lock_guard< std::mutex > lock(m_mutexAttributeUpdatedListeners);
+
+            m_attributeUpdatedListeners[std::move(key)] =
+                    std::make_shared< AttributeUpdatedListener >(std::move(h));
         }
 
         bool RCSResourceObject::removeAttributeUpdatedListener(const std::string& key)
         {
-           std::lock_guard<std::mutex> lock(m_mutexKeyAttributeUpdate);
+            std::lock_guard< std::mutex > lock(m_mutexAttributeUpdatedListeners);
 
-           return m_keyAttributesUpdatedListeners.erase(key) != 0;
+            return m_attributeUpdatedListeners.erase(key) != 0;
         }
 
         bool RCSResourceObject::testValueUpdated(const std::string& key,
@@ -407,6 +424,7 @@ namespace OIC
         OCEntityHandlerResult RCSResourceObject::entityHandler(
                 std::shared_ptr< OC::OCResourceRequest > request)
         {
+            OC_LOG(WARNING, LOG_TAG, "entityHandler");
             if (!request)
             {
                 return OC_EH_ERROR;
@@ -466,6 +484,39 @@ namespace OIC
             return sendResponse(*this, request, invokeHandler(attrs, request, m_getRequestHandler));
         }
 
+        bool RCSResourceObject::applyAcceptanceMethod(const RCSSetResponse& response,
+                const RCSResourceAttributes& requstAttrs)
+        {
+            auto requestHandler = response.getHandler();
+
+            assert(requestHandler != nullptr);
+
+            auto replaced = requestHandler->applyAcceptanceMethod(response.getAcceptanceMethod(),
+                    *this, requstAttrs);
+
+            OC_LOG_V(WARNING, LOG_TAG, "replaced num %d", replaced.size());
+            for (const auto& attrKeyValPair : replaced)
+            {
+                std::shared_ptr< AttributeUpdatedListener > foundListener;
+                {
+                    std::lock_guard< std::mutex > lock(m_mutexAttributeUpdatedListeners);
+
+                    auto it = m_attributeUpdatedListeners.find(attrKeyValPair.first);
+                    if (it != m_attributeUpdatedListeners.end())
+                    {
+                        foundListener = it->second;
+                    }
+                }
+
+                if (foundListener)
+                {
+                    (*foundListener)(attrKeyValPair.second, requstAttrs.at(attrKeyValPair.first));
+                }
+            }
+
+            return !replaced.empty();
+        }
+
         OCEntityHandlerResult RCSResourceObject::handleRequestSet(
                 std::shared_ptr< OC::OCResourceRequest > request)
         {
@@ -473,33 +524,22 @@ namespace OIC
 
             auto attrs = getAttributesFromOCRequest(request);
             auto response = invokeHandler(attrs, request, m_setRequestHandler);
-            auto requestHandler = response.getHandler();
 
-            assert(requestHandler != nullptr);
+            auto attrsChanged = applyAcceptanceMethod(response, attrs);
 
-            AttrKeyValuePairs replaced = requestHandler->applyAcceptanceMethod(
-                    response.getAcceptanceMethod(), *this, attrs);
-
-            for (const auto& it : replaced)
+            try
             {
-                std::lock_guard<std::mutex> lock(m_mutexKeyAttributeUpdate);
-
-                auto keyAttribute = m_keyAttributesUpdatedListeners.find(it.first);
-                if(keyAttribute != m_keyAttributesUpdatedListeners.end())
-                {
-                    keyAttribute-> second(it.second, attrs[it.first]);
-                }
+                autoNotify(attrsChanged, m_autoNotifyPolicy);
+                return sendResponse(*this, request, response);
+            } catch (const RCSPlatformException& e) {
+                OC_LOG_V(ERROR, LOG_TAG, "Error : %s ", e.what());
+                return OC_EH_ERROR;
             }
-
-            autoNotify(!replaced.empty(), m_autoNotifyPolicy);
-            return sendResponse(*this, request, response);
         }
 
         OCEntityHandlerResult RCSResourceObject::handleObserve(
-                std::shared_ptr< OC::OCResourceRequest > request)
+                std::shared_ptr< OC::OCResourceRequest >)
         {
-            assert(request != nullptr);
-
             if (!isObservable())
             {
                 return OC_EH_ERROR;
@@ -549,17 +589,17 @@ namespace OIC
 
             if (m_isOwningLock)
             {
-                m_resourceObject.m_lockOwner = std::thread::id{ };
+                m_resourceObject.setLockOwner(std::thread::id{ });
                 m_resourceObject.m_mutex.unlock();
             }
         }
 
         void RCSResourceObject::LockGuard::init()
         {
-            if (m_resourceObject.m_lockOwner != std::this_thread::get_id())
+            if (m_resourceObject.getLockOwner() != std::this_thread::get_id())
             {
                 m_resourceObject.m_mutex.lock();
-                m_resourceObject.m_lockOwner = std::this_thread::get_id();
+                m_resourceObject.setLockOwner(std::this_thread::get_id());
                 m_isOwningLock = true;
             }
             m_autoNotifyFunc = ::createAutoNotifyInvoker(&RCSResourceObject::autoNotify,
@@ -571,10 +611,10 @@ namespace OIC
                 m_isOwningLock{ false },
                 m_resourceObject(resourceObject)
         {
-            if (resourceObject.m_lockOwner != std::this_thread::get_id())
+            if (m_resourceObject.getLockOwner() != std::this_thread::get_id())
             {
                 m_resourceObject.m_mutex.lock();
-                m_resourceObject.m_lockOwner = std::this_thread::get_id();
+                m_resourceObject.setLockOwner(std::this_thread::get_id());
                 m_isOwningLock = true;
             }
         }
@@ -583,7 +623,7 @@ namespace OIC
         {
             if (m_isOwningLock)
             {
-                m_resourceObject.m_lockOwner = std::thread::id{ };
+                m_resourceObject.setLockOwner(std::thread::id{ });
                 m_resourceObject.m_mutex.unlock();
             }
         }
@@ -592,5 +632,6 @@ namespace OIC
         {
             return m_isOwningLock;
         }
+
     }
 }

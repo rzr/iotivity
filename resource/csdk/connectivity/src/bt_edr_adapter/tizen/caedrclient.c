@@ -37,75 +37,77 @@
 #include "cacommon.h"
 #include "caedrdevicelist.h"
 
+#define MICROSECS_PER_SEC 1000000
+
 /**
- * @var g_edrDeviceListMutex
- * @brief Mutex to synchronize the access to Bluetooth device information list.
+ * Condition to check if OIC supported device is found.
+ */
+static ca_cond g_deviceDescCond = NULL;
+
+/**
+ * Flag that will be set when EDR adapter is stopped.
+ */
+static bool g_isStopping = false;
+
+/**
+ * Mutex to synchronize the access to Bluetooth device information list.
  */
 static ca_mutex g_edrDeviceListMutex = NULL;
 
 /**
- * @var g_edrDeviceList
- * @brief Peer Bluetooth device information list.
+ * Peer Bluetooth device information list.
  */
 static EDRDeviceList *g_edrDeviceList = NULL;
 
 /**
- * @var gEDRNetworkChangeCallback
- * @brief Maintains the callback to be notified when data received from remote Bluetooth device
+ * Maintains the callback to be notified when data received from remote
+ * Bluetooth device.
  */
 static CAEDRDataReceivedCallback g_edrPacketReceivedCallback = NULL;
 
 /**
- * @var g_edrErrorHandler
- * @brief Error callback to update error in EDR
+ * Error callback to update error in EDR.
  */
 static CAEDRErrorHandleCallback g_edrErrorHandler = NULL;
+
 /**
- * @fn CAEDRManagerInitializeMutex
- * @brief This function creates mutex.
+ * This function creates mutex.
  */
 static void CAEDRManagerInitializeMutex(void);
 
 /**
- * @fn CAEDRManagerTerminateMutex
- * @brief This function frees mutex.
+ * This function frees mutex.
  */
 static void CAEDRManagerTerminateMutex(void);
 
 /**
- * @fn CAEDRDataRecvCallback
- * @brief This callback is registered to recieve data on any open RFCOMM connection.
+ * This callback is registered to recieve data on any open RFCOMM connection.
  */
 static void CAEDRDataRecvCallback(bt_socket_received_data_s *data, void *userData);
 
 /**
- * @brief This function starts device discovery.
- * @return NONE
+ * This function starts device discovery.
  */
 static CAResult_t CAEDRStartDeviceDiscovery(void);
 
 /**
- * @fn CAEDRStopServiceSearch
- * @brief This function stops any ongoing service sevice search.
+ * This function stops any ongoing service sevice search.
  */
 static CAResult_t CAEDRStopServiceSearch(void);
 
 /**
- * @fn CAEDRStopDeviceDiscovery
- * @brief This function stops device discovery.
+ * This function stops device discovery.
  */
 static CAResult_t CAEDRStopDeviceDiscovery(void);
 
 /**
- * @fn CAEDRStartServiceSearch
- * @brief This function searches for OIC service for remote Bluetooth device.
+ * This function searches for OIC service for remote Bluetooth device.
  */
 static CAResult_t CAEDRStartServiceSearch(const char *remoteAddress);
 
 /**
- * @fn CAEDRDeviceDiscoveryCallback
- * @brief This callback is registered to recieve all bluetooth nearby devices when device
- *           scan is initiated.
+ * This callback is registered to recieve all bluetooth nearby devices
+ * when device scan is initiated.
  */
 static void CAEDRDeviceDiscoveryCallback(int result,
                                          bt_adapter_device_discovery_state_e state,
@@ -113,30 +115,27 @@ static void CAEDRDeviceDiscoveryCallback(int result,
                                          void *userData);
 
 /**
- * @fn CAEDRServiceSearchedCallback
- * @brief This callback is registered to recieve all the services remote bluetooth device supports
- *           when service search initiated.
+ * This callback is registered to recieve all the services remote
+ * bluetooth device supports when service search initiated.
  */
 static void CAEDRServiceSearchedCallback(int result, bt_device_sdp_info_s *sdpInfo,
                                         void *userData);
 
 /**
- * @fn CAEDRSocketConnectionStateCallback
- * @brief This callback is registered to receive bluetooth RFCOMM connection state changes.
+ * This callback is registered to receive bluetooth RFCOMM connection
+ * state changes.
  */
 static void CAEDRSocketConnectionStateCallback(int result,
                                     bt_socket_connection_state_e state,
                                               bt_socket_connection_s *connection, void *userData);
 
 /**
- * @fn CAEDRClientConnect
- * @brief Establishes RFCOMM connection with remote bluetooth device
+ * Establishes RFCOMM connection with remote bluetooth device.
  */
 static CAResult_t CAEDRClientConnect(const char *remoteAddress, const char *serviceUUID);
 
 /**
- * @fn CAEDRClientDisconnect
- * @brief  Disconnect RFCOMM client socket connection
+ * Disconnect RFCOMM client socket connection.
  */
 static CAResult_t CAEDRClientDisconnect(const int32_t clientID);
 
@@ -204,10 +203,9 @@ void CAEDRSocketConnectionStateCallback(int result, bt_socket_connection_state_e
                 device->socketFD = connection->socket_fd;
                 while (device->pendingDataList)
                 {
-                    uint32_t sentData = 0;
                     EDRData *edrData = device->pendingDataList->data;
                     res = CAEDRSendData(device->socketFD, edrData->data,
-                                                     edrData->dataLength, &sentData);
+                                        edrData->dataLength);
                     if (CA_STATUS_OK != res)
                     {
                         OIC_LOG_V(ERROR, EDR_ADAPTER_TAG, "Failed to send pending data [%s]",
@@ -307,6 +305,8 @@ void CAEDRDeviceDiscoveryCallback(int result, bt_adapter_device_discovery_state_
                         return;
                     }
                     device->serviceSearched = true;
+                    // Signal the wait to send the data.
+                    ca_cond_signal(g_deviceDescCond);
                     ca_mutex_unlock(g_edrDeviceListMutex);
                 }
                 else
@@ -478,6 +478,7 @@ CAResult_t CAEDRClientSetCallbacks(void)
 {
     OIC_LOG(DEBUG, EDR_ADAPTER_TAG, "IN");
 
+    g_isStopping = false;
     // Register for discovery and rfcomm socket connection callbacks
     bt_adapter_set_device_discovery_state_changed_cb(CAEDRDeviceDiscoveryCallback, NULL);
     bt_device_set_service_searched_cb(CAEDRServiceSearchedCallback, NULL);
@@ -507,6 +508,10 @@ void CAEDRClientUnsetCallbacks(void)
     // Stop the device discovery process
     CAEDRStopDeviceDiscovery();
 
+    // Signal the conditional wait for discovery of devices.
+    g_isStopping = true;
+    ca_cond_signal(g_deviceDescCond);
+
     // reset bluetooth adapter callbacks
     OIC_LOG(DEBUG, EDR_ADAPTER_TAG, "Resetting the callbacks");
     bt_adapter_unset_device_discovery_state_changed_cb();
@@ -526,6 +531,11 @@ void CAEDRManagerInitializeMutex(void)
         g_edrDeviceListMutex = ca_mutex_new();
     }
 
+    if (!g_deviceDescCond)
+    {
+        g_deviceDescCond = ca_cond_new();
+    }
+
     OIC_LOG(DEBUG, EDR_ADAPTER_TAG, "OUT");
 }
 
@@ -539,6 +549,11 @@ void CAEDRManagerTerminateMutex(void)
         g_edrDeviceListMutex = NULL;
     }
 
+    if (g_deviceDescCond)
+    {
+        ca_cond_free(g_deviceDescCond);
+        g_deviceDescCond = NULL;
+    }
     OIC_LOG(DEBUG, EDR_ADAPTER_TAG, "OUT");
 }
 
@@ -597,8 +612,9 @@ void CAEDRClientDisconnectAll(void)
 }
 
 
-CAResult_t CAEDRClientSendUnicastData(const char *remoteAddress, const char *serviceUUID,
-                                      const void *data, uint32_t dataLength, uint32_t *sentLength)
+CAResult_t CAEDRClientSendUnicastData(const char *remoteAddress,
+                                      const uint8_t *data,
+                                      uint32_t dataLength)
 {
     OIC_LOG(DEBUG, EDR_ADAPTER_TAG, "IN");
 
@@ -606,9 +622,7 @@ CAResult_t CAEDRClientSendUnicastData(const char *remoteAddress, const char *ser
 
     // Input validation
     VERIFY_NON_NULL(remoteAddress, EDR_ADAPTER_TAG, "Remote address is null");
-    VERIFY_NON_NULL(serviceUUID, EDR_ADAPTER_TAG, "service UUID is null");
     VERIFY_NON_NULL(data, EDR_ADAPTER_TAG, "Data is null");
-    VERIFY_NON_NULL(sentLength, EDR_ADAPTER_TAG, "Sent data length holder is null");
 
     if (0 >= dataLength)
     {
@@ -674,7 +688,7 @@ CAResult_t CAEDRClientSendUnicastData(const char *remoteAddress, const char *ser
 
         // Make a rfcomm connection with remote BT Device
         if (device->serviceSearched &&
-            CA_STATUS_OK != CAEDRClientConnect(remoteAddress, serviceUUID))
+            CA_STATUS_OK != CAEDRClientConnect(remoteAddress, OIC_EDR_SERVICE_ID))
         {
             OIC_LOG(ERROR, EDR_ADAPTER_TAG, "Failed to make RFCOMM connection!");
 
@@ -682,11 +696,10 @@ CAResult_t CAEDRClientSendUnicastData(const char *remoteAddress, const char *ser
             CARemoveEDRDeviceFromList(&g_edrDeviceList, remoteAddress);
             return CA_STATUS_FAILED;
         }
-        *sentLength = dataLength;
     }
     else
     {
-        result = CAEDRSendData(device->socketFD, data, dataLength, sentLength);
+        result = CAEDRSendData(device->socketFD, data, dataLength);
         if (CA_STATUS_OK != result)
         {
             OIC_LOG(ERROR, EDR_ADAPTER_TAG, "Failed to send data!");
@@ -698,15 +711,13 @@ CAResult_t CAEDRClientSendUnicastData(const char *remoteAddress, const char *ser
     return CA_STATUS_OK;
 }
 
-CAResult_t CAEDRClientSendMulticastData(const char *serviceUUID, const void *data,
-                                        uint32_t dataLength, uint32_t *sentLength)
+CAResult_t CAEDRClientSendMulticastData(const uint8_t *data,
+                                        uint32_t dataLength)
 {
     OIC_LOG(DEBUG, EDR_ADAPTER_TAG, "IN");
 
     // Input validation
-    VERIFY_NON_NULL(serviceUUID, EDR_ADAPTER_TAG, "service UUID is null");
     VERIFY_NON_NULL(data, EDR_ADAPTER_TAG, "Data is null");
-    VERIFY_NON_NULL(sentLength, EDR_ADAPTER_TAG, "Sent data length holder is null");
 
     if (0 >= dataLength)
     {
@@ -714,10 +725,35 @@ CAResult_t CAEDRClientSendMulticastData(const char *serviceUUID, const void *dat
         return CA_STATUS_INVALID_PARAM;
     }
 
-    *sentLength = dataLength;
-
     // Send the packet to all OIC devices
     ca_mutex_lock(g_edrDeviceListMutex);
+
+    // Check if any device is discovered.
+    if (NULL == g_edrDeviceList)
+    {
+        // Wait for BT devices to be discovered.
+
+        // Number of times to wait for discovery to complete.
+        int const RETRIES = 5;
+
+        uint64_t const TIMEOUT = 2 * MICROSECS_PER_SEC;  // Microseconds
+
+        bool devicesDiscovered = false;
+        for (size_t i = 0; NULL == g_edrDeviceList && i < RETRIES && !g_isStopping;
+             ++i)
+        {
+            if (ca_cond_wait_for(g_deviceDescCond, g_edrDeviceListMutex,
+                                 TIMEOUT) == 0)
+            {
+                devicesDiscovered = true;
+            }
+        }
+        if (!devicesDiscovered || g_isStopping)
+        {
+            goto exit;
+        }
+    }
+
     EDRDeviceList *curList = g_edrDeviceList;
     CAResult_t result = CA_STATUS_FAILED;
     while (curList != NULL)
@@ -733,7 +769,6 @@ CAResult_t CAEDRClientSendMulticastData(const char *serviceUUID, const void *dat
 
         if (-1 == device->socketFD)
         {
-            OIC_LOG(DEBUG, EDR_ADAPTER_TAG, "IN1");
             // Check if the device service search is finished
             if (false == device->serviceSearched)
             {
@@ -760,20 +795,18 @@ CAResult_t CAEDRClientSendMulticastData(const char *serviceUUID, const void *dat
                 CARemoveEDRDataFromList(&device->pendingDataList);
                 continue;
             }
-            OIC_LOG(DEBUG, EDR_ADAPTER_TAG, "IN2");
         }
         else
         {
-            OIC_LOG(DEBUG, EDR_ADAPTER_TAG, "IN3");
-            result = CAEDRSendData(device->socketFD, data, dataLength, sentLength);
+            result = CAEDRSendData(device->socketFD, data, dataLength);
             if (CA_STATUS_OK != result)
             {
                 OIC_LOG_V(ERROR, EDR_ADAPTER_TAG, "Failed to send data to [%s] !",
                           device->remoteAddress);
             }
-            OIC_LOG(DEBUG, EDR_ADAPTER_TAG, "IN4");
         }
     }
+exit:
     ca_mutex_unlock(g_edrDeviceListMutex);
 
     OIC_LOG(DEBUG, EDR_ADAPTER_TAG, "OUT");
@@ -868,10 +901,10 @@ void CAEDRDataRecvCallback(bt_socket_received_data_s *data, void *userData)
 
     uint32_t sentLength = 0;
 
-    g_edrPacketReceivedCallback(device->remoteAddress, data->data,
-                                (uint32_t)data->data_size, &sentLength);
+    g_edrPacketReceivedCallback(device->remoteAddress,
+                                (uint8_t *) data->data,
+                                (uint32_t) data->data_size,
+                                &sentLength);
 
     OIC_LOG(DEBUG, EDR_ADAPTER_TAG, "OUT");
 }
-
-

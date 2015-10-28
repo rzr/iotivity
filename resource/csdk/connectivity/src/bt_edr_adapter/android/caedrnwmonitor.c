@@ -61,8 +61,15 @@ CAResult_t CAEDRInitializeNetworkMonitor(const ca_thread_pool_t threadPool)
 {
     OIC_LOG(DEBUG, TAG, "IN");
 
-    CAEDRNetworkMonitorJniInit();
-    CANativeJNIGetJavaVM();
+    if (!threadPool)
+    {
+        return CA_STATUS_FAILED;
+    }
+    else
+    {
+        CAEDRNetworkMonitorJniInit();
+        CANativeJNIGetJavaVM();
+    }
 
     OIC_LOG(DEBUG, TAG, "OUT");
     return CA_STATUS_OK;
@@ -107,14 +114,21 @@ CAResult_t CAEDRClientSetCallbacks(void)
 
 JNIEXPORT void JNICALL
 Java_org_iotivity_ca_CaEdrInterface_caEdrStateChangedCallback(JNIEnv *env, jobject obj,
-                                                               jint status)
+                                                              jint status)
 {
+    if (!env || !obj)
+    {
+        OIC_LOG(ERROR, TAG, "parameter is null");
+        return;
+    }
+
     // STATE_ON:12, STATE_OFF:10
     OIC_LOG(DEBUG, TAG, "CaEdrInterface - Network State Changed");
 
     if (NULL == g_networkChangeCb)
     {
         OIC_LOG_V(DEBUG, TAG, "gNetworkChangeCb is null", status);
+        return;
     }
 
     jclass jni_cid_BTAdapter = (*env)->FindClass(env, CLASSPATH_BT_ADPATER);
@@ -158,8 +172,14 @@ Java_org_iotivity_ca_CaEdrInterface_caEdrStateChangedCallback(JNIEnv *env, jobje
 
 JNIEXPORT void JNICALL
 Java_org_iotivity_ca_CaEdrInterface_caEdrBondStateChangedCallback(JNIEnv *env, jobject obj,
-                                                                   jstring addr)
+                                                                  jstring addr)
 {
+    if (!env || !obj)
+    {
+        OIC_LOG(ERROR, TAG, "parameter is null");
+        return;
+    }
+
     OIC_LOG(DEBUG, TAG, "CaEdrInterface - Bond State Changed");
 
     if (addr)

@@ -73,9 +73,10 @@ namespace OIC
         ConfigurationUnitInfo unit[] =
         {
         { "all", "All attributes", "/oic/con" },
-        { "r", "Region", "/oic/con" },
-        { "st", "System Time", "/oic/con"},
+        { "n", "Device Name", "/oic/con"},
         { "loc", "Location", "/oic/con"},
+        { "locn", "Location Name", "/oic/con"},
+        { "r", "Region", "/oic/con" },
         { "c","Currency", "/oic/con" } };
 
         for (int i = 0; i < NUMCONFUNIT; i++)
@@ -198,8 +199,8 @@ namespace OIC
         return newUri;
     }
 
-    void ThingsConfiguration::onDeleteActionSet(const HeaderOptions& headerOptions,
-            const OCRepresentation& rep, const int eCode, std::string conf)
+    void ThingsConfiguration::onDeleteActionSet(const HeaderOptions& /*headerOptions*/,
+            const OCRepresentation& /*rep*/, const int /*eCode*/, std::string conf)
     {
         std::shared_ptr < OCResource > resource = getResource(conf);
 
