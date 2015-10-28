@@ -41,7 +41,7 @@ samples_env.AppendUnique(LIBPATH = [env.get('BUILD_DIR')])
 if target_os in ['darwin', 'ios']:
 	samples_env.PrependUnique(LIBS = ['m','octbstack', 'ocsrm', 'connectivity_abstraction','coap' ])
 elif target_os not in ['arduino']:
-	samples_env.PrependUnique(LIBS = ['m', 'octbstack', 'ocsrm', 'oc_logger', 'connectivity_abstraction', 'coap'])
+	samples_env.PrependUnique(LIBS = ['m', 'octbstack', 'ocsrm', 'connectivity_abstraction', 'coap'])
 	samples_env.AppendUnique(LIBS = ['rt'])
 
 if env.get('SECURED') == '1':
@@ -53,6 +53,8 @@ samples_env.AppendUnique(CPPDEFINES = ['TB_LOG'])
 # Source files and Targets
 ######################################################################
 ocserver         = samples_env.Program('ocserver', ['ocserver.cpp', 'common.cpp'])
+if samples_env.get('ROUTING') == 'GW':
+	ocrouting        = samples_env.Program('ocrouting', ['ocrouting.cpp', 'common.cpp'])
 occlient         = samples_env.Program('occlient', ['occlient.cpp', 'common.cpp'])
 ocserverslow     = samples_env.Program('ocserverslow', ['ocserverslow.cpp', 'common.cpp'])
 occlientslow     = samples_env.Program('occlientslow', ['occlientslow.cpp', 'common.cpp'])

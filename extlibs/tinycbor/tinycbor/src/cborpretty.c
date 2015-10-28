@@ -28,6 +28,7 @@
 
 #include <float.h>
 #include <inttypes.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -35,7 +36,7 @@
 static int hexDump(FILE *out, const uint8_t *buffer, size_t n)
 {
     while (n--) {
-        int r = fprintf(out, "%02" PRIx8, *buffer++) < 0;
+        int r = fprintf(out, "%02" PRIx8, *buffer++);
         if (r < 0)
             return r;
     }
@@ -221,25 +222,29 @@ static CborError value_to_pretty(FILE *out, CborValue *it)
         return CborNoError;
     }
 
-    case CborIntegerType:
+    case CborIntegerType: {
+        uint64_t val;
+        cbor_value_get_raw_integer(it, &val);    // can't fail
+
         if (cbor_value_is_unsigned_integer(it)) {
-            uint64_t val;
-            cbor_value_get_uint64(it, &val);
             if (fprintf(out, "%" PRIu64, val) < 0)
                 return CborErrorIO;
         } else {
-            int64_t val;
-            cbor_value_get_int64(it, &val);     // can't fail
-            if (val < 0) {
-                if (fprintf(out, "%" PRIi64, val) < 0)
+            // CBOR stores the negative number X as -1 - X
+            // (that is, -1 is stored as 0, -2 as 1 and so forth)
+            if (++val) {                // unsigned overflow may happen
+                if (fprintf(out, "-%" PRIu64, val) < 0)
                     return CborErrorIO;
             } else {
-                // 65-bit negative
-                if (fprintf(out, "-%" PRIu64, (uint64_t)(-val) - 1) < 0)
+                // overflown
+                //   0xffff`ffff`ffff`ffff + 1 =
+                // 0x1`0000`0000`0000`0000 = 18446744073709551616 (2^64)
+                if (fprintf(out, "-18446744073709551616") < 0)
                     return CborErrorIO;
             }
         }
         break;
+    }
 
     case CborByteStringType:{
         size_t n = 0;
@@ -286,9 +291,9 @@ static CborError value_to_pretty(FILE *out, CborValue *it)
     }
 
     case CborSimpleType: {
-        uint8_t type;
-        cbor_value_get_simple_type(it, &type);  // can't fail
-        if (fprintf(out, "simple(%" PRIu8 ")", type) < 0)
+        uint8_t simple_type;
+        cbor_value_get_simple_type(it, &simple_type);  // can't fail
+        if (fprintf(out, "simple(%" PRIu8 ")", simple_type) < 0)
             return CborErrorIO;
         break;
     }
@@ -312,33 +317,39 @@ static CborError value_to_pretty(FILE *out, CborValue *it)
     }
 
     case CborDoubleType: {
-        char buffer[32];
+        const char *suffix;
         double val;
         if (false) {
             float f;
     case CborFloatType:
             cbor_value_get_float(it, &f);
             val = f;
+            suffix = "f";
+        } else if (false) {
+            uint16_t f16;
+    case CborHalfFloatType:
+            cbor_value_get_half_float(it, &f16);
+            val = decode_half(f16);
+            suffix = "f16";
         } else {
             cbor_value_get_double(it, &val);
+            suffix = "";
         }
 
-        int count = snprintf(buffer, sizeof(buffer), "%.19g", val);
-        assert(count < (int)sizeof(buffer));
-        if (buffer[0] != 'i' && buffer[1] != 'i' && buffer[0] != 'n') {
-            if (strchr(buffer, '.') == NULL)
-                strcat(buffer, ".");
-            if (type == CborFloatType)
-                strcat(buffer, "f");
+        int r = fpclassify(val);
+        if (r == FP_NAN || r == FP_INFINITE)
+            suffix = "";
+
+        uint64_t ival = (uint64_t)fabs(val);
+        if (ival == fabs(val)) {
+            // this double value fits in a 64-bit integer, so show it as such
+            // (followed by a floating point suffix, to disambiguate)
+            r = fprintf(out, "%s%" PRIu64 ".%s", val < 0 ? "-" : "", ival, suffix);
+        } else {
+            // this number is definitely not a 64-bit integer
+            r = fprintf(out, "%." DBL_DECIMAL_DIG_STR "g%s", val, suffix);
         }
-        if (fprintf(out, "%s", buffer) < 0)
-            return CborErrorIO;
-        break;
-    }
-    case CborHalfFloatType: {
-        uint16_t val;
-        cbor_value_get_half_float(it, &val);
-        if (fprintf(out, "__f16(0x%04" PRIu16 ")", val) < 0)
+        if (r < 0)
             return CborErrorIO;
         break;
     }

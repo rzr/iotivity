@@ -83,6 +83,13 @@ CAResult_t CAInitializeLEAdapter()
     return CA_STATUS_OK;
 }
 
+CAResult_t CAStartLEAdapter()
+{
+    // Nothing to do.
+
+    return CA_STATUS_OK;
+}
+
 CAResult_t CAInitLENwkMonitorMutexVaraibles()
 {
     OIC_LOG(DEBUG, TAG, "IN");
@@ -207,18 +214,34 @@ Java_org_iotivity_ca_CaLeClientInterface_caLeStateChangedCallback(JNIEnv *env, j
                                                                    jint status)
 {
     VERIFY_NON_NULL_VOID(env, TAG, "env is null");
-
+    VERIFY_NON_NULL_VOID(obj, TAG, "obj is null");
 
     OIC_LOG(DEBUG, TAG, "CaLeClientInterface - Network State Changed");
 
     if (!gCALEDeviceStateChangedCallback)
     {
         OIC_LOG_V(ERROR, TAG, "gNetworkChangeCb is null", status);
+        return;
     }
 
     if (BT_STATE_ON == status) // STATE_ON:12
     {
         CANetworkStatus_t newStatus = CA_INTERFACE_UP;
+        CALEClientCreateDeviceList();
+        CALEServerCreateCachedDeviceList();
+
+        CAResult_t res = CALEClientStartScan();
+        if (CA_STATUS_OK != res)
+        {
+            OIC_LOG(ERROR, TAG, "CALEClientStartScan has failed");
+        }
+
+        res = CALEStartAdvertise();
+        if (CA_STATUS_OK != res)
+        {
+            OIC_LOG(ERROR, TAG, "CALEStartAdvertise has failed");
+        }
+
         gCALEDeviceStateChangedCallback(newStatus);
     }
     else if (BT_STATE_OFF == status) // STATE_OFF:10
@@ -236,12 +259,20 @@ Java_org_iotivity_ca_CaLeClientInterface_caLeStateChangedCallback(JNIEnv *env, j
             OIC_LOG(ERROR, TAG, "CALEClientRemoveAllScanDevices has failed");
         }
 
+        res = CALEClientRemoveAllDeviceState();
+        if (CA_STATUS_OK != res)
+        {
+            OIC_LOG(ERROR, TAG, "CALEClientRemoveAllDeviceState has failed");
+        }
+
         // remove obej for server
         res = CALEServerRemoveAllDevices(env);
         if (CA_STATUS_OK != res)
         {
             OIC_LOG(ERROR, TAG, "CALEServerRemoveAllDevices has failed");
         }
+
+        CALEClientSetScanFlag(false);
 
         CANetworkStatus_t newStatus = CA_INTERFACE_DOWN;
         gCALEDeviceStateChangedCallback(newStatus);
@@ -254,6 +285,7 @@ Java_org_iotivity_ca_CaLeClientInterface_caLeBondStateChangedCallback(JNIEnv *en
 {
     OIC_LOG(DEBUG, TAG, "CaLeClientInterface - Bond State Changed");
     VERIFY_NON_NULL_VOID(env, TAG, "env is null");
+    VERIFY_NON_NULL_VOID(obj, TAG, "obj is null");
     VERIFY_NON_NULL_VOID(addr, TAG, "addr is null");
 
     // remove obj for client

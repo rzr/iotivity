@@ -37,6 +37,7 @@ void cbor_encoder_init(CborEncoder *encoder, uint8_t *buffer, size_t size, int f
 {
     encoder->ptr = buffer;
     encoder->end = buffer + size;
+    encoder->added = 0;
     encoder->flags = flags;
 }
 
@@ -69,15 +70,32 @@ static inline void put64(void *where, uint64_t v)
     memcpy(where, &v, sizeof(v));
 }
 
+static inline bool would_overflow(CborEncoder *encoder, size_t len)
+{
+    ptrdiff_t remaining = (ptrdiff_t)encoder->end;
+    remaining -= remaining ? (ptrdiff_t)encoder->ptr : encoder->bytes_needed;
+    remaining -= (ptrdiff_t)len;
+    return unlikely(remaining < 0);
+}
+
+static inline void advance_ptr(CborEncoder *encoder, size_t n)
+{
+    if (encoder->end)
+        encoder->ptr += n;
+    else
+        encoder->bytes_needed += n;
+}
+
 static inline CborError append_to_buffer(CborEncoder *encoder, const void *data, size_t len)
 {
-    if (encoder->end - encoder->ptr - (ptrdiff_t)len < 0) {
+    if (would_overflow(encoder, len)) {
         if (encoder->end != NULL) {
             len -= encoder->end - encoder->ptr;
-            encoder->end = encoder->ptr = NULL;
+            encoder->end = NULL;
+            encoder->bytes_needed = 0;
         }
 
-        encoder->ptr += len;
+        advance_ptr(encoder, len);
         return CborErrorOutOfMemory;
     }
 
@@ -88,28 +106,18 @@ static inline CborError append_to_buffer(CborEncoder *encoder, const void *data,
 
 static inline CborError append_byte_to_buffer(CborEncoder *encoder, uint8_t byte)
 {
-    if (encoder->end <= encoder->ptr) {
-        if (encoder->end != NULL) {
-            encoder->end = encoder->ptr = NULL;
-        }
-
-        ++encoder->ptr;
-        return CborErrorOutOfMemory;
-    }
-
-    *encoder->ptr++ = byte;
-    return CborNoError;
+    return append_to_buffer(encoder, &byte, 1);
 }
 
-static inline CborError encode_number(CborEncoder *encoder, uint64_t ui, uint8_t shiftedMajorType)
+static inline CborError encode_number_no_update(CborEncoder *encoder, uint64_t ui, uint8_t shiftedMajorType)
 {
     /* Little-endian would have been so much more convenient here:
      * We could just write at the beginning of buf but append_to_buffer
      * only the necessary bytes.
      * Since it has to be big endian, do it the other way around:
      * write from the end. */
-    uint8_t buf[1 + sizeof(ui)];
-    uint8_t *const bufend = buf + sizeof(buf);
+    uint64_t buf[2];
+    uint8_t *const bufend = (uint8_t *)buf + sizeof(buf);
     uint8_t *bufstart = bufend - 1;
     put64(buf + 1, ui);     // we probably have a bunch of zeros in the beginning
 
@@ -130,9 +138,21 @@ static inline CborError encode_number(CborEncoder *encoder, uint64_t ui, uint8_t
     return append_to_buffer(encoder, bufstart, bufend - bufstart);
 }
 
+static inline CborError encode_number(CborEncoder *encoder, uint64_t ui, uint8_t shiftedMajorType)
+{
+    ++encoder->added;
+    return encode_number_no_update(encoder, ui, shiftedMajorType);
+}
+
+
 CborError cbor_encode_uint(CborEncoder *encoder, uint64_t value)
 {
     return encode_number(encoder, value, UnsignedIntegerType << MajorTypeShift);
+}
+
+CborError cbor_encode_negative_int(CborEncoder *encoder, uint64_t absolute_value)
+{
+    return encode_number(encoder, absolute_value, NegativeIntegerType << MajorTypeShift);
 }
 
 CborError cbor_encode_int(CborEncoder *encoder, int64_t value)
@@ -167,12 +187,14 @@ CborError cbor_encode_floating_point(CborEncoder *encoder, CborType fpType, cons
         put32(buf + 1, *(const uint32_t*)value);
     else
         put16(buf + 1, *(const uint16_t*)value);
+    ++encoder->added;
     return append_to_buffer(encoder, buf, size + 1);
 }
 
 CborError cbor_encode_tag(CborEncoder *encoder, CborTag tag)
 {
-    return encode_number(encoder, tag, TagType << MajorTypeShift);
+    // tags don't count towards the number of elements in an array or map
+    return encode_number_no_update(encoder, tag, TagType << MajorTypeShift);
 }
 
 static CborError encode_string(CborEncoder *encoder, size_t length, uint8_t shiftedMajorType, const void *string)
@@ -193,34 +215,51 @@ CborError cbor_encode_text_string(CborEncoder *encoder, const char *string, size
     return encode_string(encoder, length, TextStringType << MajorTypeShift, string);
 }
 
-static CborError create_container(CborEncoder *encoder, size_t length, uint8_t shiftedMajorType, CborEncoder *container)
+#ifdef __GNUC__
+__attribute__((noinline))
+#endif
+static CborError create_container(CborEncoder *encoder, CborEncoder *container, size_t length, uint8_t shiftedMajorType)
 {
     CborError err;
-    if (length == CborIndefiniteLength)
-        err = append_byte_to_buffer(encoder, shiftedMajorType + IndefiniteLength);
-    else
-        err = encode_number(encoder, length, shiftedMajorType);
+    container->ptr = encoder->ptr;
+    container->end = encoder->end;
+    ++encoder->added;
+    container->added = 0;
+
+    cbor_static_assert(((MapType << MajorTypeShift) & CborIteratorFlag_ContainerIsMap) == CborIteratorFlag_ContainerIsMap);
+    cbor_static_assert(((ArrayType << MajorTypeShift) & CborIteratorFlag_ContainerIsMap) == 0);
+    container->flags = shiftedMajorType & CborIteratorFlag_ContainerIsMap;
+
+    if (length == CborIndefiniteLength) {
+        container->flags |= CborIteratorFlag_UnknownLength;
+        err = append_byte_to_buffer(container, shiftedMajorType + IndefiniteLength);
+    } else {
+        err = encode_number_no_update(container, length, shiftedMajorType);
+    }
     if (err && !isOomError(err))
         return err;
 
-    *container = *encoder;
-    container->flags = length == CborIndefiniteLength ? CborIteratorFlag_UnknownLength : 0;
     return CborNoError;
 }
 
 CborError cbor_encoder_create_array(CborEncoder *encoder, CborEncoder *arrayEncoder, size_t length)
 {
-    return create_container(encoder, length, ArrayType << MajorTypeShift, arrayEncoder);
+    return create_container(encoder, arrayEncoder, length, ArrayType << MajorTypeShift);
 }
 
 CborError cbor_encoder_create_map(CborEncoder *encoder, CborEncoder *mapEncoder, size_t length)
 {
-    return create_container(encoder, length, MapType << MajorTypeShift, mapEncoder);
+    if (length != CborIndefiniteLength && length > SIZE_MAX / 2)
+        return CborErrorDataTooLarge;
+    return create_container(encoder, mapEncoder, length, MapType << MajorTypeShift);
 }
 
 CborError cbor_encoder_close_container(CborEncoder *encoder, const CborEncoder *containerEncoder)
 {
-    encoder->ptr = containerEncoder->ptr;
+    if (encoder->end)
+        encoder->ptr = containerEncoder->ptr;
+    else
+        encoder->bytes_needed = containerEncoder->bytes_needed;
     encoder->end = containerEncoder->end;
     if (containerEncoder->flags & CborIteratorFlag_UnknownLength)
         return append_byte_to_buffer(encoder, BreakByte);

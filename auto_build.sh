@@ -12,6 +12,8 @@ function build_all()
 		build_linux_secured $1 $2
 		build_linux_unsecured_with_ra $1 $2
 		build_linux_secured_with_ra $1 $2
+		build_linux_unsecured_with_rd $1 $2
+		build_linux_secured_with_rd $1 $2
 	fi
 
 	build_android $1 $2
@@ -58,23 +60,42 @@ function build_linux_secured_with_ra()
 	scons RELEASE=$1 WITH_RA=1 SECURED=1 $2
 }
 
+function build_linux_unsecured_with_rd()
+{
+	echo "*********** Build for linux With Resource Directory *************"
+	scons RELEASE=$1 WITH_RD=1 $2
+}
+
+function build_linux_secured_with_rd()
+{
+	echo "*********** Build for linux With Resource Directory & Security ************"
+	scons RELEASE=$1 WITH_RD=1 SECURED=1 $2
+}
+
 function build_android()
 {
 	# Note: for android, as oic-resource uses C++11 feature stoi and to_string,
 	# it requires gcc-4.9, currently only android-ndk-r10(for linux)
 	# and windows android-ndk-r10(64bit target version) support these features.
-	echo "*********** Build Boost for android ***********"
-	# disable parallel build for android as gradle depends on scons to finish first
-	export SCONSFLAGS="-Q"
 
+	build_android_x86 $1 $2
+	build_android_armeabi $1 $2
+}
+
+function build_android_x86()
+{
 	echo "*********** Build for android x86 *************"
 	scons TARGET_OS=android TARGET_ARCH=x86 RELEASE=$1 TARGET_TRANSPORT=IP $2
+	scons TARGET_OS=android TARGET_ARCH=x86 RELEASE=$1 TARGET_TRANSPORT=BT $2
+	scons TARGET_OS=android TARGET_ARCH=x86 RELEASE=$1 TARGET_TRANSPORT=BLE $2
+}
 
+function build_android_armeabi()
+{
 	echo "*********** Build for android armeabi *************"
 	scons TARGET_OS=android TARGET_ARCH=armeabi RELEASE=$1 TARGET_TRANSPORT=IP $2
-
-	# enable parallel build
-	export SCONSFLAGS="-Q -j 4"
+	scons TARGET_OS=android TARGET_ARCH=armeabi RELEASE=$1 TARGET_TRANSPORT=BT $2
+	scons TARGET_OS=android TARGET_ARCH=armeabi RELEASE=$1 TARGET_TRANSPORT=BLE $2
 }
 
 function build_arduino()
@@ -82,14 +103,19 @@ function build_arduino()
 	echo "*********** Build for arduino avr *************"
 	scons resource TARGET_OS=arduino UPLOAD=false BOARD=mega TARGET_ARCH=avr TARGET_TRANSPORT=IP SHIELD=ETH RELEASE=$1 $2
 	scons resource TARGET_OS=arduino UPLOAD=false BOARD=mega TARGET_ARCH=avr TARGET_TRANSPORT=IP SHIELD=WIFI RELEASE=$1 $2
+	scons resource TARGET_OS=arduino UPLOAD=false BOARD=mega TARGET_ARCH=avr TARGET_TRANSPORT=BLE SHIELD=RBL_NRF8001 RELEASE=$1 $2
 
 	echo "*********** Build for arduino arm *************"
 	scons resource TARGET_OS=arduino UPLOAD=false BOARD=arduino_due_x TARGET_ARCH=arm TARGET_TRANSPORT=IP SHIELD=ETH RELEASE=$1 $2
 	scons resource TARGET_OS=arduino UPLOAD=false BOARD=arduino_due_x TARGET_ARCH=arm TARGET_TRANSPORT=IP SHIELD=WIFI RELEASE=$1 $2
+	# BLE support for the Arduino Due is currently unavailable.
 }
 
 function build_tizen()
 {
+	echo "*********** Build for Tizen *************"
+	./gbsbuild.sh
+
 	echo "*********** Build for Tizen CA lib and sample *************"
 	scons -f resource/csdk/connectivity/build/tizen/SConscript TARGET_OS=tizen TARGET_TRANSPORT=IP LOGGING=true RELEASE=$1 $2
 
@@ -120,9 +146,11 @@ function build_darwin() # Mac OSx and iOS
 
 function unit_tests()
 {
+	echo "*********** Unit test Start *************"
 	scons resource RELEASE=false -c
 	scons resource LOGGING=false RELEASE=false
 	scons resource TEST=1 RELEASE=false
+	echo "*********** Unit test Stop *************"
 }
 
 function  help()
@@ -130,8 +158,8 @@ function  help()
 	echo "Usage:"
         echo "  build:"
         echo "     `basename $0` <target_build>"
-	echo "      Allowed values for <target_build>: all, linux_unsecured, linux_secured, linux_unsecured_with_ra, linux_secured_with_ra, android, arduino, tizen, darwin"
-	echo "      Note: \"linux\" will build \"linux_unsecured\", \"linux_secured\", \"linux_unsecured_with_ra\" & \"linux_secured_with_ra\"."
+	echo "      Allowed values for <target_build>: all, linux_unsecured, linux_secured, linux_unsecured_with_ra, linux_secured_with_ra, linux_unsecured_with_rd, linux_secured_with_rd, android, arduino, tizen, darwin"
+	echo "      Note: \"linux\" will build \"linux_unsecured\", \"linux_secured\", \"linux_unsecured_with_ra\", \"linux_secured_with_ra\", \"linux_secured_with_rd\" & \"linux_unsecured_with_rd\"."
 	echo "      Any selection will build both debug and release versions of all available targets in the scope you've"
 	echo "      selected. To choose any specific command, please use the SCons commandline directly. Please refer"
 	echo "      to [IOTIVITY_REPO]/Readme.scons.txt."
@@ -174,10 +202,26 @@ then
 	then
 		build_linux_secured_with_ra true
 		build_linux_secured_with_ra false
+	elif [ $1 = 'linux_unsecured_with_rd' ]
+	then
+		build_linux_unsecured_with_rd true
+		build_linux_unsecured_with_rd false
+	elif [ $1 = 'linux_secured_with_rd' ]
+	then
+		build_linux_secured_with_rd true
+		build_linux_secured_with_rd false
 	elif [ $1 = 'android' ]
 	then
 		build_android true
 		build_android false
+	elif [ $1 = 'android_x86' ]
+	then
+        build_android_x86 true
+        build_android_x86 false
+	elif [ $1 = 'android_armeabi' ]
+	then
+        build_android_armeabi true
+        build_android_armeabi false
 	elif [ $1 = 'arduino' ]
 	then
 		build_arduino true
@@ -208,5 +252,3 @@ else
 fi
 
 echo "===================== done ====================="
-
-

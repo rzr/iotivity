@@ -1,4 +1,4 @@
-/******************************************************************
+//*****************************************************************
 //
 // Copyright 2015 Intel Mobile Communications GmbH All Rights Reserved.
 //
@@ -16,7 +16,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
-******************************************************************/
+//****************************************************************
 
 #include "caraadapter.h"
 
@@ -36,26 +36,22 @@
 #include "cacommon.h"
 
 /**
- * @def RA_ADAPTER_TAG
- * @brief Logging tag for module name
+ * Logging tag for module name.
  */
 #define RA_ADAPTER_TAG "RA_ADAP"
 
 /**
- * @var g_networkPacketCallback
- * @brief Network Packet Received Callback to CA
+ * Network Packet Received Callback to CA.
  */
 static CANetworkPacketReceivedCallback g_networkPacketCallback = NULL;
 
 /**
- * @var g_networkChangeCallback
- * @brief Network Changed Callback to CA
+ * Network Changed Callback to CA.
  */
 static CANetworkChangeCallback g_networkChangeCallback = NULL;
 
 /**
- * @var CARAXmppData
- * @brief Holds XMPP data information.
+ * Holds XMPP data information.
  */
 typedef struct
 {
@@ -235,6 +231,7 @@ CAResult_t CAInitializeRA(CARegisterConnectivityCallback registerCallback,
     CAConnectivityHandler_t raHandler = {};
     raHandler.startAdapter = CAStartRA;
     raHandler.startListenServer = CAStartRAListeningServer;
+    raHandler.stopListenServer = CAStopRAListeningServer;
     raHandler.startDiscoveryServer = CAStartRADiscoveryServer;
     raHandler.sendData = CASendRAUnicastData;
     raHandler.sendDataToAll = CASendRAMulticastData;
@@ -409,6 +406,12 @@ int32_t CASendRAMulticastData(const CAEndpoint_t *endpoint,
 }
 
 CAResult_t CAStartRAListeningServer()
+{
+    OIC_LOG(INFO, RA_ADAPTER_TAG, "RA adapter does not support listening for multicast data");
+    return CA_NOT_SUPPORTED;
+}
+
+CAResult_t CAStopRAListeningServer()
 {
     OIC_LOG(INFO, RA_ADAPTER_TAG, "RA adapter does not support listening for multicast data");
     return CA_NOT_SUPPORTED;

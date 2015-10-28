@@ -23,11 +23,16 @@
 #include "srmresourcestrings.h"
 #include "doxmresource.h"
 #include "ocserverrequest.h"
+#include "oic_string.h"
 #include "oic_malloc.h"
+#include "logger.h"
+
+#define TAG  "SRM-DOXM"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
 
 //Declare Doxm resource methods for testing
 OCStackResult CreateDoxmResource();
@@ -43,17 +48,43 @@ OCEntityHandlerResult HandleDoxmGetRequest (const OCEntityHandlerRequest * ehReq
 }
 #endif
 
+
 OicSecDoxm_t * getBinDoxm()
 {
     OicSecDoxm_t * doxm = (OicSecDoxm_t*)OICCalloc(1, sizeof(OicSecDoxm_t));
+    if(!doxm)
+    {
+        return NULL;
+    }
     doxm->oxmTypeLen =  1;
     doxm->oxmType    = (OicUrn_t *)OICCalloc(doxm->oxmTypeLen, sizeof(char *));
+    if(!doxm->oxmType)
+    {
+        OICFree(doxm);
+        return NULL;
+    }
     doxm->oxmType[0] = (char*)OICMalloc(strlen(OXM_JUST_WORKS) + 1);
+    if(!doxm->oxmType[0])
+    {
+        OICFree(doxm->oxmType);
+        OICFree(doxm);
+        return NULL;
+    }
+
     strcpy(doxm->oxmType[0], OXM_JUST_WORKS);
     doxm->oxmLen     = 1;
-    doxm->oxm        = (OicSecOxm_t *)OICCalloc(doxm->oxmLen, sizeof(short));
+    doxm->oxm        = (OicSecOxm_t *)OICCalloc(doxm->oxmLen, sizeof(OicSecOxm_t));
+    if(!doxm->oxm)
+    {
+        OICFree(doxm->oxmType[0]);
+        OICFree(doxm->oxmType);
+        OICFree(doxm);
+        return NULL;
+    }
+
     doxm->oxm[0]     = OIC_JUST_WORKS;
     doxm->oxmSel     = OIC_JUST_WORKS;
+    doxm->sct        = SYMMETRIC_PAIR_WISE_KEY;
     doxm->owned      = true;
     //TODO: Need more clarification on deviceIDFormat field type.
     //doxm.deviceIDFormat = URN;
@@ -101,11 +132,22 @@ TEST(DoxmEntityHandlerTest, DoxmEntityHandlerInvalidFlag)
 TEST(DoxmEntityHandlerTest, DoxmEntityHandlerValidRequest)
 {
     EXPECT_EQ(OC_STACK_INVALID_PARAM, InitDoxmResource());
-    char query[] = "oxm=0&owned=false&owner=owner1";
-    OCEntityHandlerRequest req = {};
+    char query[] = "oxm=0;owned=false;owner=owner1";
+    OCEntityHandlerRequest req = OCEntityHandlerRequest();
     req.method = OC_REST_GET;
-    req.query = (char*)OICMalloc(strlen(query) + 1);
-    strcpy((char *)req.query, query);
+    req.query = OICStrdup(query);
+    EXPECT_EQ(OC_EH_ERROR, DoxmEntityHandler(OCEntityHandlerFlag::OC_REQUEST_FLAG, &req));
+
+    OICFree(req.query);
+}
+
+TEST(DoxmEntityHandlerTest, DoxmEntityHandlerDeviceIdQuery)
+{
+    EXPECT_EQ(OC_STACK_INVALID_PARAM, InitDoxmResource());
+    char query[] = "deviceid=MjIyMjIyMjIyMjIyMjIyMg==";
+    OCEntityHandlerRequest req = OCEntityHandlerRequest();
+    req.method = OC_REST_GET;
+    req.query = OICStrdup(query);
     EXPECT_EQ(OC_EH_ERROR, DoxmEntityHandler(OCEntityHandlerFlag::OC_REQUEST_FLAG, &req));
 
     OICFree(req.query);
@@ -123,7 +165,7 @@ TEST(BinToDoxmJSONTest, BinToDoxmJSONValidDoxm)
     OicSecDoxm_t * doxm =  getBinDoxm();
 
     char * json = BinToDoxmJSON(doxm);
-    printf("BinToDoxmJSON:%s\n", json);
+    OC_LOG_V(INFO, TAG, "BinToDoxmJSON:%s", json);
     EXPECT_TRUE(json != NULL);
 
     DeleteDoxmBinData(doxm);
@@ -141,6 +183,7 @@ TEST(JSONToDoxmBinTest, JSONToDoxmBinValidJSON)
     EXPECT_TRUE(doxm2 != NULL);
 
     DeleteDoxmBinData(doxm1);
+    DeleteDoxmBinData(doxm2);
     OICFree(json);
 }
 

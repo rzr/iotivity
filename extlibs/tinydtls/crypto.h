@@ -39,6 +39,7 @@
 #include "numeric.h"
 #include "hmac.h"
 #include "ccm.h"
+#include "ecc/ecc.h"
 
 /* TLS_PSK_WITH_AES_128_CCM_8 */
 #define DTLS_MAC_KEY_LENGTH    0
@@ -46,6 +47,7 @@
 #define DTLS_BLK_LENGTH        16 /* AES-128 */
 #define DTLS_MAC_LENGTH        DTLS_HMAC_DIGEST_SIZE
 #define DTLS_IV_LENGTH         4  /* length of nonce_explicit */
+#define DTLS_CBC_IV_LENGTH     16
 
 /** 
  * Maximum size of the generated keyblock. Note that MAX_KEYBLOCK_LENGTH must 
@@ -128,14 +130,22 @@ typedef struct {
   dtls_compression_t compression;		/**< compression method */
   dtls_cipher_t cipher;		/**< cipher type */
   unsigned int do_client_auth:1;
+
+#if defined(DTLS_ECC) && defined(DTLS_PSK)
+  struct keyx_t {
+    dtls_handshake_parameters_ecc_t ecc;
+    dtls_handshake_parameters_psk_t psk;
+  } keyx;
+#else /* DTLS_ECC && DTLS_PSK */
   union {
-#ifdef DTLS_ECC
+#if defined(DTLS_ECC) || defined(DTLS_X509)
     dtls_handshake_parameters_ecc_t ecc;
 #endif /* DTLS_ECC */
 #ifdef DTLS_PSK
     dtls_handshake_parameters_psk_t psk;
 #endif /* DTLS_PSK */
   } keyx;
+#endif /* DTLS_ECC && DTLS_PSK */
 } dtls_handshake_parameters_t;
 
 /* The following macros provide access to the components of the
@@ -344,6 +354,14 @@ int dtls_ecdsa_verify_sig(const unsigned char *pub_key_x,
 			  const unsigned char *server_random, size_t server_random_size,
 			  const unsigned char *keyx_params, size_t keyx_params_size,
 			  unsigned char *result_r, unsigned char *result_s);
+
+int dtls_ecdhe_psk_pre_master_secret(unsigned char *psk, size_t psklen,
+				unsigned char *ecc_priv_key,
+				unsigned char *ecc_pub_key_x,
+				unsigned char *ecc_pub_key_y,
+				size_t ecc_key_size,
+				unsigned char *result,
+				size_t result_len);
 
 int dtls_ec_key_from_uint32_asn1(const uint32_t *key, size_t key_size,
 				 unsigned char *buf);

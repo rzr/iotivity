@@ -36,13 +36,13 @@ typedef OCStackResult (*registerResource)(OCResourceHandle&, string&, const stri
 typedef OCStackResult (*NotifyAllObservers)(OCResourceHandle);
 
 constexpr char RESOURCE_URI[]{ "a/test" };
-constexpr char RESOURCE_TYPE[]{ "resourceType" };
+constexpr char RESOURCE_TYPE[]{ "resourcetype" };
 constexpr char KEY[]{ "key" };
 constexpr int value{ 100 };
 
 TEST(ResourceObjectBuilderCreateTest, ThrowIfUriIsInvalid)
 {
-    ASSERT_THROW(RCSResourceObject::Builder("", "", "").build(), PlatformException);
+    ASSERT_THROW(RCSResourceObject::Builder("", "", "").build(), RCSPlatformException);
 }
 
 class ResourceObjectBuilderTest: public TestWithMock
@@ -141,6 +141,30 @@ TEST_F(ResourceObjectTest, SettingAttributesWithinGuardDoesntCauseDeadLock)
     }
 
     ASSERT_EQ(value, server->getAttribute<int>(KEY));
+}
+
+TEST_F(ResourceObjectTest, SettingNestedAttributesIsSameToGettingNestedAttributes)
+{
+    RCSResourceAttributes lightAttributes;
+
+    lightAttributes["red"]=50;
+    lightAttributes["blue"]=100;
+    lightAttributes["green"]=150;
+
+    server->setAttribute(KEY, lightAttributes);
+
+    ASSERT_EQ(lightAttributes, server->getAttribute<RCSResourceAttributes>(KEY));
+}
+
+TEST_F(ResourceObjectTest, SettingNestedVectorAttributesIsSameToGettingNestedVectorAttributes)
+{
+    vector<int> arr11 = {0,1}, arr12 = {4,5}, arr13 ={7,8};
+    vector<vector<int>> arr21 = { arr11, arr12 }, arr22 = { arr12, arr13 };
+    vector<vector<vector<int>>> arr31={ arr21, arr22 };
+
+    server->setAttribute(KEY, arr31);
+
+    ASSERT_EQ(arr31, server->getAttribute<vector<vector<vector<int>>>>(KEY));
 }
 
 
@@ -287,7 +311,8 @@ public:
     {
         auto request = make_shared<OCResourceRequest>();
 
-        OCEntityHandlerRequest ocEntityHandlerRequest { 0 };
+        OCEntityHandlerRequest ocEntityHandlerRequest;
+        memset(&ocEntityHandlerRequest, 0, sizeof(OCEntityHandlerRequest));
         OC::MessageContainer mc;
 
         mc.addRepresentation(ocRep);
@@ -350,30 +375,27 @@ TEST_F(ResourceObjectHandlingRequestTest, SendResponseWithSameHandlesPassedByReq
 TEST_F(ResourceObjectHandlingRequestTest, SendResponseWithRCSResponseResults)
 {
     constexpr int errorCode{ 1999 };
-    constexpr OCEntityHandlerResult result{ OC_EH_SLOW };
 
     server->setGetRequestHandler(
             [](const RCSRequest&, RCSResourceAttributes&) -> RCSGetResponse
             {
-                return RCSGetResponse::create(result, errorCode);
+                return RCSGetResponse::create(errorCode);
             }
     );
 
     mocks.ExpectCallFunc(OCPlatform::sendResponse).Match(
             [](const shared_ptr<OCResourceResponse> response)
             {
-                return response->getErrorCode() == errorCode &&
-                        response->getResponseResult() == result;
+                return response->getErrorCode() == errorCode;
             }
     ).Return(OC_STACK_OK);
 
     ASSERT_EQ(OC_EH_OK, handler(createRequest()));
 }
 
-TEST_F(ResourceObjectHandlingRequestTest, SendSetResponseWithCustomAttrsAndResults)
+TEST_F(ResourceObjectHandlingRequestTest, SendSetResponseWithCustomAttrs)
 {
     constexpr int errorCode{ 1999 };
-    constexpr OCEntityHandlerResult result{ OC_EH_SLOW };
     constexpr char value[]{ "value" };
 
     server->setSetRequestHandler(
@@ -381,7 +403,7 @@ TEST_F(ResourceObjectHandlingRequestTest, SendSetResponseWithCustomAttrsAndResul
             {
                 RCSResourceAttributes attrs;
                 attrs[KEY] = value;
-                return RCSSetResponse::create(attrs, result, errorCode);
+                return RCSSetResponse::create(attrs, errorCode);
             }
     );
 
@@ -389,8 +411,7 @@ TEST_F(ResourceObjectHandlingRequestTest, SendSetResponseWithCustomAttrsAndResul
             [](const shared_ptr<OCResourceResponse> response)
             {
                 return value == response->getResourceRepresentation()[KEY].getValue<std::string>()
-                        && response->getErrorCode() == errorCode
-                        && response->getResponseResult() == result;
+                        && response->getErrorCode() == errorCode;
             }
     ).Return(OC_STACK_OK);
 

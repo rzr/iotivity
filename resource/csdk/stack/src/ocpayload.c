@@ -27,6 +27,7 @@
 #include "ocstackinternal.h"
 #include "ocresource.h"
 #include "logger.h"
+#include "rdpayload.h"
 
 #define TAG "OCPayload"
 static void OCFreeRepPayloadValueContents(OCRepPayloadValue* val);
@@ -59,6 +60,9 @@ void OCPayloadDestroy(OCPayload* payload)
         case PAYLOAD_TYPE_SECURITY:
             OCSecurityPayloadDestroy((OCSecurityPayload*)payload);
             break;
+        case PAYLOAD_TYPE_RD:
+           OCRDPayloadDestroy((OCRDPayload*)payload);
+           break;
         default:
             OC_LOG_V(ERROR, TAG, "Unsupported payload type in destroy: %d", payload->type);
             OICFree(payload);
@@ -118,6 +122,11 @@ static OCRepPayloadValue* OCRepPayloadFindValue(const OCRepPayload* payload, con
 
 static void OCCopyPropertyValueArray(OCRepPayloadValue* dest, OCRepPayloadValue* source)
 {
+    if(!dest || !source)
+    {
+        return;
+    }
+
     size_t dimTotal = calcDimTotal(source->arr.dimensions);
     switch(source->arr.type)
     {
@@ -148,7 +157,7 @@ static void OCCopyPropertyValueArray(OCRepPayloadValue* dest, OCRepPayloadValue*
             }
             break;
         default:
-            OC_LOG(ERROR, TAG, PCF("CopyPropertyValueArray invalid type"));
+            OC_LOG(ERROR, TAG, "CopyPropertyValueArray invalid type");
             break;
     }
 }
@@ -337,7 +346,7 @@ static OCRepPayloadValue* OCRepPayloadFindAndSetValue(OCRepPayload* payload, con
         val = val->next;
     }
 
-    OC_LOG(ERROR, TAG, PCF("FindAndSetValue reached point after while loop, pointer corruption?"));
+    OC_LOG(ERROR, TAG, "FindAndSetValue reached point after while loop, pointer corruption?");
     return NULL;
 }
 
@@ -1223,7 +1232,7 @@ static OCResourcePayload* OCCopyResource(const OCResource* res, uint16_t port)
 
         OCStringLL* cur = pl->interfaces;
         ifPtr = ifPtr->next;
-        while(ifPtr)
+        while(ifPtr && cur)
         {
             cur->next = (OCStringLL*)OICCalloc(1, sizeof(OCStringLL));
             if(!cur->next)
@@ -1253,6 +1262,104 @@ void OCDiscoveryPayloadAddResource(OCDiscoveryPayload* payload, const OCResource
         uint16_t port)
 {
     OCDiscoveryPayloadAddNewResource(payload, OCCopyResource(res, port));
+}
+
+bool OCResourcePayloadAddResourceType(OCResourcePayload* payload, const char* resourceType)
+{
+    if (!resourceType)
+    {
+        return false;
+    }
+
+    char* dup = OICStrdup(resourceType);
+
+    if (!dup)
+    {
+        return false;
+    }
+
+    if (!payload->types)
+    {
+        payload->types = (OCStringLL*)OICCalloc(1, sizeof(OCStringLL));
+
+        if (!payload->types)
+        {
+            OICFree(dup);
+            return false;
+        }
+
+        payload->types->value = dup;
+        return true;
+    }
+
+    else
+    {
+        OCStringLL* temp = payload->types;
+
+        while(temp->next)
+        {
+            temp = temp->next;
+        }
+
+        temp->next = (OCStringLL*)OICCalloc(1, sizeof(OCStringLL));
+        if (!temp->next)
+        {
+            OICFree(dup);
+            return false;
+        }
+
+        temp->next->value = dup;
+        return true;
+    }
+}
+
+bool OCResourcePayloadAddInterface(OCResourcePayload* payload, const char* interface)
+{
+    if (!interface)
+    {
+        return false;
+    }
+
+    char* dup = OICStrdup(interface);
+
+    if (!dup)
+    {
+        return false;
+    }
+
+    if (!payload->interfaces)
+    {
+        payload->interfaces = (OCStringLL*)OICCalloc(1, sizeof(OCStringLL));
+
+        if (!payload->interfaces)
+        {
+            OICFree(dup);
+            return false;
+        }
+
+        payload->interfaces->value = dup;
+        return true;
+    }
+
+    else
+    {
+        OCStringLL* temp = payload->interfaces;
+
+        while(temp->next)
+        {
+            temp = temp->next;
+        }
+
+        temp->next = (OCStringLL*)OICCalloc(1, sizeof(OCStringLL));
+        if (!temp->next)
+        {
+            OICFree(dup);
+            return false;
+        }
+
+        temp->next->value = dup;
+        return true;
+    }
 }
 
 void OCDiscoveryPayloadAddNewResource(OCDiscoveryPayload* payload, OCResourcePayload* res)
@@ -1369,6 +1476,11 @@ void OCDevicePayloadDestroy(OCDevicePayload* payload)
 
 static void OCCopyPlatformInfo(const OCPlatformInfo* platformInfo, OCPlatformPayload* target)
 {
+    if(!platformInfo || !target)
+    {
+        return;
+    }
+
     target->info.platformID = OICStrdup(platformInfo->platformID);
     target->info.manufacturerName = OICStrdup(platformInfo->manufacturerName);
     target->info.manufacturerUrl = OICStrdup(platformInfo->manufacturerUrl);

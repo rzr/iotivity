@@ -50,17 +50,111 @@ static void CAWIFIConnectionStateChangedCb(wifi_connection_state_e state, wifi_a
 
 static void CAWIFIDeviceStateChangedCb(wifi_device_state_e state, void *userData);
 
+
 int CAGetPollingInterval(int interval)
 {
-        return interval;
+    return interval;
 }
 
 CAInterface_t *CAFindInterfaceChange()
 {
+    char buf[MAX_INTERFACE_INFO_LENGTH] = { 0 };
+    struct ifconf ifc  = { .ifc_len = MAX_INTERFACE_INFO_LENGTH, .ifc_buf = buf };
+
+    int s = caglobals.ip.u6.fd != -1 ? caglobals.ip.u6.fd : caglobals.ip.u4.fd;
+    if (ioctl(s, SIOCGIFCONF, &ifc) < 0)
+    {
+        OIC_LOG_V(ERROR, TAG, "SIOCGIFCONF failed: %s", strerror(errno));
         return NULL;
+    }
+
+    CAInterface_t *foundNewInterface = NULL;
+
+    struct ifreq* ifr = ifc.ifc_req;
+    size_t interfaces = ifc.ifc_len / sizeof (ifc.ifc_req[0]);
+    size_t ifreqsize = ifc.ifc_len;
+
+    CAIfItem_t *previous = (CAIfItem_t *)OICMalloc(ifreqsize);
+    if (!previous)
+    {
+        OIC_LOG(ERROR, TAG, "OICMalloc failed");
+        return NULL;
+    }
+
+    memcpy(previous, caglobals.ip.nm.ifItems, ifreqsize);
+    size_t numprevious = caglobals.ip.nm.numIfItems;
+
+    if (ifreqsize > caglobals.ip.nm.sizeIfItems)
+    {
+
+        CAIfItem_t *items = (CAIfItem_t *)OICRealloc(caglobals.ip.nm.ifItems, ifreqsize);
+        if (!items)
+        {
+            OIC_LOG(ERROR, TAG, "OICRealloc failed");
+            OICFree(previous);
+            return NULL;
+        }
+        caglobals.ip.nm.ifItems = items;
+        caglobals.ip.nm.sizeIfItems = ifreqsize;
+    }
+
+    caglobals.ip.nm.numIfItems = 0;
+    for (size_t i = 0; i < interfaces; i++)
+    {
+        struct ifreq* item = &ifr[i];
+        char *name = item->ifr_name;
+        struct sockaddr_in *sa4 = (struct sockaddr_in *)&item->ifr_addr;
+        uint32_t ipv4addr = sa4->sin_addr.s_addr;
+
+        if (ioctl(s, SIOCGIFFLAGS, item) < 0)
+        {
+            OIC_LOG_V(ERROR, TAG, "SIOCGIFFLAGS failed: %s", strerror(errno));
+            continue;
+        }
+        int16_t flags = item->ifr_flags;
+        if ((flags & IFF_LOOPBACK) || !(flags & IFF_RUNNING))
+        {
+            continue;
+        }
+        if (ioctl(s, SIOCGIFINDEX, item) < 0)
+        {
+            OIC_LOG_V(ERROR, TAG, "SIOCGIFINDEX failed: %s", strerror(errno));
+            continue;
+        }
+
+        int ifIndex = item->ifr_ifindex;
+        caglobals.ip.nm.ifItems[i].ifIndex = ifIndex;  // refill interface list
+        caglobals.ip.nm.numIfItems++;
+
+        if (foundNewInterface)
+        {
+            continue;   // continue updating interface list
+        }
+
+        // see if this interface didn't previously exist
+        bool found = false;
+        for (size_t j = 0; j < numprevious; j++)
+        {
+            if (ifIndex == previous[j].ifIndex)
+            {
+                found = true;
+                break;
+            }
+        }
+        if (found)
+        {
+            OIC_LOG_V(INFO, TAG, "Interface found: %s", name);
+            continue;
+        }
+
+        foundNewInterface = CANewInterfaceItem(ifIndex, name, AF_INET, ipv4addr, flags);
+    }
+
+    OICFree(previous);
+    return foundNewInterface;
 }
 
-CAResult_t CAIPInitializeNetworkMonitor()
+CAResult_t CAIPStartNetworkMonitor()
 {
     OIC_LOG(DEBUG, TAG, "IN");
 
@@ -92,7 +186,7 @@ CAResult_t CAIPInitializeNetworkMonitor()
     return CA_STATUS_OK;
 }
 
-CAResult_t CAIPTerminateNetworkMonitor()
+CAResult_t CAIPStopNetworkMonitor()
 {
     OIC_LOG(DEBUG, TAG, "IN");
 
@@ -131,9 +225,7 @@ u_arraylist_t *CAIPGetInterfaceInformation(int desiredIndex)
     }
 
     char buf[MAX_INTERFACE_INFO_LENGTH] = { 0 };
-    struct ifconf ifc;
-    ifc.ifc_len = MAX_INTERFACE_INFO_LENGTH;
-    ifc.ifc_buf = buf;
+    struct ifconf ifc = { .ifc_len = MAX_INTERFACE_INFO_LENGTH, .ifc_buf = buf };
 
     int s = caglobals.ip.u6.fd != -1 ? caglobals.ip.u6.fd : caglobals.ip.u4.fd;
     if (ioctl(s, SIOCGIFCONF, &ifc) < 0)
@@ -144,16 +236,23 @@ u_arraylist_t *CAIPGetInterfaceInformation(int desiredIndex)
     }
 
     struct ifreq* ifr = ifc.ifc_req;
-    int32_t interfaces = ifc.ifc_len / sizeof (struct ifreq);
+    size_t interfaces = ifc.ifc_len / sizeof (ifc.ifc_req[0]);
+    size_t ifreqsize = ifc.ifc_len;
 
-    if (interfaces > caglobals.ip.nm.numifitems)
+    if (ifreqsize > caglobals.ip.nm.sizeIfItems)
     {
-        int ifreqsiz = interfaces * sizeof (struct ifreq);
-        caglobals.ip.nm.numifitems = interfaces;
-        caglobals.ip.nm.ifitems = (CAIfItem_t *)OICRealloc(caglobals.ip.nm.ifitems, ifreqsiz);
+        CAIfItem_t *items = (CAIfItem_t *)OICRealloc(caglobals.ip.nm.ifItems, ifreqsize);
+        if (!items)
+        {
+            OIC_LOG(ERROR, TAG, "OICRealloc failed");
+            goto exit;
+        }
+        caglobals.ip.nm.ifItems = items;
+        caglobals.ip.nm.sizeIfItems = ifreqsize;
     }
 
-    for (int i = 0; i < interfaces; i++)
+    caglobals.ip.nm.numIfItems = 0;
+    for (size_t i = 0; i < interfaces; i++)
     {
         CAResult_t result = CA_STATUS_OK;
         struct ifreq* item = &ifr[i];
@@ -176,12 +275,15 @@ u_arraylist_t *CAIPGetInterfaceInformation(int desiredIndex)
             OIC_LOG_V(ERROR, TAG, "SIOCGIFINDEX failed: %s", strerror(errno));
             continue;
         }
+
         int ifindex = item->ifr_ifindex;
+        caglobals.ip.nm.ifItems[i].ifIndex = ifindex;
+        caglobals.ip.nm.numIfItems++;
+
         if (desiredIndex && (ifindex != desiredIndex))
         {
             continue;
         }
-        caglobals.ip.nm.ifitems[i].ifindex = ifindex;
 
         // Add IPv4 interface
         result = CAAddInterfaceItem(iflist, ifindex, name, AF_INET, ipv4addr, flags);
@@ -205,15 +307,15 @@ exit:
 }
 
 static CAResult_t CAAddInterfaceItem(u_arraylist_t *iflist, int index,
-                            char *name, int family, uint32_t addr, int flags)
+                                     char *name, int family, uint32_t addr, int flags)
 {
     CAInterface_t *ifitem = CANewInterfaceItem(index, name, family, addr, flags);
     if (!ifitem)
     {
         return CA_STATUS_FAILED;
     }
-    CAResult_t result = u_arraylist_add(iflist, ifitem);
-    if (CA_STATUS_OK != result)
+    bool result = u_arraylist_add(iflist, ifitem);
+    if (!result)
     {
         OIC_LOG(ERROR, TAG, "u_arraylist_add failed.");
         OICFree(ifitem);
@@ -254,14 +356,19 @@ void CAWIFIConnectionStateChangedCb(wifi_connection_state_e state, wifi_ap_h ap,
         return;
     }
 
-    // If Wifi is connected, then get the latest IP from the WIFI Interface
     if (WIFI_CONNECTION_STATE_CONNECTED == state)
     {
         CAWakeUpForChange();
     }
     else
     {
-        // TODO : Remove Ip intercase case
+        u_arraylist_t *iflist = CAIPGetInterfaceInformation(0);
+        if (!iflist)
+        {
+            OIC_LOG_V(ERROR, TAG, "get interface info failed");
+            return;
+        }
+        u_arraylist_destroy(iflist);
     }
 
     OIC_LOG(DEBUG, TAG, "OUT");

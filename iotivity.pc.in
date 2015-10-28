@@ -1,0 +1,14 @@
+# Package Information for pkg-config
+
+prefix=@PREFIX@
+exec_prefix=${prefix}
+libdir=${prefix}/lib
+includedir=${prefix}/include/
+
+Name: iotivity
+Description: IoTivity is an open source reference implementation of the OIC standard specifications.
+Version: @VERSION@
+URL: https://www.iotivity.org
+Requires:
+Libs: -loc -oc_logger -loc_logger_core -loctbstack -lconnectivity_abstraction
+Cflags: -I${includedir} -D@ROUTING_DEFINE@

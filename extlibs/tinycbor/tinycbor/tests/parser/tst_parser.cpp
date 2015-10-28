@@ -25,7 +25,10 @@
 #define _XOPEN_SOURCE 700
 #include <QtTest>
 #include "cbor.h"
+#include <locale.h>
 #include <stdio.h>
+
+extern "C" FILE *open_memstream(char **bufptr, size_t *sizeptr);
 
 Q_DECLARE_METATYPE(CborError)
 
@@ -45,7 +48,7 @@ private slots:
     void tagTags_data() { tags_data(); }
     void tagTags();
     void emptyContainers_data();
-    void emptyContainers() { fixed(); }
+    void emptyContainers();
     void arrays_data();
     void arrays();
     void undefLengthArrays_data() { arrays_data(); }
@@ -59,7 +62,7 @@ private slots:
     void nestedMaps_data() { maps_data(); }
     void nestedMaps();
     void mapMixed_data();
-    void mapMixed() { fixed(); }
+    void mapMixed() { arrays(); }
     void mapsAndArrays_data() { arrays_data(); }
     void mapsAndArrays();
 
@@ -115,16 +118,35 @@ void addColumns()
 {
     QTest::addColumn<QByteArray>("data");
     QTest::addColumn<QString>("expected");
+    QTest::addColumn<int>("n");         // some aux integer, not added in all columns
 }
 
 bool compareFailed = true;
-void compareOne_real(const QByteArray &data, const QString &expected, int line)
+void compareOne_real(const QByteArray &data, const QString &expected, int line, int n = -1)
 {
     compareFailed = true;
     CborParser parser;
     CborValue first;
     CborError err = cbor_parser_init(reinterpret_cast<const quint8 *>(data.constData()), data.length(), 0, &parser, &first);
     QVERIFY2(!err, QByteArray::number(line) + ": Got error \"" + cbor_error_string(err) + "\"");
+
+    if (cbor_value_get_type(&first) == CborArrayType) {
+        size_t len;
+        if (n >= 0) {
+            QCOMPARE(cbor_value_get_array_length(&first, &len), CborNoError);
+            QCOMPARE(len, size_t(len));
+        } else {
+            QCOMPARE(cbor_value_get_array_length(&first, &len), CborErrorUnknownLength);
+        }
+    } else if (cbor_value_get_type(&first) == CborMapType) {
+        size_t len;
+        if (n >= 0) {
+            QCOMPARE(cbor_value_get_map_length(&first, &len), CborNoError);
+            QCOMPARE(len, size_t(len));
+        } else {
+            QCOMPARE(cbor_value_get_map_length(&first, &len), CborErrorUnknownLength);
+        }
+    }
 
     QString decoded;
     err = parseOne(&first, &decoded);
@@ -138,6 +160,7 @@ void compareOne_real(const QByteArray &data, const QString &expected, int line)
     compareFailed = false;
 }
 #define compareOne(data, expected) compareOne_real(data, expected, __LINE__)
+#define compareOneSize(n, data, expected) compareOne_real(data, expected, __LINE__, n)
 
 void addFixedData()
 {
@@ -167,8 +190,15 @@ void addFixedData()
     QTest::newRow("-UINT16_MAX-1") << raw("\x3a\0\1\x00\x00") << "-65537";
     QTest::newRow("-UINT32_MAX") << raw("\x3a\xff\xff\xff\xff") << "-4294967296";
     QTest::newRow("-UINT32_MAX-1") << raw("\x3b\0\0\0\1\0\0\0\0") << "-4294967297";
-    QTest::newRow("-UINT64_MAX") << raw("\x3b" "\xff\xff\xff\xff" "\xff\xff\xff\xff")
-                                 << '-' + QString::number(std::numeric_limits<uint64_t>::max());
+    QTest::newRow("INT64_MIN+1") << raw("\x3b\x7f\xff\xff\xff""\xff\xff\xff\xfe")
+                               << QString::number(std::numeric_limits<int64_t>::min() + 1);
+    QTest::newRow("INT64_MIN") << raw("\x3b\x7f\xff\xff\xff""\xff\xff\xff\xff")
+                               << QString::number(std::numeric_limits<int64_t>::min());
+    QTest::newRow("INT64_MIN-1") << raw("\x3b\x80\0\0\0""\0\0\0\0") << "-9223372036854775809";
+    QTest::newRow("-UINT64_MAX") << raw("\x3b" "\xff\xff\xff\xff" "\xff\xff\xff\xfe")
+                                   << '-' + QString::number(std::numeric_limits<uint64_t>::max());
+    QTest::newRow("-UINT64_MAX+1") << raw("\x3b" "\xff\xff\xff\xff" "\xff\xff\xff\xff")
+                                   << "-18446744073709551616";
 
     // overlongs
     QTest::newRow("0*1") << raw("\x18\x00") << "0";
@@ -190,23 +220,37 @@ void addFixedData()
     QTest::newRow("simple255") << raw("\xf8\xff") << "simple(255)";
 
     // floating point
-    QTest::newRow("0f16") << raw("\xf9\0\0") << "__f16(0x0000)";
 
+    QTest::newRow("0.f16") << raw("\xf9\0\0") << "0.f16";
     QTest::newRow("0.f") << raw("\xfa\0\0\0\0") << "0.f";
     QTest::newRow("0.")  << raw("\xfb\0\0\0\0\0\0\0\0") << "0.";
+    QTest::newRow("-1.f16") << raw("\xf9\xbc\x00") << "-1.f16";
     QTest::newRow("-1.f") << raw("\xfa\xbf\x80\0\0") << "-1.f";
     QTest::newRow("-1.") << raw("\xfb\xbf\xf0\0\0\0\0\0\0") << "-1.";
+    QTest::newRow("65504.f16") << raw("\xf9\x7b\xff") << "65504.f16";
     QTest::newRow("16777215.f") << raw("\xfa\x4b\x7f\xff\xff") << "16777215.f";
     QTest::newRow("16777215.") << raw("\xfb\x41\x6f\xff\xff\xe0\0\0\0") << "16777215.";
     QTest::newRow("-16777215.f") << raw("\xfa\xcb\x7f\xff\xff") << "-16777215.f";
     QTest::newRow("-16777215.") << raw("\xfb\xc1\x6f\xff\xff\xe0\0\0\0") << "-16777215.";
 
-    QTest::newRow("qnan_f") << raw("\xfa\x7f\xc0\0\0") << "nan";
-    QTest::newRow("qnan") << raw("\xfb\x7f\xf8\0\0\0\0\0\0") << "nan";
-    QTest::newRow("snan_f") << raw("\xfa\x7f\xc0\0\0") << "nan";
-    QTest::newRow("snan") << raw("\xfb\x7f\xf8\0\0\0\0\0\0") << "nan";
+    QTest::newRow("0.5f16") << raw("\xf9\x38\0") << "0.5f16";
+    QTest::newRow("0.5f") << raw("\xfa\x3f\0\0\0") << "0.5f";
+    QTest::newRow("0.5") << raw("\xfb\x3f\xe0\0\0\0\0\0\0") << "0.5";
+    QTest::newRow("2.f16^11-1") << raw("\xf9\x67\xff") << "2047.f16";
+    QTest::newRow("2.f^24-1") << raw("\xfa\x4b\x7f\xff\xff") << "16777215.f";
+    QTest::newRow("2.^53-1") << raw("\xfb\x43\x3f\xff\xff""\xff\xff\xff\xff") << "9007199254740991.";
+    QTest::newRow("2.f^64-epsilon") << raw("\xfa\x5f\x7f\xff\xff") << "18446742974197923840.f";
+    QTest::newRow("2.^64-epsilon") << raw("\xfb\x43\xef\xff\xff""\xff\xff\xff\xff") << "18446744073709549568.";
+    QTest::newRow("2.f^64") << raw("\xfa\x5f\x80\0\0") << "1.8446744073709552e+19f";
+    QTest::newRow("2.^64") << raw("\xfb\x43\xf0\0\0\0\0\0\0") << "1.8446744073709552e+19";
+
+    QTest::newRow("nan_f16") << raw("\xf9\x7e\x00") << "nan";
+    QTest::newRow("nan_f") << raw("\xfa\x7f\xc0\0\0") << "nan";
+    QTest::newRow("nan") << raw("\xfb\x7f\xf8\0\0\0\0\0\0") << "nan";
+    QTest::newRow("-inf_f16") << raw("\xf9\xfc\x00") << "-inf";
     QTest::newRow("-inf_f") << raw("\xfa\xff\x80\0\0") << "-inf";
     QTest::newRow("-inf") << raw("\xfb\xff\xf0\0\0\0\0\0\0") << "-inf";
+    QTest::newRow("+inf_f16") << raw("\xf9\x7c\x00") << "inf";
     QTest::newRow("+inf_f") << raw("\xfa\x7f\x80\0\0") << "inf";
     QTest::newRow("+inf") << raw("\xfb\x7f\xf0\0\0\0\0\0\0") << "inf";
 
@@ -318,7 +362,7 @@ void addTagsData()
     QTest::newRow("tag65536+simple32") << raw("\xda\0\1\0\0\xf8\x20") << "65536(simple(32))";
     QTest::newRow("float+unixtime") << raw("\xc1\xfa\x4e\xaa\x97\x80") << "1(1431027712.f)";
     QTest::newRow("double+unixtime") << raw("\xc1\xfb" "\x41\xd5\x52\xef" "\xf4\xc7\xce\xfe")
-                                     << "1(1431027667.122008801)";
+                                     << "1(1431027667.1220088)";
 }
 
 void tst_Parser::tags_data()
@@ -339,16 +383,25 @@ void tst_Parser::tagTags()
 
 void addEmptyContainersData()
 {
-    QTest::newRow("emptyarray") << raw("\x80") << "[]";
-    QTest::newRow("emptymap") << raw("\xa0") << "{}";
-    QTest::newRow("_emptyarray") << raw("\x9f\xff") << "[_ ]";
-    QTest::newRow("_emptymap") << raw("\xbf\xff") << "{_ }";
+    QTest::newRow("emptyarray") << raw("\x80") << "[]" << 0;
+    QTest::newRow("emptymap") << raw("\xa0") << "{}" << 0;
+    QTest::newRow("_emptyarray") << raw("\x9f\xff") << "[_ ]" << -1;
+    QTest::newRow("_emptymap") << raw("\xbf\xff") << "{_ }" << -1;
 }
 
 void tst_Parser::emptyContainers_data()
 {
     addColumns();
     addEmptyContainersData();
+}
+
+void tst_Parser::emptyContainers()
+{
+    QFETCH(QByteArray, data);
+    QFETCH(QString, expected);
+    QFETCH(int, n);
+
+    compareOneSize(n, data, expected);
 }
 
 void tst_Parser::arrays_data()
@@ -364,20 +417,20 @@ void tst_Parser::arrays()
     QFETCH(QByteArray, data);
     QFETCH(QString, expected);
 
-    compareOne("\x81" + data, '[' + expected + ']');
+    compareOneSize(1, "\x81" + data, '[' + expected + ']');
     if (compareFailed) return;
 
-    compareOne("\x82" + data + data, '[' + expected + ", " + expected + ']');
+    compareOneSize(2, "\x82" + data + data, '[' + expected + ", " + expected + ']');
     if (compareFailed) return;
 
     // overlong length
-    compareOne("\x98\1" + data, '[' + expected + ']');
+    compareOneSize(1, "\x98\1" + data, '[' + expected + ']');
     if (compareFailed) return;
-    compareOne(raw("\x99\0\1") + data, '[' + expected + ']');
+    compareOneSize(1, raw("\x99\0\1") + data, '[' + expected + ']');
     if (compareFailed) return;
-    compareOne(raw("\x9a\0\0\0\1") + data, '[' + expected + ']');
+    compareOneSize(1, raw("\x9a\0\0\0\1") + data, '[' + expected + ']');
     if (compareFailed) return;
-    compareOne(raw("\x9b\0\0\0\0\0\0\0\1") + data, '[' + expected + ']');
+    compareOneSize(1, raw("\x9b\0\0\0\0\0\0\0\1") + data, '[' + expected + ']');
     if (compareFailed) return;
 
     // medium-sized array: 32 elements (1 << 5)
@@ -387,7 +440,7 @@ void tst_Parser::arrays()
         expected += expected;
     }
     expected.chop(2);   // remove the last ", "
-    compareOne("\x98\x20" + data, '[' + expected + ']');
+    compareOneSize(32, "\x98\x20" + data, '[' + expected + ']');
     if (compareFailed) return;
 
     // large array: 256 elements (32 << 3)
@@ -397,7 +450,7 @@ void tst_Parser::arrays()
         expected += expected;
     }
     expected.chop(2);   // remove the last ", "
-    compareOne(raw("\x99\1\0") + data, '[' + expected + ']');
+    compareOneSize(256, raw("\x99\1\0") + data, '[' + expected + ']');
     if (compareFailed) return;
 }
 
@@ -417,37 +470,37 @@ void tst_Parser::nestedArrays()
     QFETCH(QByteArray, data);
     QFETCH(QString, expected);
 
-    compareOne("\x81\x81" + data, "[[" + expected + "]]");
+    compareOneSize(1, "\x81\x81" + data, "[[" + expected + "]]");
     if (compareFailed) return;
 
-    compareOne("\x81\x81\x81" + data, "[[[" + expected + "]]]");
+    compareOneSize(1, "\x81\x81\x81" + data, "[[[" + expected + "]]]");
     if (compareFailed) return;
 
-    compareOne("\x81\x82" + data + data, "[[" + expected + ", " + expected + "]]");
+    compareOneSize(1, "\x81\x82" + data + data, "[[" + expected + ", " + expected + "]]");
     if (compareFailed) return;
 
-    compareOne("\x82\x81" + data + data, "[[" + expected + "], " + expected + "]");
+    compareOneSize(2, "\x82\x81" + data + data, "[[" + expected + "], " + expected + "]");
     if (compareFailed) return;
 
-    compareOne("\x82\x81" + data + '\x81' + data, "[[" + expected + "], [" + expected + "]]");
+    compareOneSize(2, "\x82\x81" + data + '\x81' + data, "[[" + expected + "], [" + expected + "]]");
     if (compareFailed) return;
 
     // undefined length
-    compareOne("\x9f\x9f" + data + data + "\xff\xff", "[_ [_ " + expected + ", " + expected + "]]");
+    compareOneSize(-1, "\x9f\x9f" + data + data + "\xff\xff", "[_ [_ " + expected + ", " + expected + "]]");
     if (compareFailed) return;
 
-    compareOne("\x9f\x9f" + data + "\xff\x9f" + data + "\xff\xff", "[_ [_ " + expected + "], [_ " + expected + "]]");
+    compareOneSize(-1, "\x9f\x9f" + data + "\xff\x9f" + data + "\xff\xff", "[_ [_ " + expected + "], [_ " + expected + "]]");
     if (compareFailed) return;
 
-    compareOne("\x9f\x9f" + data + data + "\xff\x9f" + data + "\xff\xff",
+    compareOneSize(-1, "\x9f\x9f" + data + data + "\xff\x9f" + data + "\xff\xff",
                "[_ [_ " + expected + ", " + expected + "], [_ " + expected + "]]");
     if (compareFailed) return;
 
     // mix them
-    compareOne("\x81\x9f" + data + "\xff", "[[_ " + expected + "]]");
+    compareOneSize(1, "\x81\x9f" + data + "\xff", "[[_ " + expected + "]]");
     if (compareFailed) return;
 
-    compareOne("\x9f\x81" + data + "\xff", "[_ [" + expected + "]]");
+    compareOneSize(-1, "\x9f\x81" + data + "\xff", "[_ [" + expected + "]]");
 }
 
 void tst_Parser::maps_data()
@@ -461,23 +514,23 @@ void tst_Parser::maps()
     QFETCH(QString, expected);
 
     // integer key
-    compareOne("\xa1\1" + data, "{1: " + expected + '}');
+    compareOneSize(1, "\xa1\1" + data, "{1: " + expected + '}');
     if (compareFailed) return;
 
     // string key
-    compareOne("\xa1\x65" "Hello" + data, "{\"Hello\": " + expected + '}');
+    compareOneSize(1, "\xa1\x65" "Hello" + data, "{\"Hello\": " + expected + '}');
     if (compareFailed) return;
 
     // map to self
-    compareOne("\xa1" + data + data, '{' + expected + ": " + expected + '}');
+    compareOneSize(1, "\xa1" + data + data, '{' + expected + ": " + expected + '}');
     if (compareFailed) return;
 
     // two integer keys
-    compareOne("\xa2\1" + data + "\2" + data, "{1: " + expected + ", 2: " + expected + '}');
+    compareOneSize(2, "\xa2\1" + data + "\2" + data, "{1: " + expected + ", 2: " + expected + '}');
     if (compareFailed) return;
 
-    // one integer and one string key
-    compareOne("\xa2\1" + data + "\x65" "Hello" + data, "{1: " + expected + ", \"Hello\": " + expected + '}');
+    // OneSize integer and OneSize string key
+    compareOneSize(2, "\xa2\1" + data + "\x65" "Hello" + data, "{1: " + expected + ", \"Hello\": " + expected + '}');
     if (compareFailed) return;
 }
 
@@ -505,66 +558,66 @@ void tst_Parser::nestedMaps()
     QFETCH(QString, expected);
 
     // nested maps as values
-    compareOne("\xa1\1\xa1\2" + data, "{1: {2: " + expected + "}}");
+    compareOneSize(1, "\xa1\1\xa1\2" + data, "{1: {2: " + expected + "}}");
     if (compareFailed) return;
 
-    compareOne("\xa1\x65Hello\xa1\2" + data, "{\"Hello\": {2: " + expected + "}}");
+    compareOneSize(1, "\xa1\x65Hello\xa1\2" + data, "{\"Hello\": {2: " + expected + "}}");
     if (compareFailed) return;
 
-    compareOne("\xa1\1\xa2\2" + data + '\x20' + data, "{1: {2: " + expected + ", -1: " + expected + "}}");
+    compareOneSize(1, "\xa1\1\xa2\2" + data + '\x20' + data, "{1: {2: " + expected + ", -1: " + expected + "}}");
     if (compareFailed) return;
 
-    compareOne("\xa2\1\xa1\2" + data + "\2\xa1\x20" + data, "{1: {2: " + expected + "}, 2: {-1: " + expected + "}}");
+    compareOneSize(2, "\xa2\1\xa1\2" + data + "\2\xa1\x20" + data, "{1: {2: " + expected + "}, 2: {-1: " + expected + "}}");
     if (compareFailed) return;
 
     // nested maps as keys
-    compareOne("\xa1\xa1\xf4" + data + "\xf5", "{{false: " + expected + "}: true}");
+    compareOneSize(1, "\xa1\xa1\xf4" + data + "\xf5", "{{false: " + expected + "}: true}");
     if (compareFailed) return;
 
-    compareOne("\xa1\xa1" + data + data + "\xa1" + data + data,
+    compareOneSize(1, "\xa1\xa1" + data + data + "\xa1" + data + data,
                "{{" + expected + ": " + expected + "}: {" + expected + ": " + expected + "}}");
     if (compareFailed) return;
 
     // undefined length
-    compareOne("\xbf\1\xbf\2" + data + "\xff\xff", "{_ 1: {_ 2: " + expected + "}}");
+    compareOneSize(-1, "\xbf\1\xbf\2" + data + "\xff\xff", "{_ 1: {_ 2: " + expected + "}}");
     if (compareFailed) return;
 
-    compareOne("\xbf\1\xbf\2" + data + '\x20' + data + "\xff\xff", "{_ 1: {_ 2: " + expected + ", -1: " + expected + "}}");
+    compareOneSize(-1, "\xbf\1\xbf\2" + data + '\x20' + data + "\xff\xff", "{_ 1: {_ 2: " + expected + ", -1: " + expected + "}}");
     if (compareFailed) return;
 
-    compareOne("\xbf\1\xbf\2" + data + "\xff\2\xbf\x20" + data + "\xff\xff",
+    compareOneSize(-1, "\xbf\1\xbf\2" + data + "\xff\2\xbf\x20" + data + "\xff\xff",
                "{_ 1: {_ 2: " + expected + "}, 2: {_ -1: " + expected + "}}");
     if (compareFailed) return;
 
-    compareOne("\xbf\xbf" + data + data + "\xff\xbf" + data + data + "\xff\xff",
+    compareOneSize(-1, "\xbf\xbf" + data + data + "\xff\xbf" + data + data + "\xff\xff",
                "{_ {_ " + expected + ": " + expected + "}: {_ " + expected + ": " + expected + "}}");
     if (compareFailed) return;
 
     // mix them
-    compareOne("\xa1\1\xbf\2" + data + "\xff", "{1: {_ 2: " + expected + "}}");
+    compareOneSize(1, "\xa1\1\xbf\2" + data + "\xff", "{1: {_ 2: " + expected + "}}");
     if (compareFailed) return;
 
-    compareOne("\xbf\1\xa1\2" + data + "\xff", "{_ 1: {2: " + expected + "}}");
+    compareOneSize(-1, "\xbf\1\xa1\2" + data + "\xff", "{_ 1: {2: " + expected + "}}");
     if (compareFailed) return;
 }
 
 void addMapMixedData()
 {
-    QTest::newRow("map-0-24") << raw("\xa1\0\x18\x18") << "{0: 24}";
-    QTest::newRow("map-0*1-24") << raw("\xa1\x18\0\x18\x18") << "{0: 24}";
-    QTest::newRow("map-0*1-24*2") << raw("\xa1\x18\0\x19\0\x18") << "{0: 24}";
-    QTest::newRow("map-0*4-24*2") << raw("\xa1\x1a\0\0\0\0\x19\0\x18") << "{0: 24}";
-    QTest::newRow("map-24-0") << raw("\xa1\x18\x18\0") << "{24: 0}";
-    QTest::newRow("map-24-0*1") << raw("\xa1\x18\x18\0") << "{24: 0}";
-    QTest::newRow("map-255-65535") << raw("\xa1\x18\xff\x19\xff\xff") << "{255: 65535}";
+    QTest::newRow("map-0-24") << raw("\xa1\0\x18\x18") << "{0: 24}" << 1;
+    QTest::newRow("map-0*1-24") << raw("\xa1\x18\0\x18\x18") << "{0: 24}" << 1;
+    QTest::newRow("map-0*1-24*2") << raw("\xa1\x18\0\x19\0\x18") << "{0: 24}" << 1;
+    QTest::newRow("map-0*4-24*2") << raw("\xa1\x1a\0\0\0\0\x19\0\x18") << "{0: 24}" << 1;
+    QTest::newRow("map-24-0") << raw("\xa1\x18\x18\0") << "{24: 0}" << 1;
+    QTest::newRow("map-24-0*1") << raw("\xa1\x18\x18\0") << "{24: 0}" << 1;
+    QTest::newRow("map-255-65535") << raw("\xa1\x18\xff\x19\xff\xff") << "{255: 65535}" << 1;
 
-    QTest::newRow("_map-0-24") << raw("\xbf\0\x18\x18\xff") << "{_ 0: 24}";
-    QTest::newRow("_map-0*1-24") << raw("\xbf\x18\0\x18\x18\xff") << "{_ 0: 24}";
-    QTest::newRow("_map-0*1-24*2") << raw("\xbf\x18\0\x19\0\x18\xff") << "{_ 0: 24}";
-    QTest::newRow("_map-0*4-24*2") << raw("\xbf\x1a\0\0\0\0\x19\0\x18\xff") << "{_ 0: 24}";
-    QTest::newRow("_map-24-0") << raw("\xbf\x18\x18\0\xff") << "{_ 24: 0}";
-    QTest::newRow("_map-24-0*1") << raw("\xbf\x18\x18\0\xff") << "{_ 24: 0}";
-    QTest::newRow("_map-255-65535") << raw("\xbf\x18\xff\x19\xff\xff\xff") << "{_ 255: 65535}";
+    QTest::newRow("_map-0-24") << raw("\xbf\0\x18\x18\xff") << "{_ 0: 24}" << 1;
+    QTest::newRow("_map-0*1-24") << raw("\xbf\x18\0\x18\x18\xff") << "{_ 0: 24}" << 1;
+    QTest::newRow("_map-0*1-24*2") << raw("\xbf\x18\0\x19\0\x18\xff") << "{_ 0: 24}" << 1;
+    QTest::newRow("_map-0*4-24*2") << raw("\xbf\x1a\0\0\0\0\x19\0\x18\xff") << "{_ 0: 24}" << 1;
+    QTest::newRow("_map-24-0") << raw("\xbf\x18\x18\0\xff") << "{_ 24: 0}" << 1;
+    QTest::newRow("_map-24-0*1") << raw("\xbf\x18\x18\0\xff") << "{_ 24: 0}" << 1;
+    QTest::newRow("_map-255-65535") << raw("\xbf\x18\xff\x19\xff\xff\xff") << "{_ 255: 65535}" << 1;
 }
 
 void tst_Parser::mapMixed_data()
@@ -579,52 +632,52 @@ void tst_Parser::mapsAndArrays()
     QFETCH(QString, expected);
 
     // arrays of maps
-    compareOne("\x81\xa1\1" + data, "[{1: " + expected + "}]");
+    compareOneSize(1, "\x81\xa1\1" + data, "[{1: " + expected + "}]");
     if (compareFailed) return;
 
-    compareOne("\x82\xa1\1" + data + "\xa1\2" + data, "[{1: " + expected + "}, {2: " + expected + "}]");
+    compareOneSize(2, "\x82\xa1\1" + data + "\xa1\2" + data, "[{1: " + expected + "}, {2: " + expected + "}]");
     if (compareFailed) return;
 
-    compareOne("\x81\xa2\1" + data + "\2" + data, "[{1: " + expected + ", 2: " + expected + "}]");
+    compareOneSize(1, "\x81\xa2\1" + data + "\2" + data, "[{1: " + expected + ", 2: " + expected + "}]");
     if (compareFailed) return;
 
-    compareOne("\x9f\xa1\1" + data + "\xff", "[_ {1: " + expected + "}]");
+    compareOneSize(-1, "\x9f\xa1\1" + data + "\xff", "[_ {1: " + expected + "}]");
     if (compareFailed) return;
 
-    compareOne("\x81\xbf\1" + data + "\xff", "[{_ 1: " + expected + "}]");
+    compareOneSize(1, "\x81\xbf\1" + data + "\xff", "[{_ 1: " + expected + "}]");
     if (compareFailed) return;
 
-    compareOne("\x9f\xbf\1" + data + "\xff\xff", "[_ {_ 1: " + expected + "}]");
+    compareOneSize(-1, "\x9f\xbf\1" + data + "\xff\xff", "[_ {_ 1: " + expected + "}]");
     if (compareFailed) return;
 
     // maps of arrays
-    compareOne("\xa1\1\x81" + data, "{1: [" + expected + "]}");
+    compareOneSize(1, "\xa1\1\x81" + data, "{1: [" + expected + "]}");
     if (compareFailed) return;
 
-    compareOne("\xa1\1\x82" + data + data, "{1: [" + expected + ", " + expected + "]}");
+    compareOneSize(1, "\xa1\1\x82" + data + data, "{1: [" + expected + ", " + expected + "]}");
     if (compareFailed) return;
 
-    compareOne("\xa2\1\x81" + data + "\x65Hello\x81" + data, "{1: [" + expected + "], \"Hello\": [" + expected + "]}");
+    compareOneSize(2, "\xa2\1\x81" + data + "\x65Hello\x81" + data, "{1: [" + expected + "], \"Hello\": [" + expected + "]}");
     if (compareFailed) return;
 
-    compareOne("\xa1\1\x9f" + data + "\xff", "{1: [_ " + expected + "]}");
+    compareOneSize(1, "\xa1\1\x9f" + data + "\xff", "{1: [_ " + expected + "]}");
     if (compareFailed) return;
 
-    compareOne("\xa1\1\x9f" + data + data + "\xff", "{1: [_ " + expected + ", " + expected + "]}");
+    compareOneSize(1, "\xa1\1\x9f" + data + data + "\xff", "{1: [_ " + expected + ", " + expected + "]}");
     if (compareFailed) return;
 
-    compareOne("\xbf\1\x81" + data + "\xff", "{_ 1: [" + expected + "]}");
+    compareOneSize(-1, "\xbf\1\x81" + data + "\xff", "{_ 1: [" + expected + "]}");
     if (compareFailed) return;
 
-    compareOne("\xbf\1\x9f" + data + "\xff\xff", "{_ 1: [_ " + expected + "]}");
+    compareOneSize(-1, "\xbf\1\x9f" + data + "\xff\xff", "{_ 1: [_ " + expected + "]}");
     if (compareFailed) return;
 
-    compareOne("\xbf\1\x9f" + data + data + "\xff\xff", "{_ 1: [_ " + expected + ", " + expected + "]}");
+    compareOneSize(-1, "\xbf\1\x9f" + data + data + "\xff\xff", "{_ 1: [_ " + expected + ", " + expected + "]}");
     if (compareFailed) return;
 
     // mixed with indeterminate length strings
-    compareOne("\xbf\1\x9f" + data + "\xff\x65Hello\xbf" + data + "\x7f\xff\xff\xff",
-               "{_ 1: [_ " + expected + "], \"Hello\": {_ " + expected + ": \"\"}}");
+    compareOneSize(-1, "\xbf\1\x9f" + data + "\xff\x65Hello\xbf" + data + "\x7f\xff\xff\xff",
+                   "{_ 1: [_ " + expected + "], \"Hello\": {_ " + expected + ": \"\"}}");
 }
 
 void tst_Parser::stringLength_data()

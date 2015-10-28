@@ -5,8 +5,10 @@
 			<smack permit="system::use_internet" type="w" />
 		</permit>
 		<request>
+			<smack request="device::sys_logging" type="w" />
+			<smack request="device::app_logging" type="w" />
 			<smack request="system::use_internet" type="w" />
-			<smack request="connman::get" type="w" />
+			<smack request="tizen::vconf::public::r::platform::rw" type="rl" />
 		</request>
 	</define>
 	<request>

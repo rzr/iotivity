@@ -127,9 +127,19 @@ typedef enum CborError {
     CborErrorDuplicateObjectKeys,
     CborErrorInvalidUtf8TextString,
 
+    /* encoder errors */
+    CborErrorTooManyItems = 768,
+    CborErrorTooFewItems,
+
     /* internal implementation errors */
     CborErrorDataTooLarge = 1024,
     CborErrorNestingTooDeep,
+    CborErrorUnsupportedType,
+
+    /* errors in converting to JSON */
+    CborErrorJsonObjectKeyIsAggregate,
+    CborErrorJsonObjectKeyNotString,
+
     CborErrorOutOfMemory = ~0U / 2 + 1,
     CborErrorInternalError = ~0U
 } CborError;
@@ -139,8 +149,12 @@ CBOR_API const char *cbor_error_string(CborError error);
 /* Encoder API */
 struct CborEncoder
 {
-    uint8_t *ptr;
+    union {
+        uint8_t *ptr;
+        ptrdiff_t bytes_needed;
+    };
     const uint8_t *end;
+    size_t added;
     int flags;
 };
 typedef struct CborEncoder CborEncoder;
@@ -150,9 +164,12 @@ static const size_t CborIndefiniteLength = SIZE_MAX;
 CBOR_API void cbor_encoder_init(CborEncoder *encoder, uint8_t *buffer, size_t size, int flags);
 CBOR_API CborError cbor_encode_uint(CborEncoder *encoder, uint64_t value);
 CBOR_API CborError cbor_encode_int(CborEncoder *encoder, int64_t value);
+CBOR_API CborError cbor_encode_negative_int(CborEncoder *encoder, uint64_t absolute_value);
 CBOR_API CborError cbor_encode_simple_value(CborEncoder *encoder, uint8_t value);
 CBOR_API CborError cbor_encode_tag(CborEncoder *encoder, CborTag tag);
 CBOR_API CborError cbor_encode_text_string(CborEncoder *encoder, const char *string, size_t length);
+CBOR_INLINE_API CborError cbor_encode_text_stringz(CborEncoder *encoder, const char *string)
+{ return cbor_encode_text_string(encoder, string, strlen(string)); }
 CBOR_API CborError cbor_encode_byte_string(CborEncoder *encoder, const uint8_t *string, size_t length);
 CBOR_API CborError cbor_encode_floating_point(CborEncoder *encoder, CborType fpType, const void *value);
 
@@ -173,6 +190,7 @@ CBOR_INLINE_API CborError cbor_encode_double(CborEncoder *encoder, double value)
 CBOR_API CborError cbor_encoder_create_array(CborEncoder *encoder, CborEncoder *arrayEncoder, size_t length);
 CBOR_API CborError cbor_encoder_create_map(CborEncoder *encoder, CborEncoder *mapEncoder, size_t length);
 CBOR_API CborError cbor_encoder_close_container(CborEncoder *encoder, const CborEncoder *containerEncoder);
+CBOR_API CborError cbor_encoder_close_container_checked(CborEncoder *encoder, const CborEncoder *containerEncoder);
 
 /* Parser API */
 
@@ -180,7 +198,8 @@ enum CborParserIteratorFlags
 {
     CborIteratorFlag_IntegerValueTooLarge   = 0x01,
     CborIteratorFlag_NegativeInteger        = 0x02,
-    CborIteratorFlag_UnknownLength          = 0x04
+    CborIteratorFlag_UnknownLength          = 0x04,
+    CborIteratorFlag_ContainerIsMap         = 0x20
 };
 
 struct CborParser
@@ -257,6 +276,13 @@ CBOR_INLINE_API bool cbor_value_is_unsigned_integer(const CborValue *value)
 { return cbor_value_is_integer(value) && (value->flags & CborIteratorFlag_NegativeInteger) == 0; }
 CBOR_INLINE_API bool cbor_value_is_negative_integer(const CborValue *value)
 { return cbor_value_is_integer(value) && (value->flags & CborIteratorFlag_NegativeInteger); }
+
+CBOR_INLINE_API CborError cbor_value_get_raw_integer(const CborValue *value, uint64_t *result)
+{
+    assert(cbor_value_is_integer(value));
+    *result = _cbor_value_extract_int64_helper(value);
+    return CborNoError;
+}
 
 CBOR_INLINE_API CborError cbor_value_get_uint64(const CborValue *value, uint64_t *result)
 {
@@ -379,8 +405,8 @@ CBOR_INLINE_API CborError cbor_value_get_map_length(const CborValue *value, size
     if (!cbor_value_is_length_known(value))
         return CborErrorUnknownLength;
     uint64_t v = _cbor_value_extract_int64_helper(value);
-    *length = v / 2;
-    if (*length != v / 2)
+    *length = v;
+    if (*length != v)
         return CborErrorDataTooLarge;
     return CborNoError;
 }
@@ -392,7 +418,8 @@ CBOR_API CborError cbor_value_get_half_float(const CborValue *value, void *resul
 CBOR_INLINE_API CborError cbor_value_get_float(const CborValue *value, float *result)
 {
     assert(value->type == CborFloatType);
-    uint32_t data = _cbor_value_extract_int64_helper(value);
+    assert(value->flags & CborIteratorFlag_IntegerValueTooLarge);
+    uint32_t data = _cbor_value_decode_int64_internal(value);
     memcpy(result, &data, sizeof(*result));
     return CborNoError;
 }
@@ -400,7 +427,8 @@ CBOR_INLINE_API CborError cbor_value_get_float(const CborValue *value, float *re
 CBOR_INLINE_API CborError cbor_value_get_double(const CborValue *value, double *result)
 {
     assert(value->type == CborDoubleType);
-    uint64_t data = _cbor_value_extract_int64_helper(value);
+    assert(value->flags & CborIteratorFlag_IntegerValueTooLarge);
+    uint64_t data = _cbor_value_decode_int64_internal(value);
     memcpy(result, &data, sizeof(*result));
     return CborNoError;
 }
