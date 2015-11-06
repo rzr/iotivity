@@ -9,6 +9,7 @@
 			<smack request="device::app_logging" type="w" />
 			<smack request="system::use_internet" type="w" />
 			<smack request="tizen::vconf::public::r::platform::rw" type="rl" />
+			<smack request="bluez" type="rw" />
 		</request>
 	</define>
 	<request>
