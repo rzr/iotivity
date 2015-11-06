@@ -26,12 +26,13 @@ BuildRequires:  pkgconfig(sqlite3)
 Requires(postun): /sbin/ldconfig
 Requires(post): /sbin/ldconfig
 
-%define RELEASE True
 
 ## If tizen 2.x, RELEASE follows tizen_build_binary_release_type_eng. ##
 ## and if tizen 3.0, RELEASE follows tizen_build_devel_mode. ##
 %if 0%{?tizen_build_devel_mode} == 1 || 0%{?tizen_build_binary_release_type_eng} == 1
 %define RELEASE False
+%else
+%define RELEASE True
 %endif
 
 %{!?TARGET_TRANSPORT: %define TARGET_TRANSPORT IP,BT}
@@ -100,11 +101,19 @@ cp %{SOURCE1001} ./%{name}-test.manifest
 %endif
 
 
-scons -j 4 TARGET_OS=tizen TARGET_ARCH=%{RPM_ARCH} TARGET_TRANSPORT=%{TARGET_TRANSPORT} \
-		RELEASE=%{RELEASE} SECURED=%{SECURED} LOGGING=%{LOGGING} ROUTING=%{ROUTING}
+scons -j 4 --prefix=%{_prefix} \
+		TARGET_OS=tizen TARGET_ARCH=%{RPM_ARCH} TARGET_TRANSPORT=%{TARGET_TRANSPORT} \
+		RELEASE=%{RELEASE} SECURED=%{SECURED} LOGGING=%{LOGGING} ROUTING=%{ROUTING} \
+		INSTALL_ROOT=%{buildroot}
 
 %install
 rm -rf %{buildroot}
+scons install --prefix=%{_prefix} \
+		TARGET_OS=tizen TARGET_ARCH=%{RPM_ARCH} TARGET_TRANSPORT=%{TARGET_TRANSPORT} \
+		RELEASE=%{RELEASE} SECURED=%{SECURED} LOGGING=%{LOGGING} ROUTING=%{ROUTING} \
+		INSTALL_ROOT=%{buildroot}
+
+
 mkdir -p %{buildroot}%{_includedir}
 mkdir -p %{buildroot}%{_libdir}
 mkdir -p %{buildroot}%{_libdir}/pkgconfig
@@ -117,6 +126,8 @@ mkdir -p %{buildroot}%{_bindir}
 %define build_mode debug
 %endif
 
+# For Example
+cp out/tizen/*/%{build_mode}/examples/OICMiddle/OICMiddle %{buildroot}%{_bindir}
 cp out/tizen/*/%{build_mode}/resource/examples/devicediscoveryclient %{buildroot}%{_bindir}
 cp out/tizen/*/%{build_mode}/resource/examples/devicediscoveryserver %{buildroot}%{_bindir}
 cp out/tizen/*/%{build_mode}/resource/examples/fridgeclient %{buildroot}%{_bindir}
@@ -138,21 +149,10 @@ cp out/tizen/*/%{build_mode}/resource/examples/simpleserverHQ %{buildroot}%{_bin
 cp out/tizen/*/%{build_mode}/resource/examples/threadingsample %{buildroot}%{_bindir}
 cp out/tizen/*/%{build_mode}/resource/examples/oic_svr_db_server.json %{buildroot}%{_bindir}
 cp out/tizen/*/%{build_mode}/resource/examples/oic_svr_db_client.json %{buildroot}%{_bindir}
-if echo %{SECURED}|grep -qi '1'; then
-	cp out/tizen/*/%{build_mode}/libocpmapi.a %{buildroot}%{_libdir}
-fi
-cp out/tizen/*/%{build_mode}/libcoap.a %{buildroot}%{_libdir}
-cp out/tizen/*/%{build_mode}/lib*.so %{buildroot}%{_libdir}
-cp out/tizen/*/%{build_mode}/%{name}.pc %{buildroot}%{_libdir}/pkgconfig
 
-cp resource/csdk/stack/include/*.h %{buildroot}%{_includedir}
-cp resource/csdk/logger/include/*.h %{buildroot}%{_includedir}
-cp resource/csdk/ocrandom/include/*.h %{buildroot}%{_includedir}
-cp resource/c_common/platform_features.h %{buildroot}%{_includedir}
-cp -r resource/oc_logger/include/* %{buildroot}%{_includedir}
-cp resource/include/*.h %{buildroot}%{_includedir}
-
-cp service/things-manager/sdk/inc/*.h %{buildroot}%{_includedir}
+# For iotcon
+cp resource/csdk/stack/include/ocpayload.h %{buildroot}%{_includedir}/resource
+cp resource/csdk/ocrandom/include/ocrandom.h %{buildroot}%{_includedir}/resource
 
 %if 0%{?tizen_version_major} < 3
 mkdir -p %{buildroot}/%{_datadir}/license
@@ -200,6 +200,7 @@ cp LICENSE.APLv2 %{buildroot}/%{_datadir}/license/%{name}-test
 %files test
 %manifest %{name}-test.manifest
 %defattr(-,root,root,-)
+%{_bindir}/OICMiddle
 %{_bindir}/devicediscoveryclient
 %{_bindir}/devicediscoveryserver
 %{_bindir}/fridgeclient

@@ -126,8 +126,7 @@ if target_os in ['android', 'arduino']: # Android/Arduino always uses GNU compil
 			tools = ['gnulink', 'gcc', 'g++', 'ar', 'as', 'textfile']
 			)
 else:
-	env = Environment(variables = help_vars, tools = ['default', 'textfile'], TARGET_ARCH = target_arch, TARGET_OS = target_os, PREFIX = GetOption('prefix'))
-
+	env = Environment(variables = help_vars, tools = ['default', 'textfile'], TARGET_ARCH = target_arch, TARGET_OS = target_os, PREFIX = GetOption('prefix'), INSTALL_ROOT = ARGUMENTS.get('INSTALL_ROOT', dir))
 Help(help_vars.GenerateHelpText(env))
 
 tc_set_msg = '''
@@ -210,7 +209,7 @@ def __install(ienv, targets, name):
 def __installlib(ienv, targets, name):
 	user_prefix = env.get('PREFIX')
 	if user_prefix:
-		i_n = ienv.Install(user_prefix + '/lib', targets)
+		i_n = ienv.Install(env.get('INSTALL_ROOT') + user_prefix + '/lib', targets)
 	else:
 		i_n = ienv.Install(env.get('BUILD_DIR'), targets)
 	ienv.Alias("install", i_n)
@@ -218,7 +217,7 @@ def __installlib(ienv, targets, name):
 def __installbin(ienv, targets, name):
 	user_prefix = env.get('PREFIX')
 	if user_prefix:
-		i_n = ienv.Install(user_prefix + '/bin', targets)
+		i_n = ienv.Install(env.get('INSTALL_ROOT') + user_prefix + '/bin', targets)
 	else:
 		i_n = ienv.Install(env.get('BUILD_DIR'), targets)
 	ienv.Alias("install", i_n)
@@ -226,7 +225,7 @@ def __installbin(ienv, targets, name):
 def __installheader(ienv, targets, dir, name):
 	user_prefix = env.get('PREFIX')
 	if user_prefix:
-		i_n = ienv.Install(user_prefix + '/include/' + dir ,targets)
+		i_n = ienv.Install(env.get('INSTALL_ROOT') + user_prefix + '/include/' + dir ,targets)
 	else:
 		i_n = ienv.Install(env.get('BUILD_DIR'), targets)
 	ienv.Alias("install", i_n)
@@ -234,7 +233,7 @@ def __installheader(ienv, targets, dir, name):
 def __installpcfile(ienv, targets, name):
 	user_prefix = env.get('PREFIX')
 	if user_prefix:
-		i_n = ienv.Install(user_prefix + '/lib/pkgconfig', targets)
+		i_n = ienv.Install(env.get('INSTALL_ROOT') + user_prefix + '/lib/pkgconfig', targets)
 	else:
 		i_n = ienv.Install(env.get('BUILD_DIR'), targets)
 	ienv.Alias("install", i_n)

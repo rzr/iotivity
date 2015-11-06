@@ -90,8 +90,7 @@ else :
 
 resourcehosting_env.InstallTarget(resourcehostingsdk, 'libresource_hosting')
 resourcehosting_env.UserInstallTargetLib(resourcehostingsdk, 'libresource_hosting')
-resourcehosting_env.UserInstallTargetHeader('include/Hosting.h',\
-	'service/resource-hosting', 'Hosting.h')
+resourcehosting_env.UserInstallTargetHeader('include/Hosting.h', 'iotivity-service', 'Hosting.h')
 
 # Go to build Unit test
 if target_os == 'linux':

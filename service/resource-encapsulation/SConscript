@@ -95,14 +95,14 @@ ResourceClientsdk_shared = resourceClient_env.SharedLibrary('rcs_client', client
 
 resourceClient_env.InstallTarget([ResourceClientsdk_static,ResourceClientsdk_shared], 'librcs_client')
 resourceClient_env.UserInstallTargetLib([ResourceClientsdk_static,ResourceClientsdk_shared], 'librcs_client')
-resourceClient_env.UserInstallTargetHeader('include/RCSAddress.h', 'service/resource-encapsulation', 'RCSAddress.h')
-resourceClient_env.UserInstallTargetHeader('include/RCSDiscoveryManager.h', 'service/resource-encapsulation', 'RCSDiscoveryManager.h')
-resourceClient_env.UserInstallTargetHeader('include/RCSRemoteResourceObject.h', 'service/resource-encapsulation', 'RCSRemoteResourceObject.h')
-resourceClient_env.UserInstallTargetHeader('include/RCSResourceAttributes.h', 'service/resource-encapsulation', 'RCSResourceAttributes.h')
-resourceClient_env.UserInstallTargetHeader('include/RCSResourceObject.h', 'service/resource-encapsulation', 'RCSResourceObject.h')
-resourceClient_env.UserInstallTargetHeader('include/RCSException.h', 'service/resource-encapsulation', 'RCSException.h')
-resourceClient_env.UserInstallTargetHeader('include/RCSRequest.h', 'service/resource-encapsulation', 'RCSRequest.h')
-resourceClient_env.UserInstallTargetHeader('include/RCSResponse.h', 'service/resource-encapsulation', 'RCSResponse.h')
+resourceClient_env.UserInstallTargetHeader('include/RCSAddress.h', 'iotivity-service', 'RCSAddress.h')
+resourceClient_env.UserInstallTargetHeader('include/RCSDiscoveryManager.h', 'iotivity-service', 'RCSDiscoveryManager.h')
+resourceClient_env.UserInstallTargetHeader('include/RCSRemoteResourceObject.h', 'iotivity-service', 'RCSRemoteResourceObject.h')
+resourceClient_env.UserInstallTargetHeader('include/RCSResourceAttributes.h', 'iotivity-service', 'RCSResourceAttributes.h')
+resourceClient_env.UserInstallTargetHeader('include/RCSResourceObject.h', 'iotivity-service', 'RCSResourceObject.h')
+resourceClient_env.UserInstallTargetHeader('include/RCSException.h', 'iotivity-service', 'RCSException.h')
+resourceClient_env.UserInstallTargetHeader('include/RCSRequest.h', 'iotivity-service', 'RCSRequest.h')
+resourceClient_env.UserInstallTargetHeader('include/RCSResponse.h', 'iotivity-service', 'RCSResponse.h')
 
 ######################################################################
 # Build Sample App: SampleResourceClient & SampleResourceServer
@@ -110,7 +110,7 @@ resourceClient_env.UserInstallTargetHeader('include/RCSResponse.h', 'service/res
 SConscript('examples/SConscript')
 
 ######################################################################
-# Build UnitTests Resource Client , resourceCache and resourceBroker and 
+# Build UnitTests Resource Client , resourceCache and resourceBroker and
 # DiscoveryManager
 ################################################ ######################
 if target_os == 'linux':
