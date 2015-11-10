@@ -100,25 +100,18 @@ cp %{SOURCE1001} ./%{name}-test.manifest
 %define RPM_ARCH "x86"
 %endif
 
-
-scons -j 4 --prefix=%{_prefix} \
+scons --prefix=%{_prefix} \
 		TARGET_OS=tizen TARGET_ARCH=%{RPM_ARCH} TARGET_TRANSPORT=%{TARGET_TRANSPORT} \
 		RELEASE=%{RELEASE} SECURED=%{SECURED} LOGGING=%{LOGGING} ROUTING=%{ROUTING} \
-		INSTALL_ROOT=%{buildroot}
+		INSTALL_ROOT=%{buildroot} LIB_INSTALL_DIR=%{_libdir}
+
 
 %install
 rm -rf %{buildroot}
 scons install --prefix=%{_prefix} \
 		TARGET_OS=tizen TARGET_ARCH=%{RPM_ARCH} TARGET_TRANSPORT=%{TARGET_TRANSPORT} \
 		RELEASE=%{RELEASE} SECURED=%{SECURED} LOGGING=%{LOGGING} ROUTING=%{ROUTING} \
-		INSTALL_ROOT=%{buildroot}
-
-
-mkdir -p %{buildroot}%{_includedir}
-mkdir -p %{buildroot}%{_libdir}
-mkdir -p %{buildroot}%{_libdir}/pkgconfig
-mkdir -p %{buildroot}%{_bindir}
-
+		INSTALL_ROOT=%{buildroot} LIB_INSTALL_DIR=%{_libdir}
 
 %if %{RELEASE} == "True"
 %define build_mode release
@@ -127,6 +120,7 @@ mkdir -p %{buildroot}%{_bindir}
 %endif
 
 # For Example
+mkdir -p %{buildroot}%{_bindir}
 cp out/tizen/*/%{build_mode}/examples/OICMiddle/OICMiddle %{buildroot}%{_bindir}
 cp out/tizen/*/%{build_mode}/resource/examples/devicediscoveryclient %{buildroot}%{_bindir}
 cp out/tizen/*/%{build_mode}/resource/examples/devicediscoveryserver %{buildroot}%{_bindir}
