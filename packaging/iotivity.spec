@@ -1,14 +1,14 @@
 Name: iotivity
 Version: 1.0.0
 Release: 0
-Summary: IoTivity Base Stack & IoTivity Services
+Summary: IoT Connectivity sponsored by the OIC
 Group: Network & Connectivity/Other
 License: Apache-2.0
 URL: https://www.iotivity.org/
 Source0: %{name}-%{version}.tar.bz2
 Source1001: %{name}.manifest
 Source1002: %{name}-test.manifest
-BuildRequires:  gettext, expat-devel
+BuildRequires:  gettext-tools, expat-devel
 BuildRequires:  python, libcurl-devel
 BuildRequires:  scons
 BuildRequires:  openssl-devel
@@ -41,7 +41,9 @@ Requires(post): /sbin/ldconfig
 %{!?ROUTING: %define ROUTING GW}
 
 %description
-IoTivity Base (RICH & LITE) Stack & IoTivity Services
+An open source reference implementation of the OIC standard specifications
+IoTivity Base Libraries are included.
+
 
 %package service
 Summary: Development files for %{name}
@@ -72,7 +74,9 @@ The %{name}-devel package contains libraries and header files for
 developing applications that use %{name}.
 
 %prep
-%setup -q -n %{name}-%{version}
+%setup -q
+chmod g-w %_sourcedir/*
+
 cp LICENSE.md LICENSE.APLv2
 cp %{SOURCE1001} .
 %if 0%{?tizen_version_major} < 3
@@ -100,49 +104,52 @@ cp %{SOURCE1001} ./%{name}-test.manifest
 %define RPM_ARCH "x86"
 %endif
 
-scons --prefix=%{_prefix} \
-		TARGET_OS=tizen TARGET_ARCH=%{RPM_ARCH} TARGET_TRANSPORT=%{TARGET_TRANSPORT} \
-		RELEASE=%{RELEASE} SECURED=%{SECURED} LOGGING=%{LOGGING} ROUTING=%{ROUTING} \
-		INSTALL_ROOT=%{buildroot} LIB_INSTALL_DIR=%{_libdir}
+#VERBOSE=1
+scons -j2 --prefix=%{_prefix} \
+	TARGET_OS=tizen TARGET_ARCH=%{RPM_ARCH} TARGET_TRANSPORT=%{TARGET_TRANSPORT} \
+	RELEASE=%{RELEASE} SECURED=%{SECURED} LOGGING=%{LOGGING} ROUTING=%{ROUTING} \
+	LIB_INSTALL_DIR=%{_libdir}
 
 
 %install
 rm -rf %{buildroot}
-scons install --prefix=%{_prefix} \
-		TARGET_OS=tizen TARGET_ARCH=%{RPM_ARCH} TARGET_TRANSPORT=%{TARGET_TRANSPORT} \
-		RELEASE=%{RELEASE} SECURED=%{SECURED} LOGGING=%{LOGGING} ROUTING=%{ROUTING} \
-		INSTALL_ROOT=%{buildroot} LIB_INSTALL_DIR=%{_libdir}
+CFLAGS="${CFLAGS:-%optflags}" ; export CFLAGS ;
+scons install --install-sandbox=%{buildroot} --prefix=%{_prefix} \
+	TARGET_OS=tizen TARGET_ARCH=%{RPM_ARCH} TARGET_TRANSPORT=%{TARGET_TRANSPORT} \
+	RELEASE=%{RELEASE} SECURED=%{SECURED} LOGGING=%{LOGGING} ROUTING=%{ROUTING} \
+	LIB_INSTALL_DIR=%{_libdir}
 
+
+# For Example
 %if %{RELEASE} == "True"
 %define build_mode release
 %else
 %define build_mode debug
 %endif
-
-# For Example
-mkdir -p %{buildroot}%{_bindir}
-cp out/tizen/*/%{build_mode}/examples/OICMiddle/OICMiddle %{buildroot}%{_bindir}
-cp out/tizen/*/%{build_mode}/resource/examples/devicediscoveryclient %{buildroot}%{_bindir}
-cp out/tizen/*/%{build_mode}/resource/examples/devicediscoveryserver %{buildroot}%{_bindir}
-cp out/tizen/*/%{build_mode}/resource/examples/fridgeclient %{buildroot}%{_bindir}
-cp out/tizen/*/%{build_mode}/resource/examples/fridgeserver %{buildroot}%{_bindir}
-cp out/tizen/*/%{build_mode}/resource/examples/garageclient %{buildroot}%{_bindir}
-cp out/tizen/*/%{build_mode}/resource/examples/garageserver %{buildroot}%{_bindir}
-cp out/tizen/*/%{build_mode}/resource/examples/groupclient %{buildroot}%{_bindir}
-cp out/tizen/*/%{build_mode}/resource/examples/groupserver %{buildroot}%{_bindir}
-cp out/tizen/*/%{build_mode}/resource/examples/lightserver %{buildroot}%{_bindir}
-cp out/tizen/*/%{build_mode}/resource/examples/presenceclient %{buildroot}%{_bindir}
-cp out/tizen/*/%{build_mode}/resource/examples/presenceserver %{buildroot}%{_bindir}
-cp out/tizen/*/%{build_mode}/resource/examples/roomclient %{buildroot}%{_bindir}
-cp out/tizen/*/%{build_mode}/resource/examples/roomserver %{buildroot}%{_bindir}
-cp out/tizen/*/%{build_mode}/resource/examples/simpleclient %{buildroot}%{_bindir}
-cp out/tizen/*/%{build_mode}/resource/examples/simpleclientHQ %{buildroot}%{_bindir}
-cp out/tizen/*/%{build_mode}/resource/examples/simpleclientserver %{buildroot}%{_bindir}
-cp out/tizen/*/%{build_mode}/resource/examples/simpleserver %{buildroot}%{_bindir}
-cp out/tizen/*/%{build_mode}/resource/examples/simpleserverHQ %{buildroot}%{_bindir}
-cp out/tizen/*/%{build_mode}/resource/examples/threadingsample %{buildroot}%{_bindir}
-cp out/tizen/*/%{build_mode}/resource/examples/oic_svr_db_server.json %{buildroot}%{_bindir}
-cp out/tizen/*/%{build_mode}/resource/examples/oic_svr_db_client.json %{buildroot}%{_bindir}
+%define ex_install_dir %{buildroot}%{_bindir}
+mkdir -p %{ex_install_dir}
+cp out/tizen/*/%{build_mode}/examples/OICMiddle/OICMiddle %{ex_install_dir}
+cp out/tizen/*/%{build_mode}/resource/examples/devicediscoveryclient %{ex_install_dir}
+cp out/tizen/*/%{build_mode}/resource/examples/devicediscoveryserver %{ex_install_dir}
+cp out/tizen/*/%{build_mode}/resource/examples/fridgeclient %{ex_install_dir}
+cp out/tizen/*/%{build_mode}/resource/examples/fridgeserver %{ex_install_dir}
+cp out/tizen/*/%{build_mode}/resource/examples/garageclient %{ex_install_dir}
+cp out/tizen/*/%{build_mode}/resource/examples/garageserver %{ex_install_dir}
+cp out/tizen/*/%{build_mode}/resource/examples/groupclient %{ex_install_dir}
+cp out/tizen/*/%{build_mode}/resource/examples/groupserver %{ex_install_dir}
+cp out/tizen/*/%{build_mode}/resource/examples/lightserver %{ex_install_dir}
+cp out/tizen/*/%{build_mode}/resource/examples/presenceclient %{ex_install_dir}
+cp out/tizen/*/%{build_mode}/resource/examples/presenceserver %{ex_install_dir}
+cp out/tizen/*/%{build_mode}/resource/examples/roomclient %{ex_install_dir}
+cp out/tizen/*/%{build_mode}/resource/examples/roomserver %{ex_install_dir}
+cp out/tizen/*/%{build_mode}/resource/examples/simpleclient %{ex_install_dir}
+cp out/tizen/*/%{build_mode}/resource/examples/simpleclientHQ %{ex_install_dir}
+cp out/tizen/*/%{build_mode}/resource/examples/simpleclientserver %{ex_install_dir}
+cp out/tizen/*/%{build_mode}/resource/examples/simpleserver %{ex_install_dir}
+cp out/tizen/*/%{build_mode}/resource/examples/simpleserverHQ %{ex_install_dir}
+cp out/tizen/*/%{build_mode}/resource/examples/threadingsample %{ex_install_dir}
+cp out/tizen/*/%{build_mode}/resource/examples/oic_svr_db_server.json %{ex_install_dir}
+cp out/tizen/*/%{build_mode}/resource/examples/oic_svr_db_client.json %{ex_install_dir}
 
 # For iotcon
 cp resource/csdk/stack/include/ocpayload.h %{buildroot}%{_includedir}/resource
@@ -194,28 +201,7 @@ cp LICENSE.APLv2 %{buildroot}/%{_datadir}/license/%{name}-test
 %files test
 %manifest %{name}-test.manifest
 %defattr(-,root,root,-)
-%{_bindir}/OICMiddle
-%{_bindir}/devicediscoveryclient
-%{_bindir}/devicediscoveryserver
-%{_bindir}/fridgeclient
-%{_bindir}/fridgeserver
-%{_bindir}/garageclient
-%{_bindir}/garageserver
-%{_bindir}/groupclient
-%{_bindir}/groupserver
-%{_bindir}/lightserver
-%{_bindir}/presenceclient
-%{_bindir}/presenceserver
-%{_bindir}/roomclient
-%{_bindir}/roomserver
-%{_bindir}/simpleclient
-%{_bindir}/simpleclientHQ
-%{_bindir}/simpleclientserver
-%{_bindir}/simpleserver
-%{_bindir}/simpleserverHQ
-%{_bindir}/threadingsample
-%{_bindir}/oic_svr_db_server.json
-%{_bindir}/oic_svr_db_client.json
+%{_bindir}/*
 %if 0%{?tizen_version_major} < 3
 %{_datadir}/license/%{name}-test
 %else
