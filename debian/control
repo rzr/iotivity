@@ -1,0 +1,42 @@
+Source: iotivity
+Priority: optional
+Maintainer: Philippe Coval <rzr@gna.org>
+Build-Depends: debhelper (>= 8.0.0), 
+ autotools-dev,
+ libbz2-dev,
+ libglib2.0-dev,
+ libicu-dev,
+ python-dev,
+ scons,
+ sudo,
+ unzip,
+ uuid-dev,
+ libboost-date-time-dev,
+ libboost-iostreams-dev,
+ libboost-log-dev,
+ libboost-program-options-dev,
+ libboost-regex-dev,
+ libboost-system-dev,
+ libboost-thread-dev,
+ libboost-all-dev,
+ libcurl4-openssl-dev,
+ libgtest-dev
+Standards-Version: 3.9.4
+Section: libs
+Homepage: https://iotivity.org
+#Vcs-Git: git://git.debian.org/collab-maint/iotivity.git
+#Vcs-Browser: http://git.debian.org/?p=collab-maint/iotivity.git;a=summary
+
+Package: iotivity-dev
+Section: libdevel
+Architecture: any
+Depends: iotivity0 (= ${binary:Version})
+Description: <insert up to 60 chars description>
+ <insert long description, indented with spaces>
+
+Package: iotivity0
+Section: libs
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: <insert up to 60 chars description>
+ <insert long description, indented with spaces>
