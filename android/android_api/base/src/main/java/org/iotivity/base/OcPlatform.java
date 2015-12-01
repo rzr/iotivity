@@ -89,6 +89,8 @@ public final class OcPlatform {
 
             sPlatformQualityOfService = platformConfig.getQualityOfService();
 
+            sPlatformQualityOfService = platformConfig.getQualityOfService();
+
             OcPlatform.configure(
                     platformConfig.getServiceType().getValue(),
                     platformConfig.getModeType().getValue(),
