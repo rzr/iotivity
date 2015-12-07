@@ -90,5 +90,5 @@ oclib_env.UserInstallTargetHeader(src_dir + '/resource/include/OCResourceRequest
 oclib_env.UserInstallTargetHeader(src_dir + '/resource/include/OCResourceResponse.h', 'resource', 'OCResourceResponse.h')
 
 # Add Provisioning library
-if target_os in ['linux', 'android'] and env.get('SECURED') == '1':
+if target_os in ['linux', 'android', 'tizen'] and env.get('SECURED') == '1':
         SConscript('../provisioning/SConscript')
