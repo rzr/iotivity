@@ -7,13 +7,15 @@ License: Apache-2.0
 URL: https://www.iotivity.org/
 Source0: %{name}-%{version}.tar.bz2
 Source10: cereal.tar.bz2
-Source20: tinycbor.tar.bz2
+Source100: tinycbor.tar.bz2
+Source101: gtest-1.7.0.zip
 BuildRequires: gettext-tools
 BuildRequires: expat-devel
 BuildRequires:	python, libcurl-devel
 BuildRequires:	scons
 BuildRequires:	openssl-devel
 BuildRequires:  boost-devel, boost-program-options
+BuildRequires: pkgconfig(gio-unix-2.0)
 Requires(postun): /sbin/ldconfig
 Requires(post): /sbin/ldconfig
 
@@ -40,7 +42,7 @@ Requires: pkgconfig
 Contains samples applications that use %{name}.
 
 %prep
-%setup -q -n %{name}-%{version} -a 10
+%setup -q -n %{name}-%{version} -a 10 -a 100 -a 101
 
 %build
 %ifarch %arm
