@@ -1,5 +1,5 @@
 Name: iotivity
-Version: 0.9.0
+Version: 1.0.0
 Release: 0
 Summary: IoTivity Base Stack & IoTivity Services
 Group: System Environment/Libraries
@@ -7,6 +7,7 @@ License: Apache-2.0
 URL: https://www.iotivity.org/
 Source0: %{name}-%{version}.tar.bz2
 Source10: cereal.tar.bz2
+Source20: tinycbor.tar.bz2
 BuildRequires: gettext-tools
 BuildRequires: expat-devel
 BuildRequires:	python, libcurl-devel
