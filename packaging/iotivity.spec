@@ -9,6 +9,8 @@ Source0: %{name}-%{version}.tar.bz2
 Source10: cereal.tar.bz2
 Source100: tinycbor.tar.bz2
 Source101: gtest-1.7.0.zip
+# https://github.com/dascandy/hippomocks/archive/2f40aa11e31499432283b67f9d3449a3cd7b9c4d.zip
+Source102: 2f40aa11e31499432283b67f9d3449a3cd7b9c4d.zip
 BuildRequires: gettext-tools
 BuildRequires: expat-devel
 BuildRequires:	python, libcurl-devel
@@ -42,7 +44,7 @@ Requires: pkgconfig
 Contains samples applications that use %{name}.
 
 %prep
-%setup -q -n %{name}-%{version} -a 10 -a 100 -a 101
+%setup -q -n %{name}-%{version} -a 10 -a 100 -a 101 -a 102
 
 %build
 %ifarch %arm
@@ -58,6 +60,10 @@ export RPM_ARCH=%{_arch}
 %endif
 %endif
 %endif
+
+cp -rfv hippomocks-2f40aa11e31499432283b67f9d3449a3cd7b9c4d  extlibs/hippomocks-master
+#cp -rfv gtest-1.7.0  extlibs/gtest/gtest-1.7.0
+ln -fs ../../gtest-1.7.0  extlibs/gtest/gtest-1.7.0
 
 find . -iname "*.h*" -exec chmod -v a-x "{}" \;
 
