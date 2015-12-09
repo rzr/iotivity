@@ -16,8 +16,9 @@ BuildRequires: expat-devel
 BuildRequires:	python, libcurl-devel
 BuildRequires:	scons
 BuildRequires:	openssl-devel
-BuildRequires:  boost-devel, boost-program-options
-BuildRequires: pkgconfig(gio-unix-2.0)
+BuildRequires:  boost-devel, boost-program-options, boost-thread
+BuildRequires:  pkgconfig(gio-unix-2.0)
+#BuildRequires:	dlog
 Requires(postun): /sbin/ldconfig
 Requires(post): /sbin/ldconfig
 
@@ -67,7 +68,7 @@ ln -fs ../../gtest-1.7.0  extlibs/gtest/gtest-1.7.0
 
 find . -iname "*.h*" -exec chmod -v a-x "{}" \;
 
-scons -j 4 TARGET_ARCH=$RPM_ARCH
+scons -j 4 TARGET_ARCH=$RPM_ARCH # TARGET_OS=tizen
 
 %__make \
     -C examples/OICMiddle \
