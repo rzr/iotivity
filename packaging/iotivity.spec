@@ -41,24 +41,26 @@ Contains samples applications that use %{name}.
 %prep
 %setup -q -n %{name}-%{version} -a 10
 
+export RPM_ARCH=%{_arch}
+
 %build
 %ifarch %arm
-export RPM_ARCH=arm
+%if "%{tizen}" == "2.4"
+export RPM_ARCH=arm-v7a
+%endif
 %else
 %ifarch aarch64
 export RPM_ARCH=arm64
 %else
 %ifarch i586 i686 %{ix86}
 export RPM_ARCH=x86
-%else
-export RPM_ARCH=%{_arch}
 %endif
 %endif
 %endif
 
 find . -iname "*.h*" -exec chmod -v a-x "{}" \;
 
-scons -j 4 TARGET_ARCH=$RPM_ARCH
+scons %{?_smp_mflags} TARGET_ARCH=$RPM_ARCH
 
 %__make \
     -C examples/OICMiddle \
