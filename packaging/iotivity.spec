@@ -1,5 +1,5 @@
 Name: iotivity
-Version: 1.0.0
+Version: 1.0.1+RC1
 Release: 0
 Summary: IoTivity Base Stack & IoTivity Services
 Group: System Environment/Libraries
@@ -15,12 +15,20 @@ BuildRequires: gettext-tools
 BuildRequires: expat-devel
 BuildRequires:	python, libcurl-devel
 BuildRequires:	scons
+BuildRequires:  unzip
 BuildRequires:	openssl-devel
 BuildRequires:  boost-devel, boost-program-options, boost-thread
-BuildRequires:  pkgconfig(gio-unix-2.0)
-#BuildRequires:	dlog
+BuildRequires:  pkgconfig(glib-2.0)
+BuildRequires:  pkgconfig(uuid)
+BuildRequires:  pkgconfig(dlog)
+BuildRequires:  pkgconfig(capi-network-wifi)
+BuildRequires:  pkgconfig(capi-network-bluetooth)
+BuildRequires:  pkgconfig(capi-appfw-app-common)
 Requires(postun): /sbin/ldconfig
 Requires(post): /sbin/ldconfig
+
+%define release_mode false
+%define secure_mode 0
 
 %description
 IoTivity Base (RICH & LITE) Stack & IoTivity Services
@@ -63,44 +71,32 @@ export RPM_ARCH=%{_arch}
 %endif
 
 cp -rfv hippomocks-2f40aa11e31499432283b67f9d3449a3cd7b9c4d  extlibs/hippomocks-master
-#cp -rfv gtest-1.7.0  extlibs/gtest/gtest-1.7.0
 ln -fs ../../gtest-1.7.0  extlibs/gtest/gtest-1.7.0
 
 find . -iname "*.h*" -exec chmod -v a-x "{}" \;
 
-scons -j 4 TARGET_ARCH=$RPM_ARCH # TARGET_OS=tizen
-
-%__make \
-    -C examples/OICMiddle \
-    TARGET_ARCH=$RPM_ARCH
-
-touch resource/deps resource/applyDepPatches
-
-%__make \
-    -C resource \
-    DEPEND_DIR=$(pwd)/extlibs/
-
-%__make \
-    -C resource/csdk \
-    DEPEND_DIR=$(pwd)/extlibs/
-
+scons -j 4 \
+  RELEASE=%{release_mode} \
+  SECURED=%{secure_mode} \
+  TARGET_ARCH=${RPM_ARCH} \
+  TARGET_TRANSPORT=IP
 
 %install
 rm -rf %{buildroot}
 
-%__make \
+echo %__make \
     -C resource \
     DEPEND_DIR=$(pwd)/extlibs/ \
     DEST_LIB_DIR=%{buildroot}%{_libdir}/%{name}/ \
     install
 
-%__make \
+echo %__make \
     -C resource/csdk \
     DEPEND_DIR=$(pwd)/extlibs/ \
     DESTDIR=%{buildroot} \
     install
 
-%__make \
+echo %__make \
     -C resource/oc_logger \
     DEPEND_DIR=$(pwd)/extlibs/ \
     DESTDIR=%{buildroot} \
