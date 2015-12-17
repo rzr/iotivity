@@ -27,6 +27,7 @@ BuildRequires:  pkgconfig(capi-appfw-app-common)
 Requires(postun): /sbin/ldconfig
 Requires(post): /sbin/ldconfig
 
+%define _smp_mflags 4
 %define release_mode false
 %define secure_mode 0
 
