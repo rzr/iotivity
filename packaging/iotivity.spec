@@ -1,6 +1,6 @@
 Name: iotivity
 Version: 1.0.1+RC1
-Release: 0
+Release: 20151217.110703philippe
 Summary: IoTivity Base Stack & IoTivity Services
 Group: System Environment/Libraries
 License: Apache-2.0
@@ -75,11 +75,12 @@ ln -fs ../../gtest-1.7.0  extlibs/gtest/gtest-1.7.0
 
 find . -iname "*.h*" -exec chmod -v a-x "{}" \;
 
-scons -j 4 \
-  RELEASE=%{release_mode} \
-  SECURED=%{secure_mode} \
-  TARGET_ARCH=${RPM_ARCH} \
-  TARGET_TRANSPORT=IP
+scons %{?_smp_mflags} \
+    RELEASE=%{release_mode} \
+    SECURED=%{secure_mode} \
+    TARGET_ARCH=${RPM_ARCH} \
+    TARGET_OS=linux \
+    TARGET_TRANSPORT=IP
 
 %install
 rm -rf %{buildroot}
@@ -116,10 +117,10 @@ install -d %{buildroot}%{_includedir}/%{name}/
 install resource/include/*.h %{buildroot}%{_includedir}/%{name}/
 
 install service/things-manager/sdk/inc/*.h %{buildroot}%{_includedir}/%{name}/
-install service/soft-sensor-manager/SDK/cpp/include/*.h %{buildroot}%{_includedir}/%{name}/
+#install service/soft-sensor-manager/SDK/cpp/include/*.h %{buildroot}%{_includedir}/%{name}/
 
 install -d %{buildroot}%{_bindir}
-install examples/OICMiddle/debug/OICMiddle %{buildroot}%{_bindir}
+#install examples/OICMiddle/debug/OICMiddle %{buildroot}%{_bindir}
 
 rm -fv %{buildroot}%{_libdir}/libcoap.a
 rm -fv %{buildroot}%{_libdir}/liboc.a
@@ -140,7 +141,7 @@ rm -rf %{buildroot}
 %files devel
 %defattr(644,root,root,755)
 %{_includedir}/*/*.h*
-%{_includedir}/*/*/*.h*
+#%%{_includedir}/*/*/*.h*
 %{_libdir}/lib*.a
 
 %files examples
