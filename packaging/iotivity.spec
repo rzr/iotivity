@@ -1,6 +1,6 @@
 Name: iotivity
 Version: 1.0.1+RC1
-Release: 20151217.110703philippe
+Release: 0
 Summary: IoTivity Base Stack & IoTivity Services
 Group: System Environment/Libraries
 License: Apache-2.0
