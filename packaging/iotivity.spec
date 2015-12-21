@@ -27,7 +27,7 @@ BuildRequires:  pkgconfig(capi-appfw-app-common)
 Requires(postun): /sbin/ldconfig
 Requires(post): /sbin/ldconfig
 
-%define _smp_mflags 4
+%define _smp_mflags -j4
 %define release_mode false
 %define secure_mode 0
 
@@ -147,7 +147,7 @@ rm -rf %{buildroot}
 
 %files examples
 %defattr(-,root,root,-)
-%{_bindir}/OICMiddle
-%{_libdir}/%{name}/examples/*client*
-%{_libdir}/%{name}/examples/*server*
-%{_libdir}/%{name}/examples/*sample*
+#%%{_bindir}/OICMiddle
+#%%{_libdir}/%{name}/examples/*client*
+#%%{_libdir}/%{name}/examples/*server*
+#%%{_libdir}/%{name}/examples/*sample*
