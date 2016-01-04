@@ -1,5 +1,5 @@
 Name: iotivity
-Version: 1.0.0
+Version: 1.0.1
 Release: 0
 Summary: IoT Connectivity sponsored by the OIC
 Group: Network & Connectivity/Other
@@ -158,7 +158,7 @@ cp out/tizen/*/%{build_mode}/resource/provisioning/examples/provisioningclient %
 
 # For iotcon
 cp resource/csdk/stack/include/ocpayload.h %{buildroot}%{_includedir}/resource
-cp resource/csdk/ocrandom/include/ocrandom.h %{buildroot}%{_includedir}/resource
+cp resource/c_common/ocrandom/include/ocrandom.h %{buildroot}%{_includedir}/resource
 
 %if 0%{?tizen_version_major} < 3
 mkdir -p %{buildroot}/%{_datadir}/license

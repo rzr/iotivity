@@ -99,6 +99,8 @@ static OCStackState stackState = OC_STACK_UNINITIALIZED;
 
 OCResource *headResource = NULL;
 static OCResource *tailResource = NULL;
+static OCResourceHandle platformResource = {0};
+static OCResourceHandle deviceResource = {0};
 #ifdef WITH_PRESENCE
 static OCPresenceState presenceState = OC_PRESENCE_UNINITIALIZED;
 static PresenceResource presenceResource;
@@ -113,10 +115,7 @@ static bool gRASetInfo = false;
 #endif
 OCDeviceEntityHandler defaultDeviceHandler;
 void* defaultDeviceHandlerCallbackParameter = NULL;
-
-#ifdef TCP_ADAPTER
 static const char COAP_TCP[] = "coap+tcp:";
-#endif
 
 //-----------------------------------------------------------------------------
 // Macros
@@ -128,7 +127,7 @@ static const char COAP_TCP[] = "coap+tcp:";
              TAG, #arg " is NULL"); return (retVal); } }
 #define VERIFY_NON_NULL_NR(arg, logLevel) { if (!(arg)) { OC_LOG((logLevel), \
              TAG, #arg " is NULL"); return; } }
-#define VERIFY_NON_NULL_V(arg) { if (!arg) {OC_LOG_V(FATAL, TAG, "%s is NULL", #arg);\
+#define VERIFY_NON_NULL_V(arg) { if (!arg) {OC_LOG(FATAL, TAG, #arg " is NULL");\
     goto exit;} }
 
 //TODO: we should allow the server to define this
@@ -1877,20 +1876,8 @@ OCStackResult OCInit1(OCMode mode, OCTransportFlags serverFlags, OCTransportFlag
         caglobals.clientFlags = (CATransportFlags_t)(caglobals.clientFlags|CA_IPV4|CA_IPV6);
     }
 
-#ifdef TCP_ADAPTER
-    if (!(caglobals.serverFlags & CA_IPFAMILY_MASK))
-    {
-        caglobals.serverFlags = (CATransportFlags_t)(caglobals.serverFlags|CA_IPV4);
-    }
-    if (!(caglobals.clientFlags & CA_IPFAMILY_MASK))
-    {
-        caglobals.clientFlags = (CATransportFlags_t)(caglobals.clientFlags|CA_IPV4);
-    }
-#endif
-
     defaultDeviceHandler = NULL;
     defaultDeviceHandlerCallbackParameter = NULL;
-    OCSeedRandom();
 
     result = CAResultToOCResult(CAInitialize());
     VERIFY_SUCCESS(result, OC_STACK_OK);
@@ -2130,7 +2117,6 @@ static OCStackResult ParseRequestUri(const char *fullUri,
         return OC_STACK_INVALID_URI;
     }
 
-#ifdef TCP_ADAPTER
     // process url scheme
     size_t prefixLen = slash2 - fullUri;
     bool istcp = false;
@@ -2141,7 +2127,6 @@ static OCStackResult ParseRequestUri(const char *fullUri,
             istcp = true;
         }
     }
-#endif
 
     // TODO: this logic should come in with unit tests exercising the various strings
     // processs url prefix, if any
@@ -2173,13 +2158,12 @@ static OCStackResult ParseRequestUri(const char *fullUri,
             {   // ipv4 address
                 colon = strchr(start, ':');
                 end = (colon && colon < slash) ? colon : slash;
-#ifdef TCP_ADAPTER
+
                 if (istcp)
                 {   // coap over tcp
                     adapter = (OCTransportAdapter)(adapter | OC_ADAPTER_TCP);
                 }
                 else
-#endif
                 {
                     adapter = (OCTransportAdapter)(adapter | OC_ADAPTER_IP);
                     flags = (OCTransportFlags)(flags | OC_IP_USE_V4);
@@ -3743,10 +3727,43 @@ OCStackResult initResources()
             &(((OCResource *) presenceResource.handle)->resourceProperties),
             OC_ACTIVE, 0);
 #endif
-
+#ifndef WITH_ARDUINO
     if (result == OC_STACK_OK)
     {
         result = SRMInitSecureResources();
+    }
+#endif
+
+    if(result == OC_STACK_OK)
+    {
+        result = OCCreateResource(&deviceResource,
+                                  OC_RSRVD_RESOURCE_TYPE_DEVICE,
+                                  OC_RSRVD_INTERFACE_DEFAULT,
+                                  OC_RSRVD_DEVICE_URI,
+                                  NULL,
+                                  NULL,
+                                  OC_DISCOVERABLE);
+        if(result == OC_STACK_OK)
+        {
+            result = BindResourceInterfaceToResource((OCResource *)deviceResource,
+                                                     OC_RSRVD_INTERFACE_READ);
+        }
+    }
+
+    if(result == OC_STACK_OK)
+    {
+        result = OCCreateResource(&platformResource,
+                                  OC_RSRVD_RESOURCE_TYPE_PLATFORM,
+                                  OC_RSRVD_INTERFACE_DEFAULT,
+                                  OC_RSRVD_PLATFORM_URI,
+                                  NULL,
+                                  NULL,
+                                  OC_DISCOVERABLE);
+        if(result == OC_STACK_OK)
+        {
+            result = BindResourceInterfaceToResource((OCResource *)platformResource,
+                                                     OC_RSRVD_INTERFACE_READ);
+        }
     }
 
     return result;
