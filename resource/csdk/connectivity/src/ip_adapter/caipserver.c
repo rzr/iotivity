@@ -120,7 +120,6 @@ static void CAReceiveHandler(void *data)
 {
     (void)data;
     OIC_LOG(DEBUG, TAG, "IN");
-
     while (!caglobals.ip.terminate)
     {
         CAFindReadyMessage();
@@ -196,14 +195,20 @@ static void CASelectReturned(fd_set *readFds, int ret)
             CAHandleNetlink();
             break;
         }
-        else
+        else if (FD_ISSET(caglobals.ip.shutdownFds[0], readFds))
         {
+            char buf[10];
+            (void)read(caglobals.ip.shutdownFds[0], buf, sizeof (buf));
             CAInterface_t *ifchanged = CAFindInterfaceChange();
             if (ifchanged)
             {
                 CAProcessNewInterface(ifchanged);
                 OICFree(ifchanged);
             }
+            break;
+        }
+        else
+        {
             break;
         }
 
@@ -299,7 +304,7 @@ static CAResult_t CAReceiveMessage(int fd, CATransportFlags_t flags)
         }
     }
 
-    CAConvertAddrToName(&srcAddr, sep.endpoint.addr, &sep.endpoint.port);
+    CAConvertAddrToName(&srcAddr, msg.msg_namelen, sep.endpoint.addr, &sep.endpoint.port);
 
     if (flags & CA_SECURE)
     {

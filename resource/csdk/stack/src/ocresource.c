@@ -615,6 +615,10 @@ static OCStackResult HandleVirtualResource (OCServerRequest *request, OCResource
 
             if(payload)
             {
+                ((OCDiscoveryPayload*)payload)->sid = (uint8_t*)OICCalloc(1, UUID_SIZE);
+                memcpy(((OCDiscoveryPayload*)payload)->sid,
+                    OCGetServerInstanceID(), UUID_SIZE);
+
                 bool foundResourceAtRD = false;
                 for(;resource && discoveryResult == OC_STACK_OK; resource = resource->next)
                 {
@@ -665,8 +669,7 @@ static OCStackResult HandleVirtualResource (OCServerRequest *request, OCResource
         }
         else
         {
-            payload = (OCPayload*) OCDevicePayloadCreate(OC_RSRVD_DEVICE_URI,
-                    (const uint8_t*) &deviceId->id, savedDeviceInfo.deviceName,
+            payload = (OCPayload*) OCDevicePayloadCreate((const uint8_t*) &deviceId->id, savedDeviceInfo.deviceName,
                     OC_SPEC_VERSION, OC_DATA_MODEL_VERSION);
             if (!payload)
             {
@@ -680,9 +683,7 @@ static OCStackResult HandleVirtualResource (OCServerRequest *request, OCResource
     }
     else if (virtualUriInRequest == OC_PLATFORM_URI)
     {
-        payload = (OCPayload*)OCPlatformPayloadCreate(
-                OC_RSRVD_PLATFORM_URI,
-                &savedPlatformInfo);
+        payload = (OCPayload*)OCPlatformPayloadCreate(&savedPlatformInfo);
         if (!payload)
         {
             discoveryResult = OC_STACK_NO_MEMORY;

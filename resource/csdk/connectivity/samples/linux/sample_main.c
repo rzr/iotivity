@@ -994,6 +994,7 @@ void request_handler(const CAEndpoint_t *object, const CARequestInfo_t *requestI
     }
     printf("Data: %s\n", requestInfo->info.payload);
     printf("Message type: %s\n", MESSAGE_TYPE[requestInfo->info.type]);
+    printf("Resource URI: %s \n", requestInfo->info.resourceUri);
 
     if (requestInfo->info.options)
     {
@@ -1061,6 +1062,8 @@ void response_handler(const CAEndpoint_t *object, const CAResponseInfo_t *respon
     printf("Data: %s\n", responseInfo->info.payload);
     printf("Message type: %s\n", MESSAGE_TYPE[responseInfo->info.type]);
     printf("Token: %s\n", responseInfo->info.token);
+    printf("Resource URI: %s \n", responseInfo->info.resourceUri);
+
     if (responseInfo->info.options)
     {
         uint32_t len = responseInfo->info.numOptions;
@@ -1203,7 +1206,13 @@ void send_response(const CAEndpoint_t *endpoint, const CAInfo_t *info)
                               .payloadSize = 0,
                               .resourceUri = resourceUri };
 
-    if(CA_MSG_RESET != messageType)
+    if (CA_MSG_RESET == messageType ||
+        (CA_MSG_ACKNOWLEDGE == messageType && CA_EMPTY == responseCode))
+    {
+        printf("RESET or ACK/EMPTY. there will be not payload/option\n");
+
+    }
+    else
     {
         responseData.token = (info != NULL) ? info->token : NULL;
         responseData.tokenLength = (info != NULL) ? info->tokenLength : 0;
@@ -1638,6 +1647,12 @@ bool read_file(const char* name, CAPayload_t* bytes, size_t* length)
     // Get file length
     fseek(file, 0, SEEK_END);
     fileLen = ftell(file);
+    if (-1 == fileLen)
+    {
+        fprintf(stderr, "Failed to get file length\n");
+        fclose(file);
+        return false;
+    }
     fseek(file, 0, SEEK_SET);
 
     // Allocate memory
