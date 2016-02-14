@@ -1,5 +1,5 @@
-iotivity (0.0.0-1) unstable; urgency=low
+iotivity (1.0.0-0) unstable; urgency=low
 
   * Initial release (Closes: #nnnn)  <nnnn is the bug number of your ITP>
 
- -- Philippe Coval <philippe@unknown>  Tue, 01 Dec 2015 23:32:27 +0000
+ -- Philippe Coval <rzr@gna.org>  Tue, 01 Dec 2015 23:32:27 +0000
