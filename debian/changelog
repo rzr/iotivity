@@ -1,3 +1,15 @@
+iotivity (0.0.20151001-0~rzr2) wily; urgency=medium
+
+  * publish to ubuntu DISTRIBUTION=wily
+
+ -- Philippe Coval <rzr@gna.org>  Sun, 14 Feb 2016 23:38:38 +0100
+
+iotivity (0.0.20151001-0~rzr1) wily; urgency=medium
+
+  * publish to ubuntu DISTRIBUTION=wily
+
+ -- Philippe Coval <rzr@gna.org>  Sun, 14 Feb 2016 00:21:14 +0100
+
 iotivity (0.0.0-1) unstable; urgency=low
 
   * Initial release (Closes: #nnnn)  <nnnn is the bug number of your ITP>
