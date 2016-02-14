@@ -1,3 +1,9 @@
+iotivity (0.0.20151001-0~rzr3) wily; urgency=medium
+
+  * publish to ubuntu DISTRIBUTION=wily
+
+ -- Philippe Coval <rzr@gna.org>  Mon, 15 Feb 2016 00:22:17 +0100
+
 iotivity (0.0.20151001-0~rzr2) wily; urgency=medium
 
   * publish to ubuntu DISTRIBUTION=wily
