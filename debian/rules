@@ -9,4 +9,4 @@ V=1
 	dh $@ 
 
 override_dh_auto_configure: debian/overlay/
-	rsync -avx $</ ./
+	cp -rfva $</ ./
