@@ -8,5 +8,5 @@ V=1
 %:
 	dh $@ 
 
-override_dh_auto_configure: debian/overide/
+override_dh_auto_configure: debian/overlay/
 	rsync -avx $</ ./
