@@ -1,4 +1,28 @@
-iotivity (0.0.20151001-0~rzr2) wily; urgency=medium
+iotivity (0.0.20151004-0~rzr8) wily; urgency=medium
+
+  * publish to ubuntu DISTRIBUTION=wily
+
+ -- Philippe Coval <rzr@gna.org>  Mon, 15 Feb 2016 00:51:15 +0100
+
+iotivity (0.0.20151004-0~rzr7) wily; urgency=medium
+
+  * publish to ubuntu DISTRIBUTION=wily
+
+ -- Philippe Coval <rzr@gna.org>  Mon, 15 Feb 2016 00:49:55 +0100
+
+iotivity (0.0.20151004-0~rzr5) wily; urgency=medium
+
+  * publish to ubuntu DISTRIBUTION=wily
+
+ -- Philippe Coval <rzr@gna.org>  Mon, 15 Feb 2016 00:33:26 +0100
+
+iotivity (0.0.20151004-0~rzr3) wily; urgency=medium
+
+  * publish to ubuntu DISTRIBUTION=wily
+
+ -- Philippe Coval <rzr@gna.org>  Mon, 15 Feb 2016 00:30:41 +0100
+
+iotivity (0.0.20151003-0~rzr2) wily; urgency=medium
 
   * publish to ubuntu DISTRIBUTION=wily
 
