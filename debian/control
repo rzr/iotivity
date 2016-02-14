@@ -20,7 +20,8 @@ Build-Depends: debhelper (>= 8.0.0),
  libboost-thread-dev,
  libboost-all-dev,
  libcurl4-openssl-dev,
- libgtest-dev
+ libgtest-dev,
+ rsync
 Standards-Version: 3.9.4
 Section: libs
 Homepage: https://iotivity.org
