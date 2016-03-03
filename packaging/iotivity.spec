@@ -1,5 +1,5 @@
 Name: iotivity
-Version: 1.0.1
+Version: 1.0.0+RC1+577+g3de69c7
 Release: 0
 Summary: IoTivity Base Stack & IoTivity Services
 Group: System Environment/Libraries
