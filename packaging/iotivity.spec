@@ -1,5 +1,5 @@
 Name: iotivity
-Version: 1.0.0
+Version: 1.0.1
 Release: 0
 Summary: IoTivity Base Stack & IoTivity Services
 Group: System Environment/Libraries
@@ -80,8 +80,6 @@ Contains samples applications that use %{name}.
 cp -rfv hippomocks-2f40aa11e31499432283b67f9d3449a3cd7b9c4d  extlibs/hippomocks-master
 ln -fs ../../gtest-1.7.0  extlibs/gtest/gtest-1.7.0
 
-find . -iname "*.h*" -exec chmod -v a-x "{}" \;
-
 scons %{?_smp_mflags} \
     RELEASE=%{release_mode} \
     SECURED=%{secure_mode} \
@@ -93,25 +91,6 @@ scons %{?_smp_mflags} \
 
 %install
 rm -rf %{buildroot}
-
-echo %__make \
-    -C resource \
-    DEPEND_DIR=$(pwd)/extlibs/ \
-    DEST_LIB_DIR=%{buildroot}%{_libdir}/%{name}/ \
-    install
-
-echo %__make \
-    -C resource/csdk \
-    DEPEND_DIR=$(pwd)/extlibs/ \
-    DESTDIR=%{buildroot} \
-    install
-
-echo %__make \
-    -C resource/oc_logger \
-    DEPEND_DIR=$(pwd)/extlibs/ \
-    DESTDIR=%{buildroot} \
-    install
-
 
 install -d %{buildroot}%{_sbindir}
 
