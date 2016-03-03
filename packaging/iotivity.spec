@@ -1,5 +1,5 @@
 Name: iotivity
-Version: 1.0.1
+Version: 1.1.0+RC1
 Release: 0
 Summary: IoTivity Base Stack & IoTivity Services
 Group: System Environment/Libraries
@@ -10,6 +10,7 @@ Source10: cereal.tar.bz2
 Source100: tinycbor.tar.bz2
 Source101: gtest-1.7.0.zip
 Source102: https://github.com/dascandy/hippomocks/archive/2f40aa11e31499432283b67f9d3449a3cd7b9c4d.zip
+Source103: http://www.sqlite.org/2015/sqlite-amalgamation-3081101.zip
 BuildRequires: gettext-tools
 BuildRequires: expat-devel
 BuildRequires:	python, libcurl-devel
@@ -70,7 +71,7 @@ Requires: pkgconfig
 Contains samples applications that use %{name}.
 
 %prep
-%setup -q -n %{name}-%{version} -a 10 -a 100 -a 101 -a 102
+%setup -q -n %{name}-%{version} -a 10 -a 100 -a 101 -a 102 -a 103
 
 %define secure_mode 0
 %define RPM_ARCH %{_arch}
@@ -98,6 +99,7 @@ Contains samples applications that use %{name}.
 
 cp -rfv hippomocks-2f40aa11e31499432283b67f9d3449a3cd7b9c4d  extlibs/hippomocks-master
 ln -fs ../../gtest-1.7.0  extlibs/gtest/gtest-1.7.0
+ln -fs ../../sqlite-amalgamation-3081101 extlibs/sqlite3/
 
 scons %{?_smp_mflags} \
     RELEASE=%{RELEASE} \
@@ -109,6 +111,14 @@ scons %{?_smp_mflags} \
 
 %install
 rm -rf %{buildroot}
+
+CFLAGS="${CFLAGS:-%optflags}" ; export CFLAGS ;
+echo scons install --install-sandbox=%{buildroot} --prefix=%{_prefix} \
+    TARGET_OS=%{TARGET_OS} \
+    TARGET_ARCH=%{RPM_ARCH} \
+    TARGET_TRANSPORT=%{TARGET_TRANSPORT} \
+	RELEASE=%{RELEASE} SECURED=%{SECURED} LOGGING=%{LOGGING} ROUTING=%{ROUTING} \
+	LIB_INSTALL_DIR=%{_libdir}
 
 install -d %{buildroot}%{_sbindir}
 
@@ -167,9 +177,9 @@ rm -rf %{buildroot}
 %{_includedir}/%{name}/
 %{_includedir}/%{name}/*
 %{_libdir}/lib*.a
+#%%{_libdir}/pkgconfig/%{name}.pc
 
 %files examples
 %defattr(-,root,root,-)
 %{_libdir}/%{name}/examples/
 %{_libdir}/%{name}/examples/*
-
