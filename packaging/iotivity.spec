@@ -1,5 +1,5 @@
 Name: iotivity
-Version: 1.0.0
+Version: 1.0.1
 Release: 0
 Summary: IoTivity Base Stack & IoTivity Services
 Group: System Environment/Libraries
@@ -9,22 +9,43 @@ Source0: %{name}-%{version}.tar.bz2
 Source10: cereal.tar.bz2
 Source100: tinycbor.tar.bz2
 Source101: gtest-1.7.0.zip
-# https://github.com/dascandy/hippomocks/archive/2f40aa11e31499432283b67f9d3449a3cd7b9c4d.zip
-Source102: 2f40aa11e31499432283b67f9d3449a3cd7b9c4d.zip
+Source102: https://github.com/dascandy/hippomocks/archive/2f40aa11e31499432283b67f9d3449a3cd7b9c4d.zip
 BuildRequires: gettext-tools
 BuildRequires: expat-devel
 BuildRequires:	python, libcurl-devel
 BuildRequires:	scons
 BuildRequires:  unzip
 BuildRequires:	openssl-devel
-BuildRequires:  boost-devel, boost-program-options, boost-thread
+BuildRequires:  boost-devel
+BuildRequires:  boost-thread
+BuildRequires:  boost-system
+BuildRequires:  boost-filesystem
+BuildRequires:  boost-program-options
 BuildRequires:  pkgconfig(glib-2.0)
 BuildRequires:  pkgconfig(uuid)
 BuildRequires:  pkgconfig(dlog)
 BuildRequires:  pkgconfig(capi-network-wifi)
 BuildRequires:  pkgconfig(capi-network-bluetooth)
+BuildRequires:  pkgconfig(sqlite3)
 Requires(postun): /sbin/ldconfig
 Requires(post): /sbin/ldconfig
+
+## If tizen 2.x, RELEASE follows tizen_build_binary_release_type_eng. ##
+## and if tizen 3.0, RELEASE follows tizen_build_devel_mode. ##
+%if 0%{?tizen_build_devel_mode} == 1 || 0%{?tizen_build_binary_release_type_eng} == 1
+%define RELEASE False
+%define BUILDTYPE debug
+%else
+%define RELEASE True
+%define BUILDTYPE release
+%endif
+%define release_mode ${RELEASE}
+
+
+%{!?TARGET_TRANSPORT: %define TARGET_TRANSPORT IP}
+%{!?SECURED: %define SECURED 0}
+%{!?LOGGING: %define LOGGING True}
+%{!?ROUTING: %define ROUTING GW}
 
 %description
 IoTivity Base (RICH & LITE) Stack & IoTivity Services
@@ -51,11 +72,9 @@ Contains samples applications that use %{name}.
 %prep
 %setup -q -n %{name}-%{version} -a 10 -a 100 -a 101 -a 102
 
-%define release_mode false
-%define build_mode debug
 %define secure_mode 0
 %define RPM_ARCH %{_arch}
-%define target_os linux
+%define TARGET_OS tizen
 
 # overide to prevent issues
 %define _smp_mflags -j4
@@ -80,38 +99,16 @@ Contains samples applications that use %{name}.
 cp -rfv hippomocks-2f40aa11e31499432283b67f9d3449a3cd7b9c4d  extlibs/hippomocks-master
 ln -fs ../../gtest-1.7.0  extlibs/gtest/gtest-1.7.0
 
-find . -iname "*.h*" -exec chmod -v a-x "{}" \;
-
 scons %{?_smp_mflags} \
-    RELEASE=%{release_mode} \
-    SECURED=%{secure_mode} \
+    RELEASE=%{RELEASE} \
+    SECURED=%{SECURED} \
     TARGET_ARCH=%{RPM_ARCH} \
-    TARGET_OS=%{target_os} \
+    TARGET_OS=%{TARGET_OS} \
     TARGET_TRANSPORT=IP
 
-%__make -C examples/OICSensorBoard/ BUILDTYPE=debug CLIENTARCH=%{RPM_ARCH}
 
 %install
 rm -rf %{buildroot}
-
-echo %__make \
-    -C resource \
-    DEPEND_DIR=$(pwd)/extlibs/ \
-    DEST_LIB_DIR=%{buildroot}%{_libdir}/%{name}/ \
-    install
-
-echo %__make \
-    -C resource/csdk \
-    DEPEND_DIR=$(pwd)/extlibs/ \
-    DESTDIR=%{buildroot} \
-    install
-
-echo %__make \
-    -C resource/oc_logger \
-    DEPEND_DIR=$(pwd)/extlibs/ \
-    DESTDIR=%{buildroot} \
-    install
-
 
 install -d %{buildroot}%{_sbindir}
 
@@ -143,18 +140,16 @@ install -d %{buildroot}%{_includedir}/%{name}/resource/c_common
 install ./resource/c_common/*.h %{buildroot}%{_includedir}/%{name}/resource/c_common/
 
 install -d %{buildroot}%{_libdir}/%{name}/examples/
-install out/%{target_os}/%{RPM_ARCH}/%{build_mode}/resource/examples/*client %{buildroot}%{_libdir}/%{name}/examples/
-install out/%{target_os}/%{RPM_ARCH}/%{build_mode}/resource/examples/*server %{buildroot}%{_libdir}/%{name}/examples/
+install out/%{TARGET_OS}/%{RPM_ARCH}/%{BUILDTYPE}/resource/examples/*client %{buildroot}%{_libdir}/%{name}/examples/
+install out/%{TARGET_OS}/%{RPM_ARCH}/%{BUILDTYPE}/resource/examples/*server %{buildroot}%{_libdir}/%{name}/examples/
 
 rm -fv %{buildroot}%{_libdir}/libcoap.a
 rm -fv %{buildroot}%{_libdir}/liboc.a
 rm -fv %{buildroot}%{_libdir}/liboc_logger.a
 rm -fv %{buildroot}%{_libdir}/libmosquitto.a
 
-%__make -C examples/OICSensorBoard/ install \
- BUILDTYPE=debug \
- CLIENTARCH=%{RPM_ARCH} \
- install_dir=%{buildroot}/%{_libdir}/%{name}/examples/OICSensorBoard/
+rm -rf   %{buildroot}%{_includedir}/resource
+
 
 %clean
 rm -rf %{buildroot}
@@ -170,9 +165,11 @@ rm -rf %{buildroot}
 %files devel
 %defattr(644,root,root,755)
 %{_includedir}/%{name}/
+%{_includedir}/%{name}/*
 %{_libdir}/lib*.a
 
 %files examples
 %defattr(-,root,root,-)
 %{_libdir}/%{name}/examples/
+%{_libdir}/%{name}/examples/*
 
