@@ -36,7 +36,7 @@ class QPGenerator
         } QPDetail;
 
         QPGenerator() = default;
-        QPGenerator(const std::map<std::string, std::vector<std::string>> &queryParams);
+        QPGenerator(const std::map<std::string, std::vector<std::string> > &queryParams);
         bool hasNext();
         std::map<std::string, std::string> next();
 
