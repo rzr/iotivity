@@ -133,8 +133,8 @@
 								<option id="sbi.gnu.cpp.compiler.option.frameworks.core.1289926530" name="Tizen-Frameworks" superClass="sbi.gnu.cpp.compiler.option.frameworks.core" valueType="userObjs">
 									<listOptionValue builtIn="false" value="Native_API"/>
 								</option>
-								<option id="gnu.cpp.compiler.option.dialect.std.1906416278" name="Language standard" superClass="gnu.cpp.compiler.option.dialect.std" value="gnu.cpp.compiler.dialect.default" valueType="enumerated"/>
-								<option id="gnu.cpp.compiler.option.dialect.flags.273271988" name="Other dialect flags" superClass="gnu.cpp.compiler.option.dialect.flags" value="-std=gnu++11" valueType="string"/>
+								<option id="gnu.cpp.compiler.option.dialect.std.1906416278" name="Language standard" superClass="gnu.cpp.compiler.option.dialect.std" value="gnu.cpp.compiler.dialect.c++11" valueType="enumerated"/>
+								<option id="gnu.cpp.compiler.option.dialect.flags.273271988" name="Other dialect flags" superClass="gnu.cpp.compiler.option.dialect.flags" value="" valueType="string"/>
 								<inputType id="cdt.managedbuild.tool.gnu.cpp.compiler.input.1952650160" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.input"/>
 							</tool>
 							<tool command="arm-linux-gnueabi-gcc" id="org.tizen.nativecore.tool.sbi.gnu.c.compiler.21800333" name="C Compiler" superClass="org.tizen.nativecore.tool.sbi.gnu.c.compiler">
@@ -254,18 +254,18 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/lib}&quot;"/>
 								</option>
 								<option id="gnu.cpp.link.option.libs.1032324584" name="Libraries (-l)" superClass="gnu.cpp.link.option.libs" valueType="libs">
-									<listOptionValue builtIn="false" value="uuid"/>
-									<listOptionValue builtIn="false" value="oc"/>
+									<listOptionValue builtIn="false" value="resource_hosting"/>
 									<listOptionValue builtIn="false" value="octbstack"/>
 									<listOptionValue builtIn="false" value="oc_logger"/>
 									<listOptionValue builtIn="false" value="oc_logger_core"/>
-									<listOptionValue builtIn="false" value="connectivity_abstraction"/>
+									<listOptionValue builtIn="false" value="oc"/>
 									<listOptionValue builtIn="false" value="rcs_client"/>
 									<listOptionValue builtIn="false" value="rcs_server"/>
 									<listOptionValue builtIn="false" value="rcs_common"/>
-									<listOptionValue builtIn="false" value="resource_hosting"/>
+									<listOptionValue builtIn="false" value="connectivity_abstraction"/>
 									<listOptionValue builtIn="false" srcPrefixMapping="" srcRootPath="" value="boost_thread"/>
 									<listOptionValue builtIn="false" srcPrefixMapping="" srcRootPath="" value="boost_system"/>
+									<listOptionValue builtIn="false" value="uuid"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.cpp.linker.input.1566348409" superClass="cdt.managedbuild.tool.gnu.cpp.linker.input">
 									<additionalInput kind="additionalinputdependency" paths="$(USER_OBJS)"/>
