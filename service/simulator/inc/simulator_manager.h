@@ -80,7 +80,7 @@ class SimulatorManager
          * NOTE: API would throw @InvalidArgsException when invalid arguments passed, and
          * @SimulatorException if any other error occured.
          */
-        std::vector<std::shared_ptr<SimulatorResource>> createResource(
+        std::vector<std::shared_ptr<SimulatorResource> > createResource(
                     const std::string &configPath, unsigned int count);
 
         std::shared_ptr<SimulatorSingleResource> createSingleResource(
