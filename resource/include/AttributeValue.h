@@ -63,20 +63,20 @@ namespace OC
         std::vector<OC::OCRepresentation>,
 
         // Nested sequences:
-        std::vector<std::vector<int>>,
-        std::vector<std::vector<std::vector<int>>>,
+        std::vector<std::vector<int> >,
+        std::vector<std::vector<std::vector<int> > >,
 
-        std::vector<std::vector<double>>,
-        std::vector<std::vector<std::vector<double>>>,
+        std::vector<std::vector<double> >,
+        std::vector<std::vector<std::vector<double> > >,
 
-        std::vector<std::vector<bool>>,
-        std::vector<std::vector<std::vector<bool>>>,
+        std::vector<std::vector<bool> >,
+        std::vector<std::vector<std::vector<bool> > >,
 
-        std::vector<std::vector<std::string>>,
-        std::vector<std::vector<std::vector<std::string>>>,
+        std::vector<std::vector<std::string> >,
+        std::vector<std::vector<std::vector<std::string> > >,
 
-        std::vector<std::vector<OC::OCRepresentation>>,
-        std::vector<std::vector<std::vector<OC::OCRepresentation>>>
+        std::vector<std::vector<OC::OCRepresentation> >,
+        std::vector<std::vector<std::vector<OC::OCRepresentation> > >
     > AttributeValue;
 
     enum class AttributeType
