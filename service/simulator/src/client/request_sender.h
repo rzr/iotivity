@@ -62,7 +62,7 @@ class RequestSender
                                 const OC::OCRepresentation &rep, const int errorCode, int requestId);
 
         RequestType m_type;
-        RequestList<std::shared_ptr<RequestDetail>> m_requestList;
+        RequestList<std::shared_ptr<RequestDetail> > m_requestList;
         RequestModelSP m_requestModel;
         std::shared_ptr<OC::OCResource> m_ocResource;
 };
