@@ -71,7 +71,7 @@ namespace OIC
                 * @return List of BundleInfo pointer each associated with a bundle
                 *
                 */
-                virtual std::list<std::unique_ptr<RCSBundleInfo>> listBundles() = 0;
+                virtual std::list<std::unique_ptr<RCSBundleInfo> > listBundles() = 0;
                 /**
                  * API for starting the bundle.
                  *
