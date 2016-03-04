@@ -17,6 +17,6 @@
 
 collections {
    base_scale: 1.8;
-   #include "../edc_resource/hosting_control.edc"
+   #include "./edc_resource/hosting_control.edc"
 }
 
