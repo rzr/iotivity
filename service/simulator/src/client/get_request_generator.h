@@ -30,7 +30,7 @@ class GETRequestGenerator : public AutoRequestGeneration
         GETRequestGenerator(int id, RequestSenderSP &requestSender, ProgressStateCallback callback);
 
         GETRequestGenerator(int id, RequestSenderSP &requestSender,
-                            const std::map<std::string, std::vector<std::string>> &queryParams,
+                            const std::map<std::string, std::vector<std::string> > &queryParams,
                             ProgressStateCallback callback);
 
         void startSending();
