@@ -85,7 +85,9 @@ scons %{?_smp_mflags} \
     SECURED=%{secure_mode} \
     TARGET_ARCH=%{RPM_ARCH} \
     TARGET_OS=%{target_os} \
-    TARGET_TRANSPORT=IP
+    TARGET_TRANSPORT=IP \
+    VERBOSE=1 \
+    #eol
 
 %__make -C examples/OICSensorBoard/ BUILDTYPE=debug CLIENTARCH=%{RPM_ARCH}
 
