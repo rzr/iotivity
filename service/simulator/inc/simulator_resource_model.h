@@ -57,17 +57,17 @@ class SimulatorResourceModel
         std::vector<std::string>,
         std::vector<SimulatorResourceModel>,
 
-        std::vector<std::vector<int>>,
-        std::vector<std::vector<double>>,
-        std::vector<std::vector<bool>>,
-        std::vector<std::vector<std::string>>,
-        std::vector<std::vector<SimulatorResourceModel>>,
+        std::vector<std::vector<int> >,
+        std::vector<std::vector<double> >,
+        std::vector<std::vector<bool> >,
+        std::vector<std::vector<std::string> >,
+        std::vector<std::vector<SimulatorResourceModel> >,
 
-        std::vector<std::vector<std::vector<int>>>,
-        std::vector<std::vector<std::vector<double>>>,
-        std::vector<std::vector<std::vector<bool>>>,
-        std::vector<std::vector<std::vector<std::string>>>,
-        std::vector<std::vector<std::vector<SimulatorResourceModel>>>
+        std::vector<std::vector<std::vector<int> > >,
+        std::vector<std::vector<std::vector<double> > >,
+        std::vector<std::vector<std::vector<bool> > >,
+        std::vector<std::vector<std::vector<std::string> > >,
+        std::vector<std::vector<std::vector<SimulatorResourceModel> > >
         > ValueVariant;
 
         enum class ValueType
