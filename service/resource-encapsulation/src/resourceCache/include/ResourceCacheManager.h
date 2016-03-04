@@ -80,7 +80,7 @@ namespace OIC
                 static ResourceCacheManager *s_instance;
                 static std::mutex s_mutex;
                 static std::mutex s_mutexForCreation;
-                static std::unique_ptr<std::list<DataCachePtr>> s_cacheDataList;
+                static std::unique_ptr<std::list<DataCachePtr> > s_cacheDataList;
                 std::map<CacheID, DataCachePtr> cacheIDmap;
 
                 ResourceCacheManager() = default;
