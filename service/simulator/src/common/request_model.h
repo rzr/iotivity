@@ -26,7 +26,7 @@
 #include "response_model.h"
 #include "Raml.h"
 
-typedef std::map<std::string, std::vector<std::string>> SupportedQueryParams;
+typedef std::map<std::string, std::vector<std::string> > SupportedQueryParams;
 
 class RequestModelBuilder;
 class RequestModel
