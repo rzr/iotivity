@@ -95,12 +95,12 @@ namespace OC
                 }
             }
 
-            const std::vector<std::shared_ptr<OCResource>>& Resources() const
+            const std::vector<std::shared_ptr<OCResource> >& Resources() const
             {
                 return m_resources;
             }
         private:
-            std::vector<std::shared_ptr<OC::OCResource>> m_resources;
+            std::vector<std::shared_ptr<OC::OCResource> > m_resources;
             std::weak_ptr<IClientWrapper> m_clientWrapper;
             OCDevAddr& m_devAddr;
     };
