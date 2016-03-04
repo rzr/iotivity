@@ -32,7 +32,7 @@ class JniSecureUtils
         static jobject convertProvisionresultVectorToJavaList(JNIEnv *,
                 const OC::PMResultList_t *);
         static jobjectArray convertDeviceVectorToJavaArray(JNIEnv *env,
-                std::vector<std::shared_ptr<OC::OCSecureResource>>& deviceListVector);
+                std::vector<std::shared_ptr<OC::OCSecureResource> >& deviceListVector);
         static jobject convertUUIDVectorToJavaStrList(JNIEnv *env, OC::UuidList_t &vector);
         static OCStackResult convertJavaACLToOCAcl(JNIEnv *env, jobject in, OicSecAcl_t *out);
 };
