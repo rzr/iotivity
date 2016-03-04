@@ -60,7 +60,7 @@ public:
             {
                 m_listenerMap.insert(
                         std::pair<jobject,
-                        std::pair<T*, int>>(jgListener, std::pair<T*, int>(onEventListener, 1)));
+                        std::pair<T*, int> >(jgListener, std::pair<T*, int>(onEventListener, 1)));
             }
             else
             {
@@ -119,7 +119,7 @@ public:
     }
 
 private:
-    std::map<jobject, std::pair<T*, int>> m_listenerMap;
+    std::map<jobject, std::pair<T*, int> > m_listenerMap;
     std::mutex m_mapMutex;
 };
 
