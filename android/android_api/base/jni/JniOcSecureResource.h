@@ -58,7 +58,7 @@ class JniOcSecureResource
 
     private:
 
-        std::map<jobject, std::pair<JniProvisionResultListner*, int>> resultMap;
+        std::map<jobject, std::pair<JniProvisionResultListner*, int> > resultMap;
         std::mutex resultMapLock;
         std::shared_ptr<OCSecureResource> m_sharedSecureResource;
 };
