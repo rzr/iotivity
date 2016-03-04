@@ -157,7 +157,7 @@ struct JObjectConverter : boost::static_visitor < jobject >
     }
 
     // Nested sequences:
-    jobject operator()(const std::vector<std::vector<int>>& val) const
+    jobject operator()(const std::vector<std::vector<int> >& val) const
     {
         jsize lenOuter = static_cast<jsize>(val.size());
         jobjectArray jOuterArr = env->NewObjectArray(lenOuter, g_cls_int1DArray, nullptr);
@@ -179,7 +179,7 @@ struct JObjectConverter : boost::static_visitor < jobject >
         }
         return jOuterArr;
     }
-    jobject operator()(const std::vector<std::vector<std::vector<int>>>& val) const
+    jobject operator()(const std::vector<std::vector<std::vector<int> > >& val) const
     {
         jsize lenOuter = static_cast<jsize>(val.size());
         jobjectArray jOuterArr = env->NewObjectArray(lenOuter, g_cls_int2DArray, nullptr);
@@ -208,7 +208,7 @@ struct JObjectConverter : boost::static_visitor < jobject >
         return jOuterArr;
     }
 
-    jobject operator()(const std::vector<std::vector<double>>& val) const
+    jobject operator()(const std::vector<std::vector<double> >& val) const
     {
         jsize lenOuter = static_cast<jsize>(val.size());
         jobjectArray jOuterArr = env->NewObjectArray(lenOuter, g_cls_double1DArray, nullptr);
@@ -228,7 +228,7 @@ struct JObjectConverter : boost::static_visitor < jobject >
 
         return jOuterArr;
     }
-    jobject operator()(const std::vector<std::vector<std::vector<double>>>& val) const
+    jobject operator()(const std::vector<std::vector<std::vector<double> > >& val) const
     {
         jsize lenOuter = static_cast<jsize>(val.size());
         jobjectArray jOuterArr = env->NewObjectArray(lenOuter, g_cls_double2DArray, nullptr);
@@ -257,7 +257,7 @@ struct JObjectConverter : boost::static_visitor < jobject >
         return jOuterArr;
     }
 
-    jobject operator()(const std::vector<std::vector<bool>>& val) const
+    jobject operator()(const std::vector<std::vector<bool> >& val) const
     {
         jsize lenOuter = static_cast<jsize>(val.size());
         jobjectArray jOuterArr = env->NewObjectArray(lenOuter, g_cls_boolean1DArray, 0);
@@ -281,7 +281,7 @@ struct JObjectConverter : boost::static_visitor < jobject >
         }
         return jOuterArr;
     }
-    jobject operator()(const std::vector<std::vector<std::vector<bool>>>& val) const
+    jobject operator()(const std::vector<std::vector<std::vector<bool> > >& val) const
     {
         jsize lenOuter = static_cast<jsize>(val.size());
         jobjectArray jOuterArr = env->NewObjectArray(lenOuter, g_cls_boolean2DArray, nullptr);
@@ -314,7 +314,7 @@ struct JObjectConverter : boost::static_visitor < jobject >
         return jOuterArr;
     }
 
-    jobject operator()(const std::vector<std::vector<std::string>>& val) const
+    jobject operator()(const std::vector<std::vector<std::string> >& val) const
     {
         jsize lenOuter = static_cast<jsize>(val.size());
         jobjectArray jOuterArr = env->NewObjectArray(lenOuter, g_cls_String1DArray, nullptr);
@@ -338,7 +338,7 @@ struct JObjectConverter : boost::static_visitor < jobject >
 
         return jOuterArr;
     }
-    jobject operator()(const std::vector<std::vector<std::vector<std::string>>>& val) const
+    jobject operator()(const std::vector<std::vector<std::vector<std::string> > >& val) const
     {
         jsize lenOuter = static_cast<jsize>(val.size());
         jobjectArray jOuterArr = env->NewObjectArray(lenOuter, g_cls_String2DArray, nullptr);
@@ -371,7 +371,7 @@ struct JObjectConverter : boost::static_visitor < jobject >
         return jOuterArr;
     }
 
-    jobject operator()(const std::vector<std::vector<OC::OCRepresentation>>& val) const
+    jobject operator()(const std::vector<std::vector<OC::OCRepresentation> >& val) const
     {
         jsize lenOuter = static_cast<jsize>(val.size());
         jobjectArray jOuterArr = env->NewObjectArray(lenOuter, g_cls_OcRepresentation1DArray, nullptr);
@@ -402,7 +402,7 @@ struct JObjectConverter : boost::static_visitor < jobject >
         }
         return jOuterArr;
     }
-    jobject operator()(const std::vector<std::vector<std::vector<OC::OCRepresentation>>>& val) const
+    jobject operator()(const std::vector<std::vector<std::vector<OC::OCRepresentation> > >& val) const
     {
         jsize lenOuter = static_cast<jsize>(val.size());
         jobjectArray jOuterArr = env->NewObjectArray(lenOuter, g_cls_OcRepresentation2DArray, nullptr);
