@@ -20,8 +20,11 @@
 
 #include "HostingObject.h"
 
+#include "RCSResourceObject.h"
 #include "RCSSeparateResponse.h"
 #include "RequestObject.h"
+
+
 
 namespace OIC
 {
