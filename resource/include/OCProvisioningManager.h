@@ -32,7 +32,7 @@ namespace OC
 {
     class OCSecureResource;
 
-    typedef std::vector<std::shared_ptr<OCSecureResource>> DeviceList_t;
+    typedef std::vector<std::shared_ptr<OCSecureResource> > DeviceList_t;
     typedef std::vector<OicUuid_t> UuidList_t;
     typedef std::vector<OCProvisionResult_t> PMResultList_t;
     typedef std::function<void(PMResultList_t *result, int hasError)> ResultCallBack;
