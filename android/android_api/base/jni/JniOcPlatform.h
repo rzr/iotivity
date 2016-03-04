@@ -43,10 +43,10 @@ void RemoveOnPlatformInfoListener(JNIEnv* env, jobject jListener);
 JniOnPresenceListener* AddOnPresenceListener(JNIEnv* env, jobject jListener);
 void RemoveOnPresenceListener(JNIEnv* env, jobject jListener);
 
-std::map<jobject, std::pair<JniOnResourceFoundListener*, int>> onResourceFoundListenerMap;
-std::map<jobject, std::pair<JniOnDeviceInfoListener*, int>> onDeviceInfoListenerMap;
-std::map<jobject, std::pair<JniOnPlatformInfoListener*, int>> onPlatformInfoListenerMap;
-std::map<jobject, std::pair<JniOnPresenceListener*, int>> onPresenceListenerMap;
+std::map<jobject, std::pair<JniOnResourceFoundListener*, int> > onResourceFoundListenerMap;
+std::map<jobject, std::pair<JniOnDeviceInfoListener*, int> > onDeviceInfoListenerMap;
+std::map<jobject, std::pair<JniOnPlatformInfoListener*, int> > onPlatformInfoListenerMap;
+std::map<jobject, std::pair<JniOnPresenceListener*, int> > onPresenceListenerMap;
 
 std::mutex resourceFoundMapLock;
 std::mutex deviceInfoMapLock;
