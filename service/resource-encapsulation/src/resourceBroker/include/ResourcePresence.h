@@ -56,7 +56,7 @@ namespace OIC
             BROKER_STATE getResourceState() const;
 
         private:
-            std::unique_ptr<std::list<BrokerRequesterInfoPtr>> requesterList;
+            std::unique_ptr<std::list<BrokerRequesterInfoPtr> > requesterList;
             PrimitiveResourcePtr primitiveResource;
             ExpiryTimer expiryTimer;
 
