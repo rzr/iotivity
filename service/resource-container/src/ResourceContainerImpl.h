@@ -91,7 +91,7 @@ namespace OIC
                                std::map< string, string > params);
                 void removeBundle(const std::string &bundleId);
 
-                std::list<std::unique_ptr<RCSBundleInfo>> listBundles();
+                std::list<std::unique_ptr<RCSBundleInfo> > listBundles();
 
                 void addResourceConfig(const std::string &bundleId, const std::string &resourceUri,
                                        std::map< string, string > params);
@@ -108,7 +108,7 @@ namespace OIC
                 map< std::string, BundleInfoInternal * > m_bundles; // <bundleID, bundleInfo>
                 map< std::string, RCSResourceObject::Ptr > m_mapServers; //<uri, serverPtr>
                 map< std::string, BundleResource::Ptr > m_mapResources; //<uri, resourcePtr>
-                map< std::string, list< string > > m_mapBundleResources; //<bundleID, vector<uri>>
+                map< std::string, list< string > > m_mapBundleResources; //<bundleID, vector<uri> >
                 map< std::string, list< DiscoverResourceUnit::Ptr > > m_mapDiscoverResourceUnits;
                 //<uri, DiscoverUnit>
                 string m_configFile;
