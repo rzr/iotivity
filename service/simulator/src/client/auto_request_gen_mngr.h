@@ -36,16 +36,16 @@ class AutoRequestGenMngr
         AutoRequestGenMngr() : m_id(0) {};
 
         int startOnGET(RequestSenderSP requestSender,
-                       const std::map<std::string, std::vector<std::string>> &queryParams,
+                       const std::map<std::string, std::vector<std::string> > &queryParams,
                        AutoRequestGeneration::ProgressStateCallback callback);
 
         int startOnPUT(RequestSenderSP requestSender,
-                       const std::map<std::string, std::vector<std::string>> &queryParams,
+                       const std::map<std::string, std::vector<std::string> > &queryParams,
                        SimulatorResourceModelSP resModel,
                        AutoRequestGeneration::ProgressStateCallback callback);
 
         int startOnPOST(RequestSenderSP requestSender,
-                        const std::map<std::string, std::vector<std::string>> &queryParams,
+                        const std::map<std::string, std::vector<std::string> > &queryParams,
                         SimulatorResourceModelSP resModel,
                         AutoRequestGeneration::ProgressStateCallback callback);
 
@@ -59,7 +59,7 @@ class AutoRequestGenMngr
         void remove(int id);
 
         std::mutex m_lock;
-        std::map<int, std::shared_ptr<AutoRequestGeneration>> m_requestGenList;
+        std::map<int, std::shared_ptr<AutoRequestGeneration> > m_requestGenList;
         int m_id;
 };
 
