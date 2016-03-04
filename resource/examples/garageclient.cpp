@@ -51,7 +51,7 @@ public:
     std::vector<int> m_lightPowers;
     OCRepresentation m_lightRep;
     std::vector<OCRepresentation> m_reps;
-    std::vector<std::vector<int>> m_hingeStates;
+    std::vector<std::vector<int> > m_hingeStates;
 
     Garage() : m_state(false), m_name("")
     {
