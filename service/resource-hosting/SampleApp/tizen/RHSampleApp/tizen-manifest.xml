@@ -7,7 +7,6 @@
     </ui-application>
     <privileges>
         <privilege>http://tizen.org/privilege/packagemanager.info</privilege>
-        <privilege>http://tizen.org/privilege/systemsettings</privilege>
         <privilege>http://tizen.org/privilege/network.get</privilege>
         <privilege>http://tizen.org/privilege/internet</privilege>
         <privilege>http://tizen.org/privilege/network.set</privilege>
