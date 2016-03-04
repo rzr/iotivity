@@ -57,7 +57,7 @@ namespace OIC
             public:
                 typedef std::unique_ptr< DiscoveryTask > Ptr;
 
-                ~DiscoveryTask() = default;
+		// ~DiscoveryTask() = default;
 
                 DiscoveryTask(const DiscoveryTask&) = delete;
                 DiscoveryTask(DiscoveryTask&&) = delete;
