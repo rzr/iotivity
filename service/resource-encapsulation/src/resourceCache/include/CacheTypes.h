@@ -77,8 +77,8 @@ namespace OIC
 
         typedef std::function<OCStackResult(std::shared_ptr<PrimitiveResource>,
                                             const RCSResourceAttributes &)> CacheCB;
-        typedef std::map<int, std::pair<Report_Info, CacheCB>> SubscriberInfo;
-        typedef std::pair<int, std::pair<Report_Info, CacheCB>> SubscriberInfoPair;
+        typedef std::map<int, std::pair<Report_Info, CacheCB> > SubscriberInfo;
+        typedef std::pair<int, std::pair<Report_Info, CacheCB> > SubscriberInfoPair;
 
         typedef OC::OCResource BaseResource;
         typedef PrimitiveResource::GetCallback GetCB;
