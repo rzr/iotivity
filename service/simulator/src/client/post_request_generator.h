@@ -33,7 +33,7 @@ class POSTRequestGenerator : public AutoRequestGeneration
                              ProgressStateCallback callback);
 
         POSTRequestGenerator(int id, RequestSenderSP &requestSender,
-                             const std::map<std::string, std::vector<std::string>> &queryParams,
+                             const std::map<std::string, std::vector<std::string> > &queryParams,
                              SimulatorResourceModelSP &representation,
                              ProgressStateCallback callback);
 
