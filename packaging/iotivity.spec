@@ -35,7 +35,7 @@ Requires(post): /sbin/ldconfig
 %define RELEASE True
 %endif
 
-%{!?TARGET_TRANSPORT: %define TARGET_TRANSPORT IP,BT}
+%{!?TARGET_TRANSPORT: %define TARGET_TRANSPORT IP}
 %{!?SECURED: %define SECURED 0}
 %{!?LOGGING: %define LOGGING True}
 %{!?ROUTING: %define ROUTING GW}
