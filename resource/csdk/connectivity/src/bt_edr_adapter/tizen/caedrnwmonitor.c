@@ -35,6 +35,7 @@
 #include "caqueueingthread.h"
 #include "caremotehandler.h"
 
+static GMainLoop *g_mainloop = NULL;
 static ca_thread_pool_t g_threadPoolHandle = NULL;
 
 /**
@@ -49,6 +50,13 @@ static CAEDRNetworkStatusCallback g_edrNetworkChangeCallback = NULL;
  */
 static void CAEDRAdapterStateChangeCallback(int result, bt_adapter_state_e adapterState,
                                             void *userData);
+
+void *GMainLoopThread (void *param)
+{
+    g_main_loop_run(g_mainloop);
+    return NULL;
+}
+
 CAResult_t CAEDRInitializeNetworkMonitor(const ca_thread_pool_t threadPool)
 {
     OIC_LOG(DEBUG, EDR_ADAPTER_TAG, "IN");
@@ -72,6 +80,19 @@ void CAEDRTerminateNetworkMonitor(void)
 CAResult_t CAEDRStartNetworkMonitor()
 {
     OIC_LOG(DEBUG, EDR_ADAPTER_TAG, "IN");
+
+    g_mainloop = g_main_loop_new(NULL, 0);
+    if(!g_mainloop)
+    {
+        OIC_LOG(ERROR, EDR_ADAPTER_TAG, "g_main_loop_new failed\n");
+        return CA_STATUS_FAILED;
+    }
+
+    if (CA_STATUS_OK != ca_thread_pool_add_task(g_threadPoolHandle, GMainLoopThread, (void *) NULL))
+    {
+        OIC_LOG(ERROR, EDR_ADAPTER_TAG, "Failed to create thread!");
+        return CA_STATUS_FAILED;
+    }
 
     // Initialize Bluetooth service
     int err = bt_initialize();
@@ -102,6 +123,11 @@ CAResult_t CAEDRStopNetworkMonitor()
     {
         OIC_LOG(ERROR, EDR_ADAPTER_TAG, "bt_adapter_set_state_changed_cb failed");
         return CA_STATUS_FAILED;
+    }
+
+    if (g_mainloop)
+    {
+        g_main_loop_quit(g_mainloop);
     }
     OIC_LOG(DEBUG, EDR_ADAPTER_TAG, "OUT");
     return CA_STATUS_OK;
