@@ -81,7 +81,7 @@ Contains samples applications that use %{name}.
 
 # overide arch if needed
 %ifarch %arm
-%if "%{tizen}" == "2.4"
+%if "%{tizen}" != ""
 %define RPM_ARCH arm-v7a
 %endif
 %else
