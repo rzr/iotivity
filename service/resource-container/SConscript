@@ -114,11 +114,7 @@ if int(containerJavaSupport):
 ######################################################################
 # Source files and Targets
 ######################################################################
-res_container_src = ['src/BaseActivator.cpp','src/BundleActivator.cpp','src/RCSBundleInfo.cpp',
-    'src/BundleInfoInternal.cpp', 'src/BundleResource.cpp', 'src/Configuration.cpp', 'src/JavaBundleResource.cpp', 'src/ProtocolBridgeResource.cpp',
-    'src/ProtocolBridgeConnector.cpp', 'src/RCSResourceContainer.cpp', 'src/ResourceContainerBundleAPI.cpp', 'src/ResourceContainerImpl.cpp',
-    'src/SoftSensorResource.cpp', 'src/DiscoverResourceUnit.cpp', 'src/RemoteResourceUnit.cpp',
-    ]
+res_container_src = [ Glob('src/*.cpp') ]
 
 res_container_static = resource_container_env.StaticLibrary('rcs_container', res_container_src)
 res_container_shared = resource_container_env.SharedLibrary('rcs_container', res_container_src)
@@ -126,8 +122,8 @@ res_container_shared = resource_container_env.SharedLibrary('rcs_container', res
 resource_container_env.InstallTarget([res_container_static,res_container_shared], 'libResContainer')
 resource_container_env.UserInstallTargetLib([res_container_static,res_container_shared], 'libResContainer')
 
-resource_container_env.UserInstallTargetHeader('include/RCSBundleInfo.h', 'iotivity-service', 'RCSBundleInfo.h')
-resource_container_env.UserInstallTargetHeader('include/RCSResourceContainer.h', 'iotivity-service', 'RCSResourceContainer.h')
+resource_container_env.UserInstallTargetHeader('include/RCSBundleInfo.h', 'service/resource-container', 'RCSBundleInfo.h')
+resource_container_env.UserInstallTargetHeader('include/RCSResourceContainer.h', 'service/resource-container', 'RCSResourceContainer.h')
 
 ######################################################################
 # build discomfort index sensor sample bundle

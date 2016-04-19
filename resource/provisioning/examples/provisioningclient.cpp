@@ -50,6 +50,7 @@
 #define TAG  "provisioningclient"
 
 #define JSON_DB_PATH "./oic_svr_db_client.json"
+#define DAT_DB_PATH "./oic_svr_db_client.dat"
 #define DEV_STATUS_ON "DEV_STATUS_ON"
 #define DEV_STATUS_OFF "DEV_STATUS_OFF"
 
@@ -63,7 +64,7 @@ static int transferDevIdx, ask = 1;
 static FILE* client_open(const char *UNUSED_PARAM, const char *mode)
 {
     (void)UNUSED_PARAM;
-    return fopen(JSON_DB_PATH, mode);
+    return fopen(DAT_DB_PATH, mode);
 }
 
 void printMenu()
@@ -271,9 +272,6 @@ static void deleteACL(OicSecAcl_t *acl)
         }
         OICFree((acl)->resources);
 
-        /* Clean Owners */
-        OICFree((acl)->owners);
-
         /* Clean ACL node itself */
         /* Required only if acl was created in heap */
         OICFree((acl));
@@ -382,12 +380,17 @@ static int InputACL(OicSecAcl_t *acl)
     //Set Resource.
     printf("Num. of Resource : ");
     ret = scanf("%zu", &acl->resourcesLen);
+    if ((1 != ret) || (acl->resourcesLen <= 0 || acl->resourcesLen > 50))
+    {
+        printf("Error while input\n");
+        return -1;
+    }
     printf("-URI of resource\n");
     printf("ex)/oic/sh/temp/0 (Max_URI_Length: 64 Byte )\n");
     acl->resources = (char **)OICCalloc(acl->resourcesLen, sizeof(char *));
     if (NULL == acl->resources)
     {
-        OC_LOG(ERROR, TAG, "Error while memory allocation");
+        OIC_LOG(ERROR, TAG, "Error while memory allocation");
         return -1;
     }
     for (size_t i = 0; i < acl->resourcesLen; i++)
@@ -404,7 +407,7 @@ static int InputACL(OicSecAcl_t *acl)
         OICFree(temp_rsc);
         if (NULL == acl->resources[i])
         {
-            OC_LOG(ERROR, TAG, "Error while memory allocation");
+            OIC_LOG(ERROR, TAG, "Error while memory allocation");
             return -1;
         }
     }
@@ -425,35 +428,26 @@ static int InputACL(OicSecAcl_t *acl)
     } while (0 != ret );
 
     // Set Rowner
-    printf("Num. of Rowner : ");
-    ret = scanf("%zu", &acl->ownersLen);
     printf("-URN identifying the rowner\n");
     printf("ex) 1111-1111-1111-1111 (16 Numbers except to '-')\n");
-    acl->owners = (OicUuid_t *)OICCalloc(acl->ownersLen, sizeof(OicUuid_t));
-    if (NULL == acl->owners)
+
+    printf("Rowner : ");
+    ret = scanf("%19ms", &temp_id);
+    if (1 != ret)
     {
-        OC_LOG(ERROR, TAG, "Error while memory allocation");
+        printf("Error while input\n");
         return -1;
     }
-    for (size_t i = 0; i < acl->ownersLen; i++)
-    {
-        printf("[%zu]Rowner : ", i + 1);
-        ret = scanf("%19ms", &temp_id);
-        if (1 != ret)
-        {
-            printf("Error while input\n");
-            return -1;
-        }
 
-        for (int k = 0, j = 0; temp_id[k] != '\0'; k++)
+    for (int k = 0, j = 0; temp_id[k] != '\0'; k++)
+    {
+        if (DASH != temp_id[k])
         {
-            if (DASH != temp_id[k])
-            {
-                acl->owners[i].id[j++] = temp_id[k];
-            }
+            acl->rownerID.id[j++] = temp_id[k];
         }
-        OICFree(temp_id);
     }
+    OICFree(temp_id);
+
     return 0;
 }
 
@@ -649,7 +643,7 @@ int main(void)
                             OTMCallbackData_t pinBasedCBData;
                             pinBasedCBData.loadSecretCB = InputPinCodeCallback;
                             pinBasedCBData.createSecureSessionCB =
-                                CreateSecureSessionRandomPinCallbak;
+                                CreateSecureSessionRandomPinCallback;
                             pinBasedCBData.createSelectOxmPayloadCB =
                                 CreatePinBasedSelectOxmPayload;
                             pinBasedCBData.createOwnerTransferPayloadCB =
@@ -681,7 +675,7 @@ int main(void)
                         acl1 = (OicSecAcl_t *)OICCalloc(1,sizeof(OicSecAcl_t));
                         if (NULL == acl1)
                         {
-                            OC_LOG(ERROR, TAG, "Error while memory allocation");
+                            OIC_LOG(ERROR, TAG, "Error while memory allocation");
                             break;
                         }
 
@@ -749,7 +743,7 @@ int main(void)
                         acl1 = (OicSecAcl_t *)OICCalloc(1,sizeof(OicSecAcl_t));
                         if (NULL == acl1)
                         {
-                            OC_LOG(ERROR, TAG, "Error while memory allocation");
+                            OIC_LOG(ERROR, TAG, "Error while memory allocation");
                             break;
                         }
 
@@ -762,7 +756,7 @@ int main(void)
                         acl2 = (OicSecAcl_t *)OICCalloc(1,sizeof(OicSecAcl_t));
                         if (NULL == acl2)
                         {
-                            OC_LOG(ERROR, TAG, "Error while memory allocation");
+                            OIC_LOG(ERROR, TAG, "Error while memory allocation");
                             break;
                         }
 

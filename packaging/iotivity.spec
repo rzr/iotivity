@@ -1,5 +1,5 @@
 Name: iotivity
-Version: 1.0.1
+Version: 1.1.0
 Release: 0
 Summary: IoT Connectivity sponsored by the OIC
 Group: Network & Connectivity/Other
@@ -20,7 +20,6 @@ BuildRequires:  pkgconfig(dlog)
 BuildRequires:  pkgconfig(uuid)
 BuildRequires:  pkgconfig(capi-network-wifi)
 BuildRequires:  pkgconfig(capi-network-bluetooth)
-BuildRequires:  pkgconfig(capi-appfw-app-common)
 BuildRequires:  pkgconfig(glib-2.0)
 BuildRequires:  pkgconfig(sqlite3)
 Requires(postun): /sbin/ldconfig
@@ -35,10 +34,13 @@ Requires(post): /sbin/ldconfig
 %define RELEASE True
 %endif
 
-%{!?TARGET_TRANSPORT: %define TARGET_TRANSPORT IP,BT}
+%{!?TARGET_TRANSPORT: %define TARGET_TRANSPORT IP}
 %{!?SECURED: %define SECURED 0}
 %{!?LOGGING: %define LOGGING True}
 %{!?ROUTING: %define ROUTING GW}
+%{!?ES_TARGET_ENROLLEE: %define ES_TARGET_ENROLLEE tizen}
+%{!?ES_ROLE: %define ES_ROLE enrollee}
+%{!?ES_SOFTAP_MODE: %define ES_SOFTAP_MODE MEDIATOR_SOFTAP}
 
 %description
 An open source reference implementation of the OIC standard specifications
@@ -108,6 +110,7 @@ cp %{SOURCE1001} ./%{name}-test.manifest
 scons -j2 --prefix=%{_prefix} \
 	TARGET_OS=tizen TARGET_ARCH=%{RPM_ARCH} TARGET_TRANSPORT=%{TARGET_TRANSPORT} \
 	RELEASE=%{RELEASE} SECURED=%{SECURED} LOGGING=%{LOGGING} ROUTING=%{ROUTING} \
+	ES_TARGET_ENROLLEE=%{ES_TARGET_ENROLLEE} ES_ROLE=%{ES_ROLE} ES_SOFTAP_MODE=%{ES_SOFTAP_MODE} \
 	LIB_INSTALL_DIR=%{_libdir}
 
 
@@ -117,6 +120,7 @@ CFLAGS="${CFLAGS:-%optflags}" ; export CFLAGS ;
 scons install --install-sandbox=%{buildroot} --prefix=%{_prefix} \
 	TARGET_OS=tizen TARGET_ARCH=%{RPM_ARCH} TARGET_TRANSPORT=%{TARGET_TRANSPORT} \
 	RELEASE=%{RELEASE} SECURED=%{SECURED} LOGGING=%{LOGGING} ROUTING=%{ROUTING} \
+	ES_TARGET_ENROLLEE=%{ES_TARGET_ENROLLEE} ES_ROLE=%{ES_ROLE} ES_SOFTAP_MODE=%{ES_SOFTAP_MODE} \
 	LIB_INSTALL_DIR=%{_libdir}
 
 
@@ -148,17 +152,20 @@ cp out/tizen/*/%{build_mode}/resource/examples/simpleclientserver %{ex_install_d
 cp out/tizen/*/%{build_mode}/resource/examples/simpleserver %{ex_install_dir}
 cp out/tizen/*/%{build_mode}/resource/examples/simpleserverHQ %{ex_install_dir}
 cp out/tizen/*/%{build_mode}/resource/examples/threadingsample %{ex_install_dir}
-cp out/tizen/*/%{build_mode}/resource/examples/oic_svr_db_server.json %{ex_install_dir}
-cp out/tizen/*/%{build_mode}/resource/examples/oic_svr_db_client.json %{ex_install_dir}
+cp out/tizen/*/%{build_mode}/resource/examples/oic_svr_db_server.dat %{ex_install_dir}
+cp out/tizen/*/%{build_mode}/resource/examples/oic_svr_db_client.dat %{ex_install_dir}
 %if 0%{?SECURED} == 1
 mkdir -p %{ex_install_dir}/provisioning
-cp out/tizen/*/%{build_mode}/resource/provisioning/examples/oic_svr_db_client.json %{ex_install_dir}/provisioning/
-cp out/tizen/*/%{build_mode}/resource/provisioning/examples/provisioningclient %{ex_install_dir}/provisioning/
+mkdir -p %{ex_install_dir}/provision-sample
+
+cp ./resource/csdk/security/include/pinoxmcommon.h %{buildroot}%{_includedir}
+cp ./resource/csdk/security/provisioning/include/oxm/*.h %{buildroot}%{_includedir}
+cp ./resource/csdk/security/provisioning/include/internal/*.h %{buildroot}%{_includedir}
+cp ./resource/csdk/security/provisioning/include/*.h %{buildroot}%{_includedir}
+cp ./resource/csdk/security/provisioning/sample/oic_svr_db_server_justworks.dat %{buildroot}%{_libdir}/oic_svr_db_server.dat
+
 %endif
 
-# For iotcon
-cp resource/csdk/stack/include/ocpayload.h %{buildroot}%{_includedir}/resource
-cp resource/c_common/ocrandom/include/ocrandom.h %{buildroot}%{_includedir}/resource
 
 %if 0%{?tizen_version_major} < 3
 mkdir -p %{buildroot}/%{_datadir}/license
@@ -166,6 +173,13 @@ cp LICENSE.APLv2 %{buildroot}/%{_datadir}/license/%{name}
 cp LICENSE.APLv2 %{buildroot}/%{_datadir}/license/%{name}-service
 cp LICENSE.APLv2 %{buildroot}/%{_datadir}/license/%{name}-test
 %endif
+cp resource/c_common/*.h %{buildroot}%{_includedir}
+cp resource/csdk/stack/include/*.h %{buildroot}%{_includedir}
+
+cp service/things-manager/sdk/inc/*.h %{buildroot}%{_includedir}
+cp service/easy-setup/inc/*.h %{buildroot}%{_includedir}
+cp service/easy-setup/enrollee/inc/*.h %{buildroot}%{_includedir}
+
 
 %post -p /sbin/ldconfig
 
@@ -197,6 +211,12 @@ cp LICENSE.APLv2 %{buildroot}/%{_datadir}/license/%{name}-test
 %{_libdir}/librcs_common.so
 %{_libdir}/librcs_container.so
 %{_libdir}/librcs_server.so
+%{_libdir}/libESEnrolleeSDK.so
+%if 0%{?SECURED} == 1
+%{_libdir}/libocpmapi.so
+%{_libdir}/libocprovision.so
+%{_libdir}/oic_svr_db_server.dat
+%endif
 %if 0%{?tizen_version_major} < 3
 %{_datadir}/license/%{name}-service
 %else

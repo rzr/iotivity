@@ -18,13 +18,15 @@
  *
  ******************************************************************/
 
-#include "JniRcsObject.h"
-
 #include "JniRcsResourceContainer.h"
+#include "JniRcsResourceAttributes.h"
 #include "JavaClasses.h"
-#include "JavaExceptions.h"
 #include "JNIEnvWrapper.h"
 #include "Log.h"
+#include "JniRcsValue.h"
+#include "JavaExceptions.h"
+#include "JniRcsValue.h"
+#include  "JniBundleResource.h"
 
 #define LOG_TAG "JNI-Main"
 
@@ -50,8 +52,10 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved)
     {
         initJavaClasses(&envWrapper);
         initJavaExceptions(&envWrapper);
-        initRCSObject(&envWrapper);
+        initRCSValue(&envWrapper);
         initRCSResourceContainer(&envWrapper);
+        initRCSResourceAttributes(&envWrapper);
+        initRCSJniBundleResource(&envWrapper);
     }
     catch (const JavaException &)
     {
@@ -78,8 +82,6 @@ JNIEXPORT void JNICALL JNI_OnUnload(JavaVM *vm, void *reserved)
     try
     {
         clearRCSResourceContainer(&envWrapper);
-        clearRCSObject(&envWrapper);
-        clearJavaExceptions(&envWrapper);
         clearJavaClasses(&envWrapper);
     }
     catch (const JavaException &)

@@ -22,9 +22,14 @@
 
 #include "octypes.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
 /** Stucture holding Published Resources on the Resource Directory. */
 typedef struct OCRDStorePublishResources
 {
+    OCDevAddr devAddr;
     /** Publish resource. */
     OCResourceCollectionPayload *publishedResource;
     /** Linked list pointing to next published resource. */

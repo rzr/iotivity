@@ -30,14 +30,14 @@ ifeq ($(SECURED), 1)
 include $(CLEAR_VARS)
 OIC_LIB_PATH := ../../../../out/android/$(APP_ABI)/$(APP_OPTIM)
 LOCAL_MODULE := libandroid-ocprovision
-LOCAL_SRC_FILES := $(OIC_LIB_PATH)/libocprovision.a
-include $(PREBUILT_STATIC_LIBRARY)
+LOCAL_SRC_FILES := $(OIC_LIB_PATH)/libocprovision.so
+include $(PREBUILT_SHARED_LIBRARY)
 
 include $(CLEAR_VARS)
 OIC_LIB_PATH := ../../../../out/android/$(APP_ABI)/$(APP_OPTIM)
 LOCAL_MODULE := libandroid-ocpmapi
-LOCAL_SRC_FILES := $(OIC_LIB_PATH)/libocpmapi.a
-include $(PREBUILT_STATIC_LIBRARY)
+LOCAL_SRC_FILES := $(OIC_LIB_PATH)/libocpmapi.so
+include $(PREBUILT_SHARED_LIBRARY)
 endif
 
 include $(CLEAR_VARS)
@@ -106,9 +106,12 @@ LOCAL_C_INCLUDES += $(OIC_SRC_PATH)/csdk/stack/include
 LOCAL_C_INCLUDES += $(OIC_SRC_PATH)/csdk/ocsocket/include
 LOCAL_C_INCLUDES += $(OIC_SRC_PATH)/oc_logger/include
 LOCAL_C_INCLUDES += $(OIC_SRC_PATH)/../extlibs/boost/boost_1_58_0
+LOCAL_C_INCLUDES += $(OIC_SRC_PATH)/../extlibs/cjson
 LOCAL_C_INCLUDES += $(OIC_SRC_PATH)/../build_common/android/compatibility
 LOCAL_C_INCLUDES += $(OIC_SRC_PATH)/csdk/security/provisioning/include
 LOCAL_C_INCLUDES += $(OIC_SRC_PATH)/csdk/security/provisioning/include/oxm/
 LOCAL_C_INCLUDES += $(OIC_SRC_PATH)/csdk/security/provisioning/include/internal
 LOCAL_C_INCLUDES += $(OIC_SRC_PATH)/csdk/security/include
+LOCAL_C_INCLUDES += $(OIC_SRC_PATH)/csdk/connectivity/api
+LOCAL_C_INCLUDES += $(OIC_SRC_PATH)/csdk/connectivity/lib/libcoap-4.1.1
 include $(BUILD_SHARED_LIBRARY)

@@ -58,7 +58,7 @@ jmethodID g_ctor_ArrayList;
 
 namespace
 {
-    inline void initPrimitiveTypes(JNIEnvWrapper *env)
+    inline void initPrimitiveTypes(JNIEnvWrapper* env)
     {
         g_cls_Boolean = env->FindClassAsGlobalRef(CLS_NAME_BOOLEAN);
         g_ctor_Boolean = env->GetConstructorID(g_cls_Boolean, "(Z)V");
@@ -76,13 +76,13 @@ namespace
     }
 }
 
-void initJavaClasses(JNIEnvWrapper *env)
+void initJavaClasses(JNIEnvWrapper* env)
 {
     initPrimitiveTypes(env);
 
     auto clsCollection = env->FindClass(CLS_NAME_COLLECTION);
     g_method_Collection_add = env->GetMethodID(clsCollection, "add",
-                              "(" AS_SIG(CLS_NAME_OBJECT) ")Z");
+            "(" AS_SIG(CLS_NAME_OBJECT) ")Z");
 
     g_cls_ArrayList = env->FindClassAsGlobalRef(CLS_NAME_ARRAY_LIST);
     g_ctor_ArrayList = env->GetConstructorID(g_cls_ArrayList, "()V");
@@ -93,20 +93,20 @@ void initJavaClasses(JNIEnvWrapper *env)
     g_cls_Map = env->FindClassAsGlobalRef(CLS_NAME_MAP);
     g_method_Map_entrySet = env->GetMethodID(g_cls_Map, "entrySet", "()" AS_SIG(CLS_NAME_SET));
     g_method_Map_put = env->GetMethodID(g_cls_Map, "put",
-                                        "(" AS_SIG(CLS_NAME_OBJECT) AS_SIG(CLS_NAME_OBJECT) ")" AS_SIG(CLS_NAME_OBJECT));
+            "(" AS_SIG(CLS_NAME_OBJECT) AS_SIG(CLS_NAME_OBJECT) ")" AS_SIG(CLS_NAME_OBJECT));
 
     g_cls_MapEntry = env->FindClassAsGlobalRef(CLS_NAME_MAP_ENTRY);
     g_method_MapEntry_getKey = env->GetMethodID(g_cls_MapEntry, "getKey",
-                               "()" AS_SIG(CLS_NAME_OBJECT));
+            "()" AS_SIG(CLS_NAME_OBJECT));
     g_method_MapEntry_getValue = env->GetMethodID(g_cls_MapEntry, "getValue",
-                                 "()" AS_SIG(CLS_NAME_OBJECT));
+            "()" AS_SIG(CLS_NAME_OBJECT));
 
     g_cls_Iterator = env->FindClassAsGlobalRef(CLS_NAME_ITERATOR);
     g_method_Iterator_hasNext = env->GetMethodID(g_cls_Iterator, "hasNext", "()Z");
     g_method_Iterator_next = env->GetMethodID(g_cls_Iterator, "next", "()" AS_SIG(CLS_NAME_OBJECT));
 }
 
-void clearJavaClasses(JNIEnvWrapper *env)
+void clearJavaClasses(JNIEnvWrapper* env)
 {
     env->DeleteGlobalRef(g_cls_Boolean);
     env->DeleteGlobalRef(g_cls_Integer);

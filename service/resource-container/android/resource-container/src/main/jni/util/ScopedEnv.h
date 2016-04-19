@@ -28,16 +28,16 @@
 #include "JNIEnvWrapper.h"
 #include "Log.h"
 
-extern JavaVM *g_jvm;
+extern JavaVM* g_jvm;
 
 namespace Detail
 {
-    inline std::pair<JNIEnv *, bool> getEnv()
+    inline std::pair<JNIEnv*, bool> getEnv()
     {
-        JNIEnv *env { };
-        bool needToDetach { };
+        JNIEnv* env{ };
+        bool needToDetach{ };
 
-        auto ret = g_jvm->GetEnv((void **) &env, JNI_VERSION_1_6);
+        auto ret = g_jvm->GetEnv((void**) &env, JNI_VERSION_1_6);
 
         switch (ret)
         {
@@ -45,19 +45,19 @@ namespace Detail
                 break;
 
             case JNI_EDETACHED:
-                {
-                    auto attachRet = g_jvm->AttachCurrentThread(&env, NULL);
+            {
+                auto attachRet = g_jvm->AttachCurrentThread(&env, NULL);
 
-                    if (attachRet != JNI_OK)
-                    {
-                        LOGT_E("JNI-ScopedEnv", "Failed to get the environment : %d", attachRet);
-                    }
-                    else
-                    {
-                        needToDetach = true;
-                    }
-                    break;
+                if (attachRet != JNI_OK)
+                {
+                    LOGT_E("JNI-ScopedEnv", "Failed to get the environment : %d", attachRet);
                 }
+                else
+                {
+                    needToDetach = true;
+                }
+                break;
+            }
             case JNI_EVERSION:
                 LOGT_E("JNI-ScopedEnv", "JNI version not supported");
                 break;
@@ -73,90 +73,90 @@ namespace Detail
 
 class ScopedEnv
 {
-    public:
+public:
     ScopedEnv() noexcept :
         m_env { },
-        m_needToDetach { false }
+        m_needToDetach{ false }
+    {
+        auto val = Detail::getEnv();
+
+        m_env = val.first;
+        m_needToDetach = val.second;
+    }
+
+    ~ScopedEnv()
+    {
+        if (m_env && m_needToDetach)
         {
-            auto val = Detail::getEnv();
-
-            m_env = val.first;
-            m_needToDetach = val.second;
+            g_jvm->DetachCurrentThread();
         }
+    }
 
-        ~ScopedEnv()
-        {
-            if (m_env && m_needToDetach)
-            {
-                g_jvm->DetachCurrentThread();
-            }
-        }
+    ScopedEnv(const ScopedEnv&) = delete;
+    ScopedEnv& operator=(const ScopedEnv&) = delete;
 
-        ScopedEnv(const ScopedEnv &) = delete;
-        ScopedEnv &operator=(const ScopedEnv &) = delete;
+    operator bool() const noexcept
+    {
+        return m_env;
+    }
 
-        operator bool() const noexcept
-        {
-            return m_env;
-        }
+    JNIEnv* operator->() noexcept
+    {
+        return m_env;
+    }
 
-        JNIEnv *operator->() noexcept
-        {
-            return m_env;
-        }
+    JNIEnv* get() noexcept
+    {
+        return m_env;
+    }
 
-        JNIEnv *get() noexcept
-        {
-            return m_env;
-        }
-
-    private:
-        JNIEnv *m_env;
-        bool m_needToDetach;
+private:
+    JNIEnv* m_env;
+    bool m_needToDetach;
 };
 
 class ScopedEnvWrapper
 {
-    public:
+public:
     ScopedEnvWrapper() noexcept :
         m_env { },
-        m_needToDetach { false }
+        m_needToDetach{ false }
+    {
+        auto val = Detail::getEnv();
+
+        m_env = val.first;
+        m_needToDetach = val.second;
+    }
+
+    ~ScopedEnvWrapper()
+    {
+        if (m_env && m_needToDetach)
         {
-            auto val = Detail::getEnv();
-
-            m_env = val.first;
-            m_needToDetach = val.second;
+            g_jvm->DetachCurrentThread();
         }
+    }
 
-        ~ScopedEnvWrapper()
-        {
-            if (m_env && m_needToDetach)
-            {
-                g_jvm->DetachCurrentThread();
-            }
-        }
+    ScopedEnvWrapper(const ScopedEnvWrapper&) = delete;
+    ScopedEnvWrapper& operator=(const ScopedEnvWrapper&) = delete;
 
-        ScopedEnvWrapper(const ScopedEnvWrapper &) = delete;
-        ScopedEnvWrapper &operator=(const ScopedEnvWrapper &) = delete;
+    operator bool() const noexcept
+    {
+        return m_env;
+    }
 
-        operator bool() const noexcept
-        {
-            return m_env;
-        }
+    JNIEnvWrapper* operator->() noexcept
+    {
+        return &m_env;
+    }
 
-        JNIEnvWrapper *operator->() noexcept
-        {
-            return &m_env;
-        }
+    JNIEnvWrapper* get() noexcept
+    {
+        return &m_env;
+    }
 
-        JNIEnvWrapper *get() noexcept
-        {
-            return &m_env;
-        }
-
-    private:
-        JNIEnvWrapper m_env;
-        bool m_needToDetach;
+private:
+    JNIEnvWrapper m_env;
+    bool m_needToDetach;
 };
 
 #endif // RCS_JIN_SCOPEDENV_H_

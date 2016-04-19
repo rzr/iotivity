@@ -211,11 +211,13 @@ OCStackResult JniOcSecureResource::provisionACL(JNIEnv* env, jobject _acl, jobje
     OCStackResult ret;
     JniProvisionResultListner *resultListener = AddProvisionResultListener(env, jListener);
     OicSecAcl_t *acl = new OicSecAcl_t;
-    acl->next = nullptr;
+
     if (!acl)
     {
         return OC_STACK_NO_MEMORY;
     }
+
+    acl->next = nullptr;
 
     if (OC_STACK_OK != JniSecureUtils::convertJavaACLToOCAcl(env, _acl, acl))
     {
@@ -354,6 +356,12 @@ JNIEXPORT void JNICALL Java_org_iotivity_base_OcSecureResource_removeDevice
 (JNIEnv *env, jobject thiz, jint timeout, jobject jListener)
 {
     LOGD("OcSecureResource_removeDevice");
+    if (timeout < 0)
+    {
+        ThrowOcException(OC_STACK_INVALID_PARAM, "Timeout value cannot be negative");
+        return;
+    }
+
     if (!jListener)
     {
         ThrowOcException(OC_STACK_INVALID_PARAM, "provisionResultListener cannot be null");
@@ -564,6 +572,7 @@ JNIEXPORT jobject JNICALL Java_org_iotivity_base_OcSecureResource_getLinkedDevic
     {
         LOGE("%s", e.reason().c_str());
         ThrowOcException(e.code(), e.reason().c_str());
+        return nullptr;
     }
 }
 
