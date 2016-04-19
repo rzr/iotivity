@@ -64,7 +64,7 @@ extern "C" {
 
 /** Resource Type.*/
 #define OC_RSRVD_RESOURCE_TYPES_URI           "/oic/res/types/d"
-#ifdef ROUTING_GATEWAY
+#if defined (ROUTING_GATEWAY) || defined (ROUTING_EP)
 /** Gateway URI.*/
 #define OC_RSRVD_GATEWAY_URI                  "/oic/gateway"
 #endif
@@ -143,6 +143,9 @@ extern "C" {
 /** To represent resource type with platform.*/
 #define OC_RSRVD_RESOURCE_TYPE_PLATFORM "oic.wk.p"
 
+/** To represent resource type with RES.*/
+#define OC_RSRVD_RESOURCE_TYPE_RES    "oic.wk.res"
+
 /** To represent interface.*/
 #define OC_RSRVD_INTERFACE              "if"
 
@@ -181,9 +184,6 @@ extern "C" {
 
 /** To represent host name.*/
 #define OC_RSRVD_HOST_NAME              "hn"
-
-/** To represent version.*/
-#define OC_RSRVD_VERSION                "icv"
 
 /** To represent policy.*/
 #define OC_RSRVD_POLICY                 "p"
@@ -248,7 +248,7 @@ extern "C" {
 #define OC_RSRVD_DEVICE_NAME            "n"
 
 /** Device specification version.*/
-#define OC_RSRVD_SPEC_VERSION           "lcv"
+#define OC_RSRVD_SPEC_VERSION           "icv"
 
 /** Device data model.*/
 #define OC_RSRVD_DATA_MODEL_VERSION     "dmv"
@@ -278,11 +278,21 @@ extern "C" {
 #ifdef RA_ADAPTER
 #define MAX_ADDR_STR_SIZE (256)
 #else
-#define MAX_ADDR_STR_SIZE (40)
+/** Max Address could be "coap+tcp://[xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx]:xxxxx" */
+#define MAX_ADDR_STR_SIZE (59)
 #endif
+
+/** Length of MAC address */
+#define MAC_ADDR_STR_SIZE (17)
+
+/** Blocks of MAC address */
+#define MAC_ADDR_BLOCKS (6)
 
 /** Max identity size. */
 #define MAX_IDENTITY_SIZE (32)
+
+/** Universal unique identity size. */
+#define UUID_IDENTITY_SIZE (128/8)
 
 /** Resource Directory */
 
@@ -320,7 +330,7 @@ extern "C" {
 #define OC_RSRVD_MEDIA_TYPE              "mt"
 
 /** To represent resource type with Publish RD.*/
-#define OC_RSRVD_RESOURCE_TYPE_RDPUBLISH "oic.wk.rdPub"
+#define OC_RSRVD_RESOURCE_TYPE_RDPUBLISH "oic.wk.rdpub"
 
 /**
  * These enums (OCTransportAdapter and OCTransportFlags) must
@@ -340,14 +350,15 @@ typedef enum
 
     /** RFCOMM over Bluetooth EDR.*/
     OC_ADAPTER_RFCOMM_BTEDR = (1 << 2),
-
 #ifdef RA_ADAPTER
     /**Remote Access over XMPP.*/
     OC_ADAPTER_REMOTE_ACCESS = (1 << 3),
 #endif
     /** CoAP over TCP.*/
-    OC_ADAPTER_TCP           = (1 << 4)
+    OC_ADAPTER_TCP           = (1 << 4),
 
+    /** NFC Transport for Messaging.*/
+    OC_ADAPTER_NFC           = (1 << 5)
 } OCTransportAdapter;
 
 /**
@@ -405,6 +416,12 @@ typedef enum
 #define OC_MASK_MODS     (0x0FF0)
 #define OC_MASK_FAMS     (OC_IP_USE_V6|OC_IP_USE_V4)
 
+typedef struct OCStringLL
+{
+    struct OCStringLL *next;
+    char* value;
+} OCStringLL;
+
 /**
  * End point identity.
  */
@@ -416,6 +433,15 @@ typedef struct
     /** Array of end point identity.*/
     unsigned char id[MAX_IDENTITY_SIZE];
 } OCIdentity;
+
+/**
+ * Universally unique identifier.
+ */
+typedef struct
+{
+    /** identitifier string.*/
+    unsigned char id[UUID_IDENTITY_SIZE];
+} OCUUIdentity;
 
 /**
  * Data structure to encapsulate IPv4/IPv6/Contiki/lwIP device addresses.
@@ -469,7 +495,10 @@ typedef enum
     CT_ADAPTER_REMOTE_ACCESS = (1 << 19),
 #endif
     /** CoAP over TCP.*/
-    CT_ADAPTER_TCP          = (1 << 20),
+    CT_ADAPTER_TCP     = (1 << 20),
+
+    /** NFC Transport.*/
+    CT_ADAPTER_NFC     = (1 << 21),
 
     /** Insecure transport is the default (subject to change).*/
 
@@ -705,6 +734,12 @@ typedef enum
     OC_STACK_DUPLICATE_UUID,
     OC_STACK_INCONSISTENT_DB,
 
+    /**
+     * Error code from OTM
+     * This error is pushed from DTLS interface when handshake failure happens
+     */
+    OC_STACK_AUTHENTICATION_FAILURE,
+
     /** Insert all new error codes here!.*/
     #ifdef WITH_PRESENCE
     OC_STACK_PRESENCE_STOPPED = 128,
@@ -759,6 +794,7 @@ typedef enum
  * Persistent storage handlers. An APP must provide OCPersistentStorage handler pointers
  * when it calls OCRegisterPersistentStorageHandler.
  * Persistent storage open handler points to default file path.
+ * It should check file path and whether the file is symbolic link or no.
  * Application can point to appropriate SVR database path for it's IoTivity Server.
  */
 typedef struct {
@@ -893,10 +929,16 @@ typedef struct
 {
     /** Pointer to the device name.*/
     char *deviceName;
-
+    /** Pointer to the types.*/
+    OCStringLL *types;
 } OCDeviceInfo;
 
 #ifdef RA_ADAPTER
+/**
+ * callback for bound JID
+ */
+typedef void (*jid_bound_cb)(char *jid);
+
 /**
  * CA Remote Access information for XMPP Client
  *
@@ -910,6 +952,7 @@ typedef struct
     char *password;     /**< login password */
     char *resource;     /**< specific resource for login */
     char *user_jid;     /**< specific JID for login */
+    jid_bound_cb jidbound;  /**< callback when JID bound */
 } OCRAInfo_t;
 #endif  /* RA_ADAPTER */
 
@@ -917,19 +960,33 @@ typedef struct
 /** Enum to describe the type of object held by the OCPayload object.*/
 typedef enum
 {
+    /** Contents of the payload are invalid */
     PAYLOAD_TYPE_INVALID,
+    /** The payload is an OCDiscoveryPayload */
     PAYLOAD_TYPE_DISCOVERY,
+    /** The payload is an OCDevicePayload */
     PAYLOAD_TYPE_DEVICE,
+    /** The payload is an OCPlatformPayload */
     PAYLOAD_TYPE_PLATFORM,
+    /** The payload is an OCRepPayload */
     PAYLOAD_TYPE_REPRESENTATION,
+    /** The payload is an OCSecurityPayload */
     PAYLOAD_TYPE_SECURITY,
+    /** The payload is an OCPresencePayload */
     PAYLOAD_TYPE_PRESENCE,
+    /** The payload is an OCRDPayload */
     PAYLOAD_TYPE_RD
 } OCPayloadType;
 
+/**
+ * A generic struct representing a payload returned from a resource operation
+ *
+ * A pointer to OCPayLoad can be cast to a more specific struct to access members
+ * for the its type.
+ */
 typedef struct
 {
-    // The type of message that was received
+    /** The type of message that was received */
     OCPayloadType type;
 } OCPayload;
 
@@ -995,12 +1052,6 @@ typedef struct OCRepPayloadValue
     struct OCRepPayloadValue* next;
 
 } OCRepPayloadValue;
-
-typedef struct OCStringLL
-{
-    struct OCStringLL *next;
-    char* value;
-} OCStringLL;
 
 // used for get/set/put/observe/etc representations
 typedef struct OCRepPayload
@@ -1111,12 +1162,27 @@ typedef struct
 {
     OCPayload base;
 
-    uint8_t* sid;
+    /** Device Id */
+    char *sid;
+
+    /** A special case for handling RD address. */
+    char* baseURI;
+
+    /** Name */
+    char *name;
+
+    /** HREF */
+    char *uri;
+
+    /** Resource Type */
+    char *type;
+
+    /** Interface */
+    OCStringLL *interface;
 
     /** This structure holds the old /oic/res response. */
     OCResourcePayload *resources;
-    /** This structure holds the collection response for the /oic/res. */
-    OCResourceCollectionPayload *collectionResources;
+
 } OCDiscoveryPayload;
 
 /**
@@ -1147,10 +1213,12 @@ typedef struct
 typedef struct
 {
     OCPayload base;
-    uint8_t* sid;
+    char *sid;
     char* deviceName;
     char* specVersion;
     char* dataModelVersion;
+    OCStringLL *interfaces;
+    OCStringLL *types;
 } OCDevicePayload;
 
 typedef struct
@@ -1158,13 +1226,17 @@ typedef struct
     OCPayload base;
     char* uri;
     OCPlatformInfo info;
+    char* rt;
+    OCStringLL* interfaces;
 } OCPlatformPayload;
 
 typedef struct
 {
     OCPayload base;
-    char* securityData;
+    uint8_t* securityData;
+    size_t payloadSize;
 } OCSecurityPayload;
+
 #ifdef WITH_PRESENCE
 typedef struct
 {
@@ -1294,14 +1366,50 @@ typedef enum
 } OCEntityHandlerFlag;
 
 /**
- * Possible returned values from client application.
+ * Possible return values from client application callback
+ *
+ * A client application callback returns an OCStackApplicationResult to indicate whether
+ * the stack should continue to keep the callback registered.
  */
 typedef enum
 {
+    /** Make no more calls to the callback and call the OCClientContextDeleter for this callback */
     OC_STACK_DELETE_TRANSACTION = 0,
+    /** Keep this callback registered and call it if an apropriate event occurs */
     OC_STACK_KEEP_TRANSACTION
 } OCStackApplicationResult;
 
+
+//#ifdef DIRECT_PAIRING
+/**
+ * @brief   direct pairing Method Type.
+ *              0:  not allowed
+ *              1:  pre-configured pin
+ *              2:  random pin
+ */
+typedef enum OCPrm
+{
+    DP_NOT_ALLOWED             = 0x0,
+    DP_PRE_CONFIGURED        = (0x1 << 0),
+    DP_RANDOM_PIN               = (0x1 << 1),
+} OCPrm_t;
+
+/**
+ * Device Information of discoverd direct pairing device(s).
+ */
+typedef struct OCDPDev
+{
+    OCDevAddr               endpoint;
+    OCConnectivityType   connType;
+    uint16_t                     securePort;
+    bool                  edp;
+    OCPrm_t           *prm;
+    size_t                prmLen;
+    OCUUIdentity     deviceID;
+    OCUUIdentity     rowner;
+    struct OCDPDev *next;
+} OCDPDev_t;
+//#endif // DIRECT_PAIRING
 
 /*
  * -------------------------------------------------------------------------------------------
@@ -1354,6 +1462,17 @@ typedef OCEntityHandlerResult (*OCEntityHandler)
  */
 typedef OCEntityHandlerResult (*OCDeviceEntityHandler)
 (OCEntityHandlerFlag flag, OCEntityHandlerRequest * entityHandlerRequest, char* uri, void* callbackParam);
+
+//#ifdef DIRECT_PAIRING
+/**
+ * Callback function definition of direct-pairing
+ *
+ * @param[OUT] peer - pairing device info.
+ * @param[OUT} result - It's returned with 'OC_STACK_XXX'. It will return 'OC_STACK_OK'
+ *                                   if D2D pairing is success without error
+ */
+typedef void (*OCDirectPairingCB)(OCDPDev_t *peer, OCStackResult result);
+//#endif // DIRECT_PAIRING
 
 #ifdef __cplusplus
 }

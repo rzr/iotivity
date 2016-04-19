@@ -62,6 +62,9 @@ if target_os not in ['arduino','darwin','ios', 'android']:
 # Build 'service' sub-project
 SConscript(build_dir + 'service/SConscript')
 
+# Build "cloud" sub-project
+SConscript(build_dir + 'cloud/SConscript')
+
 # Build "plugin interface" sub-project
 SConscript(build_dir + 'plugins/SConscript')
 

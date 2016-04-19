@@ -1,22 +1,23 @@
-/******************************************************************
- *
- * Copyright 2015 Samsung Electronics All Rights Reserved.
- *
- *
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- ******************************************************************/
+//******************************************************************
+//
+// Copyright 2015 Samsung Electronics All Rights Reserved.
+//
+//-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+//-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
 
 /**
  * @file
@@ -24,23 +25,35 @@
  */
 package org.iotivity.service.resourcecontainer;
 
-import org.iotivity.service.utils.RcsObject;
-
 /**
  * This class provides APIs for getting and setting the Bundle Information
  */
-public class RcsBundleInfo extends RcsObject {
-    private native String nativeGetID();
+public class RcsBundleInfo {
+    private final String mId;
+    private final String mPath;
+    private final String mActivatorName;
+    private final String mLibraryPath;
+    private final String mVersion;
+    private boolean mActivated; // not final since it might be modified for Android-specific bundles
 
-    private native String nativeGetPath();
+    private RcsBundleInfo(String id, String path, String activatorName,
+            String libraryPath, String version) {
+        mId = id;
+        mPath = path;
+        mActivatorName = activatorName;
+        mLibraryPath = libraryPath;
+        mVersion = version;
+        mActivated = false;
+    }
 
-    private native String nativeGetActivatorName();
-
-    private native String nativeGetLibraryPath();
-
-    private native String nativeGetVersion();
-
-    private RcsBundleInfo() {
+    private RcsBundleInfo(String id, String path, String activatorName,
+            String libraryPath, String version, boolean activated) {
+        mId = id;
+        mPath = path;
+        mActivatorName = activatorName;
+        mLibraryPath = libraryPath;
+        mVersion = version;
+        mActivated = activated;
     }
 
     /**
@@ -50,7 +63,7 @@ public class RcsBundleInfo extends RcsObject {
      *
      */
     public String getID() {
-        return nativeGetID();
+        return mId;
     }
 
     /**
@@ -60,7 +73,7 @@ public class RcsBundleInfo extends RcsObject {
      *
      */
     public String getPath() {
-        return nativeGetPath();
+        return mPath;
     }
 
     /**
@@ -70,17 +83,7 @@ public class RcsBundleInfo extends RcsObject {
      *
      */
     public String getActivatorName() {
-        return nativeGetActivatorName();
-    }
-
-    /**
-     * API for getting the library path for the bundle
-     *
-     * @return string - Library path in string form
-     *
-     */
-    public String getLibraryPath() {
-        return nativeGetLibraryPath();
+        return mActivatorName;
     }
 
     /**
@@ -90,7 +93,26 @@ public class RcsBundleInfo extends RcsObject {
      *
      */
     public String getVersion() {
-        return nativeGetVersion();
+        return mVersion;
+    }
+    
+    /**
+     * Returns the current activation status of the bundle
+     *
+     * @return boolean - bundle has been successfully loaded and started
+     *
+     */
+    public boolean isActivated() {
+        return mActivated;
     }
 
+    /**
+     * Set the current activation status of the bundle
+     *
+     * @return boolean - bundle has been successfully loaded and started
+     *
+     */
+    protected void setActivated(boolean activated) {
+        mActivated = activated;
+    }
 }

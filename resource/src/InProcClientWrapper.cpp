@@ -124,6 +124,7 @@ namespace OC
         // first one is considered the root, everything else is considered a child of this one.
         OCRepresentation root = *it;
         root.setDevAddr(clientResponse->devAddr);
+        root.setUri(clientResponse->resourceUri);
         ++it;
 
         std::for_each(it, oc.representations().end(),
@@ -164,13 +165,19 @@ namespace OC
             return OC_STACK_KEEP_TRANSACTION;
         }
 
-        ListenOCContainer container(clientWrapper, clientResponse->devAddr,
-                                reinterpret_cast<OCDiscoveryPayload*>(clientResponse->payload));
-        // loop to ensure valid construction of all resources
-        for(auto resource : container.Resources())
-        {
-            std::thread exec(context->callback, resource);
-            exec.detach();
+        try{
+            ListenOCContainer container(clientWrapper, clientResponse->devAddr,
+                                    reinterpret_cast<OCDiscoveryPayload*>(clientResponse->payload));
+            // loop to ensure valid construction of all resources
+            for(auto resource : container.Resources())
+            {
+                std::thread exec(context->callback, resource);
+                exec.detach();
+            }
+        }
+        catch (std::exception &e){
+            oclog() << "Exception in listCallback, ignoring response: "
+                    << e.what() << std::flush;
         }
 
 
@@ -447,6 +454,11 @@ namespace OC
     {
         MessageContainer ocInfo;
         ocInfo.addRepresentation(rep);
+        for(const OCRepresentation& r : rep.getChildren())
+        {
+            ocInfo.addRepresentation(r);
+        }
+
         return reinterpret_cast<OCPayload*>(ocInfo.getPayload());
     }
 

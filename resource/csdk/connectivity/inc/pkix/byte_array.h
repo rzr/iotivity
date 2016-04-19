@@ -19,6 +19,7 @@
 
  ******************************************************************/
 
+
 #ifndef _BYTE_ARRAY_H_
 #define _BYTE_ARRAY_H_
 
@@ -45,14 +46,14 @@ typedef struct
 } ByteArray;
 
 
-/**
+/**@def BYTE_ARRAY_INITIALIZER
  *
  * Initializes of existing byte array pointer to \a NULL.
  */
 #undef BYTE_ARRAY_INITIALIZER
 #define BYTE_ARRAY_INITIALIZER {NULL, 0}
 
-/**
+/**@def INIT_BYTE_ARRAY(array)
  *
  * Initializes of existing byte array \a array.
  *
@@ -64,7 +65,7 @@ typedef struct
         (array).len = 0;            \
     }while(0)
 
-/**
+/**@def PRINT_BYTE_ARRAY(msg, array)
  *
  * Prints out byte array \a array in hex representation with message \a msg.
  *
@@ -82,7 +83,7 @@ typedef struct
         putchar('\n');                                  \
     }while(0)
 
-/**
+/**@def INC_BYTE_ARRAY_PTR(array, size)
  *
  * Increments byte array pointer \a array by \a size.
  *
@@ -95,7 +96,7 @@ typedef struct
         (array)->len -= size;                    \
     }while(0)
 
-/**
+/**@def INC_BYTE_ARRAY(array, size)
  *
  * Increments byte array \a array by \a size.
  *
@@ -107,20 +108,6 @@ typedef struct
         (array).data += size;                \
         (array).len -= size;                 \
     }while(0)
-
-/**
- *
- * Initializes of existing byte array.
- *
- * @param array of uint8_t
- *
- * @note Array must  be statically allocated.
- */
-#ifdef __cplusplus
-#define BYTE_ARRAY_CONSTRUCTOR(array) {array, sizeof(array)}
-#else
-#define BYTE_ARRAY_CONSTRUCTOR(array) {.data = array, .len = sizeof(array)}
-#endif
 
 #ifdef __cplusplus
 }

@@ -12,8 +12,10 @@ function build_all()
 		build_linux_secured $1 $2
 		build_linux_unsecured_with_ra $1 $2
 		build_linux_secured_with_ra $1 $2
+		build_linux_unsecured_with_rm $1 $2
 		build_linux_unsecured_with_rd $1 $2
 		build_linux_secured_with_rd $1 $2
+		build_simulator $1 $2
 	fi
 
 	build_android $1 $2
@@ -41,6 +43,12 @@ function build_linux_unsecured()
 	scons RELEASE=$1 $2
 }
 
+function build_linux_unsecured_with_rm()
+{
+	echo "*********** Build for linux with RoutingManager************"
+	scons ROUTING=GW RELEASE=$1 $2
+}
+
 function build_linux_secured()
 {
 	echo "*********** Build for linux with Security *************"
@@ -51,13 +59,13 @@ function build_linux_unsecured_with_ra()
 {
 
 	echo "*********** Build for linux With Remote Access *************"
-	scons RELEASE=$1 WITH_RA=1 $2
+	scons RELEASE=$1 WITH_RA=1 WITH_RA_IBB=1 $2
 }
 
 function build_linux_secured_with_ra()
 {
 	echo "*********** Build for linux With Remote Access & Security ************"
-	scons RELEASE=$1 WITH_RA=1 SECURED=1 $2
+	scons RELEASE=$1 WITH_RA=1 WITH_RA_IBB=1 SECURED=1 $2
 }
 
 function build_linux_unsecured_with_rd()
@@ -79,7 +87,9 @@ function build_android()
 	# and windows android-ndk-r10(64bit target version) support these features.
 
 	build_android_x86 $1 $2
+	build_android_x86_with_rm $1 $2
 	build_android_armeabi $1 $2
+	build_android_armeabi_with_rm $1 $2
 }
 
 function build_android_x86()
@@ -90,12 +100,28 @@ function build_android_x86()
 	scons TARGET_OS=android TARGET_ARCH=x86 RELEASE=$1 TARGET_TRANSPORT=BLE $2
 }
 
+function build_android_x86_with_rm()
+{
+	echo "*********** Build for android x86 with Routing Manager *************"
+	scons TARGET_OS=android TARGET_ARCH=x86 ROUTING=GW RELEASE=$1 TARGET_TRANSPORT=IP $2
+	scons TARGET_OS=android TARGET_ARCH=x86 ROUTING=GW RELEASE=$1 TARGET_TRANSPORT=BT $2
+	scons TARGET_OS=android TARGET_ARCH=x86 ROUTING=GW RELEASE=$1 TARGET_TRANSPORT=BLE $2
+}
+
 function build_android_armeabi()
 {
 	echo "*********** Build for android armeabi *************"
 	scons TARGET_OS=android TARGET_ARCH=armeabi RELEASE=$1 TARGET_TRANSPORT=IP $2
 	scons TARGET_OS=android TARGET_ARCH=armeabi RELEASE=$1 TARGET_TRANSPORT=BT $2
 	scons TARGET_OS=android TARGET_ARCH=armeabi RELEASE=$1 TARGET_TRANSPORT=BLE $2
+}
+
+function build_android_armeabi_with_rm()
+{
+	echo "*********** Build for android armeabi with Routing Manager*************"
+	scons TARGET_OS=android TARGET_ARCH=armeabi ROUTING=GW RELEASE=$1 TARGET_TRANSPORT=IP $2
+	scons TARGET_OS=android TARGET_ARCH=armeabi ROUTING=GW RELEASE=$1 TARGET_TRANSPORT=BT $2
+	scons TARGET_OS=android TARGET_ARCH=armeabi ROUTING=GW RELEASE=$1 TARGET_TRANSPORT=BLE $2
 }
 
 function build_arduino()
@@ -116,11 +142,14 @@ function build_tizen()
 	echo "*********** Build for Tizen *************"
 	./gbsbuild.sh
 
-	echo "*********** Build for Tizen CA lib and sample *************"
-	scons -f resource/csdk/connectivity/build/tizen/SConscript TARGET_OS=tizen TARGET_TRANSPORT=IP LOGGING=true RELEASE=$1 $2
+	echo "*********** Build for Tizen octbstack lib and sample *************"
+	scons -f resource/csdk/stack/samples/tizen/build/SConscript TARGET_OS=tizen TARGET_TRANSPORT=IP LOGGING=true RELEASE=$1 $2
 
-	echo "*********** Build for Tizen CA lib and sample with Security *************"
-	scons -f resource/csdk/connectivity/build/tizen/SConscript TARGET_OS=tizen TARGET_TRANSPORT=IP LOGGING=true SECURED=1 RELEASE=$1 $2
+	echo "*********** Build for Tizen octbstack lib and sample with Security*************"
+	scons -f resource/csdk/stack/samples/tizen/build/SConscript TARGET_OS=tizen TARGET_TRANSPORT=IP LOGGING=true SECURED=1 RELEASE=$1 $2
+
+	echo "*********** Build for Tizen octbstack lib and sample with Routing Manager*************"
+	scons -f resource/csdk/stack/samples/tizen/build/SConscript TARGET_OS=tizen TARGET_TRANSPORT=IP LOGGING=true ROUTING=GW RELEASE=$1 $2
 }
 
 function build_darwin() # Mac OSx and iOS
@@ -144,6 +173,12 @@ function build_darwin() # Mac OSx and iOS
 	scons TARGET_OS=ios TARGET_ARCH=arm64 SYS_VERSION=7.0 RELEASE=$1 $2
 }
 
+function build_simulator()
+{
+	echo "*********** Build for simulator plugin *************"
+	scons SIMULATOR=1 RELEASE=$1 $2
+}
+
 function unit_tests()
 {
 	echo "*********** Unit test Start *************"
@@ -158,7 +193,7 @@ function  help()
 	echo "Usage:"
         echo "  build:"
         echo "     `basename $0` <target_build>"
-	echo "      Allowed values for <target_build>: all, linux_unsecured, linux_secured, linux_unsecured_with_ra, linux_secured_with_ra, linux_unsecured_with_rd, linux_secured_with_rd, android, arduino, tizen, darwin"
+	echo "      Allowed values for <target_build>: all, linux_unsecured, linux_secured, linux_unsecured_with_ra, linux_secured_with_ra, linux_unsecured_with_rd, linux_secured_with_rd, android, arduino, tizen, simulator darwin"
 	echo "      Note: \"linux\" will build \"linux_unsecured\", \"linux_secured\", \"linux_unsecured_with_ra\", \"linux_secured_with_ra\", \"linux_secured_with_rd\" & \"linux_unsecured_with_rd\"."
 	echo "      Any selection will build both debug and release versions of all available targets in the scope you've"
 	echo "      selected. To choose any specific command, please use the SCons commandline directly. Please refer"
@@ -190,6 +225,8 @@ then
 	then
 		build_linux_unsecured true
 		build_linux_unsecured false
+		build_linux_unsecured_with_rm true
+		build_linux_unsecured_with_rm false
 	elif [ $1 = 'linux_secured' ]
 	then
 		build_linux_secured true
@@ -218,10 +255,14 @@ then
 	then
         build_android_x86 true
         build_android_x86 false
+		build_android_x86_with_rm true
+		build_android_x86_with_rm false
 	elif [ $1 = 'android_armeabi' ]
 	then
         build_android_armeabi true
         build_android_armeabi false
+		build_android_armeabi_with_rm true
+		build_android_armeabi_with_rm false
 	elif [ $1 = 'arduino' ]
 	then
 		build_arduino true
@@ -230,6 +271,10 @@ then
 	then
 		build_tizen true
 		build_tizen false
+	elif [ $1 = 'simulator' ]
+    then
+		build_simulator true
+		build_simulator false
 	elif [ $1 = 'darwin' ]
 	then
 		build_darwin true

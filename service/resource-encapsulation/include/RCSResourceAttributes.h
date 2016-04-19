@@ -36,14 +36,14 @@
 #include <unordered_map>
 #include <vector>
 
-#include <boost/variant.hpp>
-#include <boost/mpl/contains.hpp>
-#include <boost/mpl/find.hpp>
-#include <boost/mpl/distance.hpp>
-#include <boost/mpl/begin_end.hpp>
-#include <boost/scoped_ptr.hpp>
+#include "boost/variant.hpp"
+#include "boost/mpl/contains.hpp"
+#include "boost/mpl/find.hpp"
+#include "boost/mpl/distance.hpp"
+#include "boost/mpl/begin_end.hpp"
+#include "boost/scoped_ptr.hpp"
 
-#include <RCSException.h>
+#include "RCSException.h"
 
 namespace OIC
 {
@@ -109,7 +109,7 @@ namespace OIC
                 typedef V type;
             };
 
-            template< typename VISITOR >
+            template< typename VISITOR, typename MOVE = std::false_type >
             class KeyValueVisitorHelper: public boost::static_visitor< >
             {
             public:
@@ -118,10 +118,18 @@ namespace OIC
                 {
                 }
 
-                template< typename T >
-                void operator()(const std::string& key, const T& value) const
+                template< typename T, typename M = MOVE >
+                typename std::enable_if< std::is_same< M, std::false_type >::value >::type
+                operator()(const std::string& key, const T& value) const
                 {
                     m_visitor(key, value);
+                }
+
+                template< typename T, typename M = MOVE >
+                typename std::enable_if< std::is_same< M, std::true_type >::value >::type
+                operator()(const std::string& key, T& value)
+                {
+                    m_visitor(key, std::move(value));
                 }
 
             private:
@@ -523,6 +531,15 @@ namespace OIC
             bool erase(const std::string& key);
 
             /**
+             * Removes a single element.
+             *
+             * @param pos Iterator to the element to remove.
+             *
+             * @return Iterator following the last removed element.
+             */
+            iterator erase(const_iterator pos);
+
+            /**
              * Checks this contains an element for the specified key.
              *
              * @param key Key to check.
@@ -558,6 +575,18 @@ namespace OIC
                 }
             }
 
+            template< typename VISITOR >
+            void visitToMove(VISITOR& visitor)
+            {
+                KeyValueVisitorHelper< VISITOR, std::true_type > helper{ visitor };
+
+                for (auto& i : m_values)
+                {
+                    boost::variant< const std::string& > key{ i.first };
+                    boost::apply_visitor(helper, key, *i.second.m_data);
+                }
+            }
+
         private:
             std::unordered_map< std::string, Value > m_values;
 
@@ -581,6 +610,9 @@ namespace OIC
         {
         public:
             ComparisonHelper(const Value&);
+
+            ComparisonHelper(const ComparisonHelper&) = delete;
+            ComparisonHelper& operator=(const ComparisonHelper&) = delete;
 
             template< typename T >
             typename std::enable_if< is_supported_type< T >::value, bool >::type equals(
@@ -788,9 +820,9 @@ namespace OIC
 
         public:
             iterator();
-            iterator(const iterator&) = default;
+            iterator(const iterator&);
 
-            iterator& operator=(const iterator&) = default;
+            iterator& operator=(const iterator&);
 
             reference operator*();
             pointer operator->();
@@ -822,7 +854,7 @@ namespace OIC
          * @see iterator
          */
         class RCSResourceAttributes::const_iterator:
-                public std::iterator < std::forward_iterator_tag,
+                public std::iterator< std::forward_iterator_tag,
                                        const RCSResourceAttributes::KeyValuePair >
         {
         private:
@@ -830,10 +862,10 @@ namespace OIC
 
         public:
             const_iterator();
-            const_iterator(const const_iterator&) = default;
+            const_iterator(const const_iterator&);
             const_iterator(const RCSResourceAttributes::iterator&);
 
-            const_iterator& operator=(const const_iterator&) = default;
+            const_iterator& operator=(const const_iterator&);
             const_iterator& operator=(const RCSResourceAttributes::iterator&);
 
             reference operator*() const;

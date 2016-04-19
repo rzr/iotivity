@@ -24,7 +24,13 @@
 #include "oic_malloc.h"
 #include "oic_string.h"
 #include "global.h"
+#include "timer.h"
 #include <netdb.h>
+
+/* tinyDTLS library error code */
+#define TINY_DTLS_ERROR (-1)
+/* tinyDTLS library success code */
+#define TINY_DTLS_SUCCESS (0)
 
 #ifdef __WITH_X509__
 #include "pki.h"
@@ -44,7 +50,7 @@
  * @def NET_DTLS_TAG
  * @brief Logging tag for module name
  */
-#define NET_DTLS_TAG "NET_DTLS"
+#define NET_DTLS_TAG "OIC_CA_NET_DTLS"
 
 /**
  * @var g_caDtlsContext
@@ -64,6 +70,18 @@ static ca_mutex g_dtlsContextMutex = NULL;
  */
 static CAGetDTLSPskCredentialsHandler g_getCredentialsCallback = NULL;
 
+/**
+ * @var MAX_RETRANSMISSION_TIME
+ * @brief Maximum timeout value (in seconds) to start DTLS retransmission.
+ */
+#define MAX_RETRANSMISSION_TIME 1
+
+/**
+ * @var g_dtlsHandshakeCallback
+ * @brief callback to deliver the DTLS handshake result
+ */
+static CAErrorCallback g_dtlsHandshakeCallback = NULL;
+
 #ifdef __WITH_X509__
 /**
  * @var g_getX509CredentialsCallback
@@ -76,6 +94,7 @@ static CAGetDTLSX509CredentialsHandler g_getX509CredentialsCallback = NULL;
  */
 static CAGetDTLSCrlHandler g_getCrlCallback = NULL;
 #endif //__WITH_X509__
+
 
 static CASecureEndpoint_t *GetPeerInfo(const CAEndpoint_t *peer)
 {
@@ -407,7 +426,7 @@ static int32_t CAReadDecryptedPayload(dtls_context_t *context,
     OIC_LOG(DEBUG, NET_DTLS_TAG, "IN");
 
     VERIFY_NON_NULL_RET(session, NET_DTLS_TAG, "Param Session is NULL", 0);
-    OIC_LOG_V(DEBUG, NET_DTLS_TAG, "Decrypted buf len [%d]", bufLen);
+    OIC_LOG_V(DEBUG, NET_DTLS_TAG, "Decrypted buf len [%zu]", bufLen);
 
     stCADtlsAddrInfo_t *addrInfo = (stCADtlsAddrInfo_t *)session;
 
@@ -422,7 +441,7 @@ static int32_t CAReadDecryptedPayload(dtls_context_t *context,
     if (NULL == g_caDtlsContext)
     {
         OIC_LOG(ERROR, NET_DTLS_TAG, "Context is NULL");
-        return 0;
+        return TINY_DTLS_ERROR;
     }
 
     int type = 0;
@@ -444,7 +463,7 @@ static int32_t CAReadDecryptedPayload(dtls_context_t *context,
     }
 
     OIC_LOG(DEBUG, NET_DTLS_TAG, "OUT");
-    return 0;
+    return TINY_DTLS_SUCCESS;
 }
 
 static int32_t CASendSecureData(dtls_context_t *context,
@@ -500,27 +519,54 @@ static int32_t CAHandleSecureEvent(dtls_context_t *context,
 
     VERIFY_NON_NULL_RET(session, NET_DTLS_TAG, "Param Session is NULL", 0);
 
-    OIC_LOG_V(DEBUG, NET_DTLS_TAG, "level [%d] code [%u]", level, code);
+    OIC_LOG_V(DEBUG, NET_DTLS_TAG, "level [%d] code [%u]\n", level, code);
 
-    if (!level && (code == DTLS_EVENT_CONNECTED))
+    CAEndpoint_t endpoint = {.adapter=CA_DEFAULT_ADAPTER};
+    CAErrorInfo_t errorInfo = {.result=CA_STATUS_OK};
+
+    stCADtlsAddrInfo_t *addrInfo = (stCADtlsAddrInfo_t *)session;
+    char peerAddr[MAX_ADDR_STR_SIZE_CA] = { 0 };
+    uint16_t port = 0;
+    CAConvertAddrToName(&(addrInfo->addr.st), addrInfo->size, peerAddr, &port);
+
+    if (!level && (DTLS_EVENT_CONNECTED == code))
     {
         OIC_LOG(DEBUG, NET_DTLS_TAG, "Received DTLS_EVENT_CONNECTED. Sending Cached data");
+
+        if(g_dtlsHandshakeCallback)
+        {
+            OICStrcpy(endpoint.addr, MAX_ADDR_STR_SIZE_CA, peerAddr);
+            endpoint.port = port;
+            errorInfo.result = CA_STATUS_OK;
+            g_dtlsHandshakeCallback(&endpoint, &errorInfo);
+        }
+
         CASendCachedMsg((stCADtlsAddrInfo_t *)session);
     }
-
-    if(DTLS_ALERT_LEVEL_FATAL == level && DTLS_ALERT_CLOSE_NOTIFY == code)
+    else if(DTLS_ALERT_LEVEL_FATAL == level && DTLS_ALERT_DECRYPT_ERROR == code)
+    {
+        if(g_dtlsHandshakeCallback)
+        {
+            OICStrcpy(endpoint.addr, MAX_ADDR_STR_SIZE_CA, peerAddr);
+            endpoint.addr[MAX_ADDR_STR_SIZE_CA - 1] = '\0';
+            endpoint.port = port;
+            errorInfo.result = CA_DTLS_AUTHENTICATION_FAILURE;
+            g_dtlsHandshakeCallback(&endpoint, &errorInfo);
+        }
+    }
+    else if(DTLS_ALERT_LEVEL_FATAL == level && DTLS_ALERT_CLOSE_NOTIFY == code)
     {
         OIC_LOG(INFO, NET_DTLS_TAG, "Peer closing connection");
-
-        stCADtlsAddrInfo_t *addrInfo = (stCADtlsAddrInfo_t *)session;
-        char peerAddr[MAX_ADDR_STR_SIZE_CA] = { 0 };
-        uint16_t port = 0;
-        CAConvertAddrToName(&(addrInfo->addr.st), addrInfo->size, peerAddr, &port);
+        CARemovePeerFromPeerInfoList(peerAddr, port);
+    }
+    else if(DTLS_ALERT_LEVEL_FATAL == level && DTLS_ALERT_HANDSHAKE_FAILURE == code)
+    {
+        OIC_LOG(INFO, NET_DTLS_TAG, "Failed to DTLS handshake, the peer will be removed.");
         CARemovePeerFromPeerInfoList(peerAddr, port);
     }
 
     OIC_LOG(DEBUG, NET_DTLS_TAG, "OUT");
-    return 0;
+    return TINY_DTLS_SUCCESS;
 }
 
 
@@ -532,7 +578,7 @@ static int32_t CAGetPskCredentials(dtls_context_t *ctx,
 {
     OIC_LOG(DEBUG, NET_DTLS_TAG, "IN");
 
-    int32_t ret  = -1;
+    int32_t ret = TINY_DTLS_ERROR;
     if(NULL == ctx || NULL == session || NULL == result)
     {
         OIC_LOG(ERROR, NET_DTLS_TAG, "CAGetPskCredentials invalid parameters");
@@ -586,6 +632,13 @@ void CADTLSSetAdapterCallbacks(CAPacketReceivedCallback recvCallback,
 
     ca_mutex_unlock(g_dtlsContextMutex);
 
+    OIC_LOG(DEBUG, NET_DTLS_TAG, "OUT");
+}
+
+void CADTLSSetHandshakeCallback(CAErrorCallback dtlsHandshakeCallback)
+{
+    OIC_LOG(DEBUG, NET_DTLS_TAG, "IN");
+    g_dtlsHandshakeCallback = dtlsHandshakeCallback;
     OIC_LOG(DEBUG, NET_DTLS_TAG, "OUT");
 }
 
@@ -812,7 +865,7 @@ int CAInitX509()
 static int CAIsX509Active(struct dtls_context_t *ctx)
 {
     (void)ctx;
-    return 0;
+    return TINY_DTLS_SUCCESS;
 }
 
 static int CAGetDeviceKey(struct dtls_context_t *ctx,
@@ -822,13 +875,13 @@ static int CAGetDeviceKey(struct dtls_context_t *ctx,
     OIC_LOG(DEBUG, NET_DTLS_TAG, "CAGetDeviceKey");
     static dtls_ecc_key_t ecdsa_key = {DTLS_ECDH_CURVE_SECP256R1, NULL, NULL, NULL};
 
-    int ret = 1;
+    int ret = TINY_DTLS_ERROR;
     VERIFY_SUCCESS(CAInitX509(), 0);
 
     ecdsa_key.priv_key = g_X509Cred.devicePrivateKey;
     *result = &ecdsa_key;
 
-    ret = 0;
+    ret = TINY_DTLS_SUCCESS;
 exit:
     return ret;
 }
@@ -840,7 +893,7 @@ CAGetDeviceCertificate(struct dtls_context_t *ctx,
                     size_t *cert_size)
 {
     OIC_LOG(DEBUG, NET_DTLS_TAG, "CAGetDeviceCertificate");
-    int ret = 1;
+    int ret = TINY_DTLS_ERROR;
 
     VERIFY_SUCCESS(CAInitX509(), 0);
 
@@ -851,7 +904,7 @@ CAGetDeviceCertificate(struct dtls_context_t *ctx,
     PRINT_BYTE_ARRAY("OWN CERT: \n", ownCert);
 #endif
 
-    ret = 0;
+    ret = TINY_DTLS_SUCCESS;
 exit:
     return ret;
 }
@@ -890,7 +943,7 @@ static int CAVerifyCertificate(struct dtls_context_t *ctx, const session_t *sess
 
     uint8_t chainLength;
 
-    int ret;
+    int ret = TINY_DTLS_ERROR;
     const unsigned char *ca_pub_x;
     const unsigned char *ca_pub_y;
     ByteArray certDerCode = BYTE_ARRAY_INITIALIZER;
@@ -899,7 +952,7 @@ static int CAVerifyCertificate(struct dtls_context_t *ctx, const session_t *sess
 
     if ( !ctx ||  !session ||  !cert || !x || !y)
     {
-        return -PKI_NULL_PASSED;
+        return TINY_DTLS_ERROR;
     }
 
     CAGetRootKey (&ca_pub_x, &ca_pub_y);
@@ -945,16 +998,59 @@ static int CAVerifyCertificate(struct dtls_context_t *ctx, const session_t *sess
 exit:
     if (ret != 0)
     {
-        OIC_LOG(DEBUG, NET_DTLS_TAG, "Certificate verification FAILED\n");
+        OIC_LOG(ERROR, NET_DTLS_TAG, "Certificate verification FAILED\n");
+        return TINY_DTLS_ERROR;
     }
     else
     {
         OIC_LOG(DEBUG, NET_DTLS_TAG, "Certificate verification SUCCESS\n");
+        return TINY_DTLS_SUCCESS;
     }
-    return -ret;
 }
 
 #endif
+
+static void CAStartRetransmit()
+{
+    static int timerId = -1;
+    clock_time_t nextSchedule = MAX_RETRANSMISSION_TIME;
+
+    OIC_LOG(DEBUG, NET_DTLS_TAG, "CAStartRetransmit IN");
+
+    if (timerId != -1)
+    {
+        //clear previous timer
+        unregisterTimer(timerId);
+
+        ca_mutex_lock(g_dtlsContextMutex);
+
+        //stop retransmission if context is invalid
+        if(NULL == g_caDtlsContext)
+        {
+            OIC_LOG(ERROR, NET_DTLS_TAG, "Context is NULL. Stop retransmission");
+            ca_mutex_unlock(g_dtlsContextMutex);
+            return;
+        }
+
+        OIC_LOG(DEBUG, NET_DTLS_TAG, "Check retransmission");
+        dtls_check_retransmit(g_caDtlsContext->dtlsContext, &nextSchedule);
+        ca_mutex_unlock(g_dtlsContextMutex);
+
+        //re-transmission timeout should not be greater then max one
+        //this will cover case when several clients start dtls sessions
+        nextSchedule /= CLOCKS_PER_SEC;
+        if (nextSchedule > MAX_RETRANSMISSION_TIME)
+        {
+            nextSchedule = MAX_RETRANSMISSION_TIME;
+        }
+    }
+
+    //start new timer
+    OIC_LOG(DEBUG, NET_DTLS_TAG, "Start new timer");
+    registerTimer(nextSchedule, &timerId, CAStartRetransmit);
+
+    OIC_LOG(DEBUG, NET_DTLS_TAG, "CAStartRetransmit OUT");
+}
 
 CAResult_t CAAdapterNetDtlsInit()
 {
@@ -1030,6 +1126,9 @@ CAResult_t CAAdapterNetDtlsInit()
 #endif //__WITH_X509__*
     dtls_set_handler(g_caDtlsContext->dtlsContext, &(g_caDtlsContext->callbacks));
     ca_mutex_unlock(g_dtlsContextMutex);
+
+    CAStartRetransmit();
+
     OIC_LOG(DEBUG, NET_DTLS_TAG, "OUT");
     return CA_STATUS_OK;
 }
