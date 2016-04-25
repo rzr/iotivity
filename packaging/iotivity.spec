@@ -156,16 +156,17 @@ cp out/tizen/*/%{build_mode}/resource/examples/oic_svr_db_server.dat %{ex_instal
 cp out/tizen/*/%{build_mode}/resource/examples/oic_svr_db_client.dat %{ex_install_dir}
 %if 0%{?SECURED} == 1
 mkdir -p %{ex_install_dir}/provisioning
-mkdir -p %{ex_install_dir}/provision-sample
+cp out/tizen/*/%{build_mode}/resource/provisioning/examples/oic_svr_db_client.dat %{ex_install_dir}/provisioning/
+cp out/tizen/*/%{build_mode}/resource/provisioning/examples/provisioningclient %{ex_install_dir}/provisioning/
 
 cp ./resource/csdk/security/include/pinoxmcommon.h %{buildroot}%{_includedir}
+cp ./resource/csdk/security/include/securevirtualresourcetypes.h %{buildroot}%{_includedir}
 cp ./resource/csdk/security/provisioning/include/oxm/*.h %{buildroot}%{_includedir}
 cp ./resource/csdk/security/provisioning/include/internal/*.h %{buildroot}%{_includedir}
 cp ./resource/csdk/security/provisioning/include/*.h %{buildroot}%{_includedir}
-cp ./resource/csdk/security/provisioning/sample/oic_svr_db_server_justworks.dat %{buildroot}%{_libdir}/oic_svr_db_server.dat
-
+cp ./resource/csdk/connectivity/api/casecurityinterface.h %{buildroot}%{_includedir}
+cp ./resource/csdk/connectivity/api/cacommon.h %{buildroot}%{_includedir}
 %endif
-
 
 %if 0%{?tizen_version_major} < 3
 mkdir -p %{buildroot}/%{_datadir}/license
@@ -173,10 +174,7 @@ cp LICENSE.APLv2 %{buildroot}/%{_datadir}/license/%{name}
 cp LICENSE.APLv2 %{buildroot}/%{_datadir}/license/%{name}-service
 cp LICENSE.APLv2 %{buildroot}/%{_datadir}/license/%{name}-test
 %endif
-cp resource/c_common/*.h %{buildroot}%{_includedir}
-cp resource/csdk/stack/include/*.h %{buildroot}%{_includedir}
 
-cp service/things-manager/sdk/inc/*.h %{buildroot}%{_includedir}
 cp service/easy-setup/inc/*.h %{buildroot}%{_includedir}
 cp service/easy-setup/enrollee/inc/*.h %{buildroot}%{_includedir}
 
@@ -193,6 +191,10 @@ cp service/easy-setup/enrollee/inc/*.h %{buildroot}%{_includedir}
 %{_libdir}/liboc_logger_core.so
 %{_libdir}/liboctbstack.so
 %{_libdir}/libconnectivity_abstraction.so
+%if 0%{?SECURED} == 1
+%{_libdir}/libocpmapi.so
+%{_libdir}/libocprovision.so
+%endif
 %if 0%{?tizen_version_major} < 3
 %{_datadir}/license/%{name}
 %else
@@ -212,11 +214,6 @@ cp service/easy-setup/enrollee/inc/*.h %{buildroot}%{_includedir}
 %{_libdir}/librcs_container.so
 %{_libdir}/librcs_server.so
 %{_libdir}/libESEnrolleeSDK.so
-%if 0%{?SECURED} == 1
-%{_libdir}/libocpmapi.so
-%{_libdir}/libocprovision.so
-%{_libdir}/oic_svr_db_server.dat
-%endif
 %if 0%{?tizen_version_major} < 3
 %{_datadir}/license/%{name}-service
 %else

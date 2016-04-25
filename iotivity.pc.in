@@ -11,7 +11,8 @@ Description: IoTivity is an open source reference implementation of the OIC stan
 Version: @VERSION@
 URL: https://www.iotivity.org
 Requires:
-Libs: -L${libdir} -loc -loc_logger -loc_logger_core -loctbstack -lconnectivity_abstraction
+Libs: -L${libdir} -loc -loc_logger -loc_logger_core -loctbstack -lconnectivity_abstraction \
+			@OCPMAPI_LIB@
 Cflags: -I${includedir}/resource \
 			-I${svcincludedir}/resource-encapsulation \
 			-I${svcincludedir}/resource-container \

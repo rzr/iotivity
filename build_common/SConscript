@@ -295,6 +295,11 @@ if env.get('ROUTING') == 'GW':
 elif env.get('ROUTING') == 'EP':
 	routing_define = 'ROUTING_EP'
 
+if env.get('SECURED') == '1':
+	ocpmapi_lib = '-locpmapi'
+elif env.get('SECURED') == '0':
+	ocpmapi_lib = ''
+
 user_prefix = env.get('PREFIX')
 user_lib = env.get('LIB_INSTALL_DIR')
 if not user_lib:
@@ -305,14 +310,16 @@ if user_prefix:
 				'\@EXEC_PREFIX\@':user_prefix,
 				'\@VERSION\@': '1.0.1',
 				'\@LIB_INSTALL_DIR\@': user_lib,
-				'\@ROUTING_DEFINE\@': routing_define
+				'\@ROUTING_DEFINE\@': routing_define,
+				'\@OCPMAPI_LIB\@': ocpmapi_lib
 				}
 else:
 	pc_vars = {'\@PREFIX\@': env.get('BUILD_DIR'),
 				'\@EXEC_PREFIX\@': env.get('BUILD_DIR'),
 				'\@VERSION\@': '1.0.1',
 				'\@LIB_INSTALL_DIR\@': user_lib,
-				'\@ROUTING_DEFINE\@': routing_define
+				'\@ROUTING_DEFINE\@': routing_define,
+				'\@OCPMAPI_LIB\@': ocpmapi_lib
 				}
 
 env.Substfile(pc_file, SUBST_DICT = pc_vars)
