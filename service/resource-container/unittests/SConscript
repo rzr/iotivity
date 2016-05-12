@@ -83,9 +83,6 @@ gtest_dir = src_dir + '/extlibs/gtest/gtest-1.7.0'
 ######################################################################
 # Build flags
 ######################################################################
-gtest = File(gtest_dir + '/lib/.libs/libgtest.a')
-gtest_main = File(gtest_dir + '/lib/.libs/libgtest_main.a')
-
 container_gtest_env.AppendUnique(
     CPPPATH = [
         env.get('SRC_DIR')+'/extlibs',
@@ -127,7 +124,7 @@ if int(containerJavaSupport):
 
 container_gtest_env.AppendUnique(CCFLAGS = ['-Wnoexcept'])
 
-container_gtest_env.PrependUnique(LIBS = ['rcs_container', 'rcs_client', 'rcs_server', 'rcs_common', 'oc','octbstack', 'oc_logger', 'oc_logger_core', 'connectivity_abstraction', gtest, gtest_main])
+container_gtest_env.PrependUnique(LIBS = ['rcs_container', 'rcs_client', 'rcs_server', 'rcs_common', 'oc','octbstack', 'oc_logger', 'oc_logger_core', 'connectivity_abstraction', 'gtest', 'gtest_main'])
 
 container_gtest_env.AppendUnique(LIBS = ['dl'])
 

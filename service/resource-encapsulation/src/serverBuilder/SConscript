@@ -94,17 +94,14 @@ if target_os == 'linux':
 		'../common/utils/include'
 		])
 
-	gtest = File(gtest_dir + '/lib/.libs/libgtest.a')
-	gtest_main = File(gtest_dir + '/lib/.libs/libgtest_main.a')
-
 	server_builder_test_env.PrependUnique(LIBS = [
 		'rcs_server',
 		'octbstack',
 		'oc_logger',
 		'connectivity_abstraction',
 		'coap',
-		gtest,
-		gtest_main,
+		'gtest',
+		'gtest_main',
 		'pthread',
 		])
 

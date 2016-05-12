@@ -48,15 +48,13 @@ target_os = env.get('TARGET_OS')
 ######################################################################
 # Build flags
 ######################################################################
-GTest = File(gtest_dir + '/lib/.libs/libgtest.a')
-GTest_Main = File(gtest_dir + '/lib/.libs/libgtest_main.a')
 
 #hosting_test_env.AppendUnique(LIBPATH = [gtest_dir + '/lib/.libs'])
 hosting_test_env.AppendUnique(LIBPATH = [lib_env.get('BUILD_DIR')])
 hosting_test_env.AppendUnique(LIBS = [
 	'resource_hosting', 'rcs_server', 'rcs_client','rcs_common',
 	'oc', 'octbstack', 'oc_logger', 'connectivity_abstraction', 'coap',
-	GTest_Main, GTest])
+	'gtest_main', 'gtest'])
 
 if target_os not in ['windows', 'winrt']:
     hosting_test_env.AppendUnique(CXXFLAGS = ['-O2', '-g', '-Wall', '-fmessage-length=0', '-std=c++0x'])
