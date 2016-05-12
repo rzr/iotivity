@@ -58,8 +58,6 @@ gtest_dir = src_dir + '/extlibs/gtest/gtest-1.7.0'
 ######################################################################
 # Build flags
 ######################################################################
-gtest = File(gtest_dir + '/lib/.libs/libgtest.a')
-gtest_main = File(gtest_dir + '/lib/.libs/libgtest_main.a')
 
 mediator_csdk_test_env.AppendUnique(
         CPPPATH = [
@@ -82,8 +80,8 @@ mediator_csdk_test_env.PrependUnique(LIBS = [
     'oc_logger',
     'oc_logger_core',
     'connectivity_abstraction',
-    gtest,
-    gtest_main])
+    'gtest',
+    'gtest_main'])
 
 mediator_csdk_test_env.AppendUnique(LIBS = ['dl'])
 

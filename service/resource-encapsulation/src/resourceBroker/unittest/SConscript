@@ -48,8 +48,6 @@ target_os = env.get('TARGET_OS')
 ######################################################################
 # Build flags
 ######################################################################
-gtest = File(gtest_dir + '/lib/.libs/libgtest.a')
-gtest_main = File(gtest_dir + '/lib/.libs/libgtest_main.a')
 
 broker_test_env.AppendUnique(CPPPATH = ['../include'])
 broker_test_env.AppendUnique(CPPPATH = ['../../../include'])
@@ -69,8 +67,8 @@ broker_test_env.AppendUnique(LIBS = ['octbstack'])
 broker_test_env.AppendUnique(LIBS = ['oc'])
 broker_test_env.AppendUnique(LIBS = ['rcs_client'])
 broker_test_env.AppendUnique(LIBS = ['rcs_common'])
-broker_test_env.AppendUnique(LIBS = [gtest])
-broker_test_env.AppendUnique(LIBS = [gtest_main])
+broker_test_env.AppendUnique(LIBS = ['gtest'])
+broker_test_env.AppendUnique(LIBS = ['gtest_main'])
 
 if target_os not in ['windows', 'winrt']:
     broker_test_env.AppendUnique(CXXFLAGS = ['-O2', '-g', '-Wall', '-fmessage-length=0', '-std=c++0x'])
