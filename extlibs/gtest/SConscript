@@ -12,8 +12,8 @@ target_os = env.get('TARGET_OS')
 src_dir = env.get('SRC_DIR')
 
 targets_need_gtest = ['darwin','linux']
-gtest_dir      = src_dir + '/extlibs/gtest/gtest-1.7.0'
-gtest_zip_file = src_dir + '/extlibs/gtest/gtest-1.7.0.zip'
+gtest_dir      = os.path.join(src_dir, 'extlibs', 'gtest', 'gtest-1.7.0')
+gtest_zip_file = os.path.join(src_dir, 'extlibs', 'gtest', 'gtest-1.7.0.zip')
 gtest_url      = 'https://googletest.googlecode.com/files/gtest-1.7.0.zip'
 
 if target_os in targets_need_gtest:
@@ -70,12 +70,15 @@ elif target_os == 'linux':
 			# Run configure on gtest
 			print 'Configuring google unit test'
 			if env.get('CROSS_COMPILE'):
-				env.Configure(gtest_dir, './configure --host=' + env['CROSS_COMPILE'])
+				env.Configure(gtest_dir, './configure --disable-shared --host=' + env['CROSS_COMPILE']);
 			else:
-				env.Configure(gtest_dir, './configure')
+				env.Configure(gtest_dir, './configure --disable-shared')
 
 			# Run make on gtest
 			print 'Making google unit test'
 			env.Configure(gtest_dir, 'make')
 
 
+src_dir = env.get('SRC_DIR')
+env.AppendUnique(LIBPATH = [ os.path.join(gtest_dir , 'lib', '.libs')])
+env.PrependUnique(CPPPATH = [ os.path.join(gtest_dir, 'include')])
