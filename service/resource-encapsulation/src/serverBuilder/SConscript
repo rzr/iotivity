@@ -17,6 +17,7 @@
 # limitations under the License.
 #
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+SConscript('#extlibs/gtest/SConscript')
 
 ##
 # rcs_server (Server Builder) project build script
@@ -29,8 +30,6 @@ lib_env = env.Clone()
 SConscript(env.get('SRC_DIR') + '/service/third_party_libs.scons', exports = 'lib_env')
 
 src_dir = lib_env.get('SRC_DIR')
-
-gtest_dir = src_dir + '/extlibs/gtest/gtest-1.7.0'
 
 server_builder_env = lib_env.Clone()
 target_os = env.get('TARGET_OS')
@@ -90,12 +89,8 @@ if target_os == 'linux':
 
 	server_builder_test_env.AppendUnique(CPPPATH = [
 		env.get('SRC_DIR')+'/extlibs/hippomocks-master',
-		gtest_dir + '/include',
 		'../common/utils/include'
 		])
-
-	gtest = File(gtest_dir + '/lib/.libs/libgtest.a')
-	gtest_main = File(gtest_dir + '/lib/.libs/libgtest_main.a')
 
 	server_builder_test_env.PrependUnique(LIBS = [
 		'rcs_server',
@@ -103,8 +98,8 @@ if target_os == 'linux':
 		'oc_logger',
 		'connectivity_abstraction',
 		'coap',
-		gtest,
-		gtest_main,
+		'gtest',
+		'gtest_main',
 		'pthread',
 		])
 

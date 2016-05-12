@@ -17,6 +17,7 @@
 # limitations under the License.
 #
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+SConscript('#extlibs/gtest/SConscript')
 
 ##
 # ThingsManager Unit Test build script
@@ -39,10 +40,6 @@ SConscript(env.get('SRC_DIR') + '/service/third_party_libs.scons', 'lib_env')
 
 target_os = env.get('TARGET_OS')
 if target_os == 'linux':
-        # Verify that 'google unit test' library is installed.  If not,
-        # get it and install it
-        SConscript(env.get('SRC_DIR') + '/extlibs/gtest/SConscript')
-
         # Verify that 'hippomocks' mocking code is installed.  If not,
         # get it and install it
         SConscript(env.get('SRC_DIR') + '/extlibs/hippomocks.scons')
@@ -53,18 +50,13 @@ ThingsManager_gtest_env = lib_env.Clone()
 #unit test setting
 ######################################################################
 src_dir = lib_env.get('SRC_DIR')
-gtest_dir = src_dir + '/extlibs/gtest/gtest-1.7.0'
 
 ######################################################################
 # Build flags
 ######################################################################
-gtest = File(gtest_dir + '/lib/.libs/libgtest.a')
-gtest_main = File(gtest_dir + '/lib/.libs/libgtest_main.a')
-
 ThingsManager_gtest_env.AppendUnique(
         CPPPATH = [
                 src_dir + '/extlibs/hippomocks-master',
-                src_dir + '/extlibs/gtest/gtest-1.7.0/include',
                 '../sdk/inc',
                 '../../../extlibs/timer'
         ])
@@ -83,8 +75,8 @@ ThingsManager_gtest_env.PrependUnique(LIBS = [
     'oc_logger_core',
     'oc',
     'octbstack',
-    gtest,
-    gtest_main])
+    'gtest',
+    'gtest_main'])
 
 ThingsManager_gtest_env.AppendUnique(LIBS = ['dl'])
 

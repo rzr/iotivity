@@ -22,7 +22,7 @@
 # 'unit_test' script for building unit tests and libs
 #
 ##
-
+SConscript('#extlibs/gtest/SConscript')
 Import('env')
 
 target_os = env.get('TARGET_OS')
@@ -30,10 +30,6 @@ src_dir = env.get('SRC_DIR')
 build_dir = env.get('BUILD_DIR')
 
 if target_os == 'linux':
-	# Verify that 'google unit test' library is installed.  If not,
-	# get it and install it
-	SConscript(src_dir + '/extlibs/gtest/SConscript')
-
 	# Verify that 'hippomocks' mocking code is installed.  If not,
 	# get it and install it
 	SConscript(src_dir + '/extlibs/hippomocks.scons')
@@ -61,10 +57,6 @@ if target_os == 'linux':
 		SConscript('provisioning/unittests/SConscript')
 
 elif target_os == 'darwin':
-	# Verify that 'google unit test' library is installed.  If not,
-	# get it and install it
-	SConscript(src_dir + '/extlibs/gtest/SConscript')
-
 	# Build C stack's unit tests.
 	SConscript('csdk/stack/test/SConscript')
 	SConscript('csdk/connectivity/test/SConscript')

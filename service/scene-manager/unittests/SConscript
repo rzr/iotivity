@@ -18,6 +18,8 @@
 #
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
+SConscript('#extlibs/gtest/SConscript')
+
 ##
 # SceneManager Unit Test build script
 ##
@@ -40,7 +42,6 @@ SConscript(env.get('SRC_DIR') + '/service/third_party_libs.scons', 'lib_env')
 #unit test setting
 ######################################################################
 src_dir = lib_env.get('SRC_DIR')
-gtest_dir = src_dir + '/extlibs/gtest/gtest-1.7.0'
 
 scene_test_env = lib_env.Clone()
 target_os = env.get('TARGET_OS')
@@ -48,15 +49,12 @@ target_os = env.get('TARGET_OS')
 ######################################################################
 # Build flags
 ######################################################################
-GTest = File(gtest_dir + '/lib/.libs/libgtest.a')
-GTest_Main = File(gtest_dir + '/lib/.libs/libgtest_main.a')
 
-#scene_test_env.AppendUnique(LIBPATH = [gtest_dir + '/lib/.libs'])
 scene_test_env.AppendUnique(LIBPATH = [lib_env.get('BUILD_DIR')])
 scene_test_env.AppendUnique(LIBS = [
     'scene_manager', 'rcs_server', 'rcs_client','rcs_common',
     'oc', 'octbstack', 'oc_logger', 'connectivity_abstraction', 'coap',
-    GTest_Main, GTest])
+    'gtest_main',  'gtest'])
 
 if target_os not in ['windows', 'winrt']:
     scene_test_env.AppendUnique(CXXFLAGS = ['-O2', '-g', '-Wall', '-fmessage-length=0', '-std=c++0x'])
@@ -69,8 +67,7 @@ if not env.get('RELEASE'):
     scene_test_env.PrependUnique(LIBS = ['gcov'])
     scene_test_env.AppendUnique(CXXFLAGS = ['--coverage'])
 
-scene_test_env.PrependUnique(CPPPATH = [ src_dir + '/extlibs/hippomocks-master',
-                             gtest_dir + '/include'])
+scene_test_env.PrependUnique(CPPPATH = [ src_dir + '/extlibs/hippomocks-master'])
 scene_test_env.AppendUnique(CPPPATH = ['../include'])
 scene_test_env.AppendUnique(CPPPATH = ['../src'])
 scene_test_env.AppendUnique(CPPPATH = ['../../resource-encapsulation/include'])

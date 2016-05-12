@@ -18,6 +18,8 @@
 #
 #-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
+SConscript('#extlibs/gtest/SConscript')
+
 Import('env')
 import os
 import os.path
@@ -31,13 +33,11 @@ build_dir = env.get('BUILD_DIR')
 ######################################################################
 unittests_env.PrependUnique(CPPPATH = [
                 os.path.join(pi_dir, 'include'),
-                '#extlibs/gtest/gtest-1.7.0/include',
 		])
 
 unittests_env.AppendUnique(CXXFLAGS = ['-std=c++0x', '-Wall', '-pthread'])
 unittests_env.PrependUnique(LIBS = ['-lpthread'])
 unittests_env.AppendUnique(LIBPATH = [env.get('BUILD_DIR')])
-unittests_env.AppendUnique(LIBPATH = [os.path.join(src_dir, 'extlibs', 'gtest', 'gtest-1.7.0', 'lib', '.libs')])
 unittests_env.PrependUnique(LIBS = [
 		'plugin_interface',
 		'oc',

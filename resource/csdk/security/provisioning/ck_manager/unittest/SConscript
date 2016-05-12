@@ -19,6 +19,7 @@
 # //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 #
 # SConscript file for Local PKI google tests
+SConscript('#extlibs/gtest/SConscript')
 
 Import('env')
 
@@ -42,7 +43,6 @@ pki_test_env.PrependUnique(CPPPATH = ['../include/',
 				'../../../../logger/include',
 				'../../../../stack/include',
 				'../../../../../oc_logger/include',
-				'../../../../../../extlibs/gtest/gtest-1.7.0/include',
 				'../../../../../../extlibs/asn1cert',
 				'../../../../../../extlibs/tinydtls',
 				'../../../../../../extlibs/tinydtls/ecc',
@@ -51,7 +51,6 @@ pki_test_env.PrependUnique(CPPPATH = ['../include/',
 pki_test_env.AppendUnique(CXXFLAGS = ['-std=c++0x', '-Wall', '-pthread'])
 pki_test_env.AppendUnique(LIBS = ['pthread'])
 pki_test_env.AppendUnique(LIBPATH = [env.get('BUILD_DIR')])
-pki_test_env.AppendUnique(LIBPATH = [src_dir + '/extlibs/gtest/gtest-1.7.0/lib/.libs'])
 
 pki_test_env.AppendUnique(LIBS = ['octbstack'])
 pki_test_env.AppendUnique(LIBS = ['CKManager'])
@@ -94,7 +93,6 @@ if env.get('TEST') == '1':
 			os.makedirs(result_dir)
 		pki_test_env.AppendENVPath('GTEST_OUTPUT', ['xml:'+ result_dir])
 		pki_test_env.AppendENVPath('LD_LIBRARY_PATH', [out_dir])
-		pki_test_env.AppendENVPath('LD_LIBRARY_PATH', [src_dir + '/extlibs/gtest/gtest-1.7.0/lib/.libs'])
  		ut = pki_test_env.Command ('ut', None, out_dir + '/resource/csdk/security/unittest/unittest')
 AlwaysBuild ('ut')
 
