@@ -1,3 +1,9 @@
+iotivity (1.0.1-0~rzr2) wily; urgency=medium
+
+  * Bump to 1.0.1
+
+ -- Philippe Coval <rzr@gna.org>  Fri, 13 May 2016 11:10:18 -0400
+
 iotivity (1.0.0-0~rzr1) wily; urgency=medium
 
   * WIP: publish to ubuntu ppa
