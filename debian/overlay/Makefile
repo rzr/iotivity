@@ -39,6 +39,12 @@ else
 ifeq (armhf,${host_arch})
 TARGET_ARCH?=arm
 endif
+ifeq (arm64,${host_arch})
+TARGET_ARCH?=aarch64
+endif
+ifeq (armv7l,${host_arch})
+TARGET_ARCH?=arm
+endif
 endif
 endif
 endif
