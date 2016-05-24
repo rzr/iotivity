@@ -1,3 +1,15 @@
+iotivity (0.0.0-0) unstable; urgency=medium
+
+  * WIP: http://rzr.online.fr/q/snapshot#iotivity
+
+ -- Philippe Coval <rzr@gna.org>  Tue, 24 May 2016 05:12:35 -0400
+
+iotivity (0.0.0-0) UNRELEASED; urgency=medium
+
+  * wip: http://rzr.online.fr/q/snapshot#iotivity
+
+ -- Philippe Coval <rzr@gna.org>  Tue, 24 May 2016 05:12:34 -0400
+
 iotivity (1.0.1-0~rzr3) wily; urgency=medium
 
   * Bump to 1.0.1
