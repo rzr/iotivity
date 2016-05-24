@@ -40,3 +40,14 @@ Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: <insert up to 60 chars description>
  <insert long description, indented with spaces>
+
+Package: iotivity-snapshot
+Architecture: all
+Section: utils
+Depends: iotivity (= ${source:Version}), ${misc:Depends}
+Suggests: rzr
+Priority: extra
+Description: unreleased snapshot version
+ TODO: Remove on issue and upgrade iotivity
+ http://rzr.online.fr/q/snapshot#iotivity Feedback welcome
+
