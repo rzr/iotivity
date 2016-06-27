@@ -82,6 +82,66 @@ struct JObjectConverter : boost::static_visitor < jobject >
         return jRepresentation;
     }
 
+    // OCByteString and arrays:
+    jobject operator()(const OCByteString& val) const
+    {
+        size_t len = val.len;
+        jbyteArray jByteArray = env->NewByteArray(len);
+        if (!jByteArray) return nullptr;
+        const uint8_t* bytes = val.bytes;
+        env->SetByteArrayRegion(jByteArray, 0, len, reinterpret_cast<const jbyte*>(bytes));
+        return jByteArray;
+    }
+    jobject operator()(const std::vector<OCByteString>& val) const
+    {
+        jsize lenOuter = static_cast<jsize>(val.size());
+        jobjectArray jOuterArr = env->NewObjectArray(lenOuter, g_cls_byte1DArray, nullptr);
+        if (!jOuterArr)
+        {
+            return nullptr;
+        }
+        for (jsize i = 0; i < lenOuter; ++i)
+        {
+            jbyteArray jByteArray = (jbyteArray) operator()(val[i]);
+            if (!jByteArray) return nullptr;
+            if (env->ExceptionCheck()) return nullptr;
+            env->SetObjectArrayElement(jOuterArr, i, static_cast<jobject>(jByteArray));
+            if (env->ExceptionCheck()) return nullptr;
+            env->DeleteLocalRef(jByteArray);
+        }
+        return jOuterArr;
+    }
+    jobject operator()(const std::vector<std::vector<OCByteString>>& val) const
+    {
+        jsize lenOuter = static_cast<jsize>(val.size());
+        jobjectArray jOuterArr = env->NewObjectArray(lenOuter, g_cls_byte2DArray, nullptr);
+        if (!jOuterArr) return nullptr;
+        for (jsize i = 0; i < lenOuter; ++i)
+        {
+            jobjectArray jMiddleArr = (jobjectArray) operator()(val[i]);
+            if (!jMiddleArr) return nullptr;
+            env->SetObjectArrayElement(jOuterArr, i, jMiddleArr);
+            if (env->ExceptionCheck()) return nullptr;
+            env->DeleteLocalRef(jMiddleArr);
+        }
+        return jOuterArr;
+    }
+    jobject operator()(const std::vector<std::vector<std::vector<OCByteString>>>& val) const
+    {
+        jsize lenOuter = static_cast<jsize>(val.size());
+        jobjectArray jOuterArr = env->NewObjectArray(lenOuter, g_cls_byte3DArray, nullptr);
+        if (!jOuterArr) return nullptr;
+        for (jsize i = 0; i < lenOuter; ++i)
+        {
+            jobjectArray jMiddleArr = (jobjectArray) operator()(val[i]);
+            if (!jMiddleArr) return nullptr;
+            env->SetObjectArrayElement(jOuterArr, i, jMiddleArr);
+            if (env->ExceptionCheck()) return nullptr;
+            env->DeleteLocalRef(jMiddleArr);
+        }
+        return jOuterArr;
+    }
+
     // Sequences:
     jobject operator()(const std::vector<int>& val) const
     {

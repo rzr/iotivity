@@ -79,7 +79,10 @@ namespace OC
         std::vector<std::vector<std::vector<OC::OCRepresentation>>>,
 
         // used for binary data type
-        std::vector<uint8_t>
+        std::vector<uint8_t>,
+        OCByteString,
+        std::vector<std::vector<OCByteString>>,
+        std::vector<std::vector<std::vector<OCByteString>>>
     > AttributeValue;
 
     enum class AttributeType
@@ -91,7 +94,8 @@ namespace OC
         String,
         OCRepresentation,
         Vector,
-        Binary
+        Binary,
+        OCByteString
     };
 
     template<typename T>
@@ -131,6 +135,12 @@ namespace OC
     struct AttributeTypeConvert<OCRepresentation>
     {
         constexpr static AttributeType type = AttributeType::OCRepresentation;
+    };
+
+    template<>
+    struct AttributeTypeConvert<OCByteString>
+    {
+        constexpr static AttributeType type = AttributeType::OCByteString;
     };
 
     template<>

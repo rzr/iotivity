@@ -29,6 +29,16 @@
 #include <oic_string.h>
 #include "payload_logging.h"
 
+bool operator==(const OCByteString& lhs, const OCByteString& rhs)
+{
+     bool result = (lhs.len == rhs.len);
+     if (result)
+     {
+         result = (memcmp( lhs.bytes, rhs.bytes, lhs.len) == 0);
+     }
+     return result;
+}
+
 namespace OC
 {
     bool operator==(const OC::NullType&, const OC::NullType&)
@@ -221,6 +231,11 @@ namespace OCRepresentationEncodingTest
         startRep.setValue("DoubleAttr", 3.333);
         startRep.setValue("BoolAttr", true);
         startRep.setValue("StringAttr", std::string("String attr"));
+
+        uint8_t binval[] = {0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0x0, 0xA, 0xB, 0xC, 0xD, 0xE, 0xF};
+        OCByteString byteString = { binval, sizeof(binval) };
+        startRep.setValue("ByteStringAttr", byteString);
+
         OC::MessageContainer mc1;
         mc1.addRepresentation(startRep);
 
@@ -246,6 +261,8 @@ namespace OCRepresentationEncodingTest
         EXPECT_EQ(3.333, r.getValue<double>("DoubleAttr"));
         EXPECT_EQ(true, r.getValue<bool>("BoolAttr"));
         EXPECT_STREQ("String attr", r.getValue<std::string>("StringAttr").c_str());
+        const char *expectedByteString = "\\x1\\x2\\x3\\x4\\x5\\x6\\x7\\x8\\x9\\x0\\xa\\xb\\xc\\xd\\xe\\xf";
+        EXPECT_STREQ(expectedByteString, r.getValueToString("ByteStringAttr").c_str());
 
         OCPayloadDestroy(cparsed);
     }

@@ -172,6 +172,19 @@ static void OCCopyPropertyValueArray(OCRepPayloadValue* dest, OCRepPayloadValue*
                 dest->arr.objArray[i] = OCRepPayloadClone(source->arr.objArray[i]);
             }
             break;
+        case OCREP_PROP_BYTE_STRING:
+            dest->arr.ocByteStrArray = (OCByteString*)OICMalloc(dimTotal * sizeof(OCByteString));
+            VERIFY_PARAM_NON_NULL(TAG, dest->arr.ocByteStrArray, "Failed allocating memory");
+            for (size_t i = 0; i < dimTotal; ++i)
+            {
+                dest->arr.ocByteStrArray[i].bytes
+                    = (uint8_t*)OICMalloc(source->arr.ocByteStrArray[i].len * sizeof(uint8_t));
+                VERIFY_PARAM_NON_NULL(TAG, dest->arr.ocByteStrArray[i].bytes, "Failed allocating memory");
+                dest->arr.ocByteStrArray[i].len = source->arr.ocByteStrArray[i].len;
+                memcpy(dest->arr.ocByteStrArray[i].bytes, source->arr.ocByteStrArray[i].bytes,
+                        dest->arr.ocByteStrArray[i].len);
+            }
+            break;
         default:
             OIC_LOG(ERROR, TAG, "CopyPropertyValueArray invalid type");
             break;

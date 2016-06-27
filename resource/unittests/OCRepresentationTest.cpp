@@ -148,6 +148,19 @@ namespace OCRepresentationTest
         EXPECT_EQ("OC::OCRepresentation", rep[AttrName].getValueToString());
     }
 
+    TEST(OCRepresentationValueToString, ByteString)
+    {
+        static const std::string AttrName = "ByteStringTest";
+        static uint8_t binval[] = {0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0x0, 0xA, 0xB, 0xC, 0xD, 0xE, 0xF};
+
+        OCByteString bytestring = { binval, sizeof(binval) };
+        OCRepresentation rep;
+
+        rep.setValue(AttrName, bytestring);
+        const char *expected = "\\x1\\x2\\x3\\x4\\x5\\x6\\x7\\x8\\x9\\x0\\xa\\xb\\xc\\xd\\xe\\xf";
+        EXPECT_STREQ(expected, rep.getValueToString(AttrName).c_str() );
+    }
+
     TEST(OCRepresentationValueToString, IntegerVector)
     {
         static const std::string AttrName = "VectorTest";
