@@ -357,6 +357,123 @@ namespace OCRepresentationTest
         EXPECT_EQ(Expected, rep[AttrName].getValueToString());
     }
 
+    TEST(OCRepresentationValueToByteString, ByteStringVector)
+    {
+        static const std::string AttrName = "VectorTest";
+        OCRepresentation rep;
+
+        uint8_t binval1[] = {0x1, 0x2, 0x3, 0x4};
+        uint8_t binval2[] = {0x5, 0x6, 0x7, 0x8};
+        uint8_t binval3[] = {0x9, 0x0, 0xA, 0xB};
+        uint8_t binval4[] = {0xC, 0xD, 0xE, 0xF};
+        uint8_t binval5[] = {0x11, 0x12, 0x13, 0x14};
+        uint8_t binval6[] = {0x15, 0x16, 0x17, 0x18};
+
+        OCByteString s1 = { binval1, sizeof(binval1) };
+        OCByteString s2 = { binval2, sizeof(binval2) };
+        OCByteString s3 = { binval3, sizeof(binval3) };
+        OCByteString s4 = { binval4, sizeof(binval4) };
+        OCByteString s5 = { binval5, sizeof(binval5) };
+        OCByteString s6 = { binval6, sizeof(binval6) };
+
+        vector<OCByteString> vect { s1, s2, s3};
+        vector<OCByteString> vect2 { s4, s5, s6};
+        rep.setValue(AttrName, vect);
+        const char *expected1tob = "[\\x1\\x2\\x3\\x4 \\x5\\x6\\x7\\x8 \\x9\\x0\\xa\\xb ]";
+        EXPECT_EQ(expected1tob, rep.getValueToString(AttrName));
+        EXPECT_EQ(expected1tob, rep[AttrName].getValueToString());
+
+        rep.setValue(AttrName, vect2);
+        const char *expectedcto18 = "[\\xc\\xd\\xe\\xf \\x11\\x12\\x13\\x14 \\x15\\x16\\x17\\x18 ]";
+        EXPECT_EQ(expectedcto18, rep.getValueToString(AttrName));
+        EXPECT_EQ(expectedcto18, rep[AttrName].getValueToString());
+    }
+
+    TEST(OCRepresentationValueToByteString, ByteStringVectorVector)
+    {
+        static const std::string AttrName = "VectorTest";
+        OCRepresentation rep;
+
+                uint8_t binval1[] = {0x1, 0x2, 0x3, 0x4};
+        uint8_t binval2[] = {0x5, 0x6, 0x7, 0x8};
+        uint8_t binval3[] = {0x9, 0x0, 0xA, 0xB};
+        uint8_t binval4[] = {0xC, 0xD, 0xE, 0xF};
+        uint8_t binval5[] = {0x11, 0x12, 0x13, 0x14};
+        uint8_t binval6[] = {0x15, 0x16, 0x17, 0x18};
+
+        OCByteString s1 = { binval1, sizeof(binval1) };
+        OCByteString s2 = { binval2, sizeof(binval2) };
+        OCByteString s3 = { binval3, sizeof(binval3) };
+        OCByteString s4 = { binval4, sizeof(binval4) };
+        OCByteString s5 = { binval5, sizeof(binval5) };
+        OCByteString s6 = { binval6, sizeof(binval6) };
+
+        vector<OCByteString> vect1 {s1, s2, s3};
+        vector<OCByteString> vect2 {s4, s5, s6};
+        vector<vector<OCByteString>> vect{vect1, vect2};
+
+        rep.setValue(AttrName, vect);
+
+        const char *expected =
+          "[["
+          "\\x1\\x2\\x3\\x4 \\x5\\x6\\x7\\x8 \\x9\\x0\\xa\\xb "
+          "] ["
+          "\\xc\\xd\\xe\\xf \\x11\\x12\\x13\\x14 \\x15\\x16\\x17\\x18 "
+          "] ]"
+          ;
+
+        EXPECT_EQ(expected, rep.getValueToString(AttrName));
+        EXPECT_EQ(expected, rep[AttrName].getValueToString());
+    }
+
+    TEST(OCRepresentationValueToByteString, ByteStringVectorVectorVector)
+    {
+        static const std::string AttrName = "VectorTest";
+        OCRepresentation rep;
+
+        uint8_t binval1[] = {0x1, 0x2, 0x3, 0x4};
+        uint8_t binval2[] = {0x5, 0x6, 0x7, 0x8};
+        uint8_t binval3[] = {0x9, 0x0, 0xA, 0xB};
+        uint8_t binval4[] = {0xC, 0xD, 0xE, 0xF};
+        uint8_t binval5[] = {0x11, 0x12, 0x13, 0x14};
+        uint8_t binval6[] = {0x15, 0x16, 0x17, 0x18};
+        uint8_t binval7[] = {0x19, 0x10, 0x1A, 0x1B};
+        uint8_t binval8[] = {0x1C, 0x1D, 0x1E, 0x1F};
+        uint8_t binval9[] = {0x21, 0x22, 0x23, 0x24};
+
+        OCByteString s1 = { binval1, sizeof(binval1) };
+        OCByteString s2 = { binval2, sizeof(binval2) };
+        OCByteString s3 = { binval3, sizeof(binval3) };
+        OCByteString s4 = { binval4, sizeof(binval4) };
+        OCByteString s5 = { binval5, sizeof(binval5) };
+        OCByteString s6 = { binval6, sizeof(binval6) };
+        OCByteString s7 = { binval7, sizeof(binval7) };
+        OCByteString s8 = { binval8, sizeof(binval8) };
+        OCByteString s9 = { binval9, sizeof(binval9) };
+
+        vector<OCByteString> vect11 {s1, s2, s3};
+        vector<OCByteString> vect12 {s4, s5, s6};
+        vector<vector<OCByteString>> vect1{vect11, vect12};
+        vector<OCByteString> vect21 {s7, s8};
+        vector<OCByteString> vect22 {s9};
+        vector<vector<OCByteString>> vect2{vect21, vect22};
+        vector<vector<vector<OCByteString>>> vect{vect1, vect2};
+        rep.setValue(AttrName, vect);
+        static const std::string expected =
+          "[[["
+          "\\x1\\x2\\x3\\x4 \\x5\\x6\\x7\\x8 \\x9\\x0\\xa\\xb "
+          "] ["
+          "\\xc\\xd\\xe\\xf \\x11\\x12\\x13\\x14 \\x15\\x16\\x17\\x18 "
+          "] ] [["
+          "\\x19\\x10\\x1a\\x1b \\x1c\\x1d\\x1e\\x1f "
+          "] ["
+          "\\x21\\x22\\x23\\x24 "
+          "] ] ]";
+
+        EXPECT_EQ(expected, rep.getValueToString(AttrName));
+        EXPECT_EQ(expected, rep[AttrName].getValueToString());
+    }
+
     TEST(OCRepresentationValueToString, SubRepresentationVector)
     {
         static const std::string AttrName = "VectorTest";

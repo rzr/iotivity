@@ -34,7 +34,7 @@ bool operator==(const OCByteString& lhs, const OCByteString& rhs)
      bool result = (lhs.len == rhs.len);
      if (result)
      {
-         result = (memcmp( lhs.bytes, rhs.bytes, lhs.len) == 0);
+         result = (memcmp(lhs.bytes, rhs.bytes, lhs.len) == 0);
      }
      return result;
 }
@@ -242,9 +242,9 @@ namespace OCRepresentationEncodingTest
         OCRepPayload* cstart = mc1.getPayload();
         EXPECT_EQ(PAYLOAD_TYPE_REPRESENTATION, cstart->base.type);
 
-        uint8_t* cborData;
-        size_t cborSize;
-        OCPayload* cparsed;
+        uint8_t *cborData = nullptr;
+        size_t cborSize = 0;
+        OCPayload *cparsed = nullptr;
         EXPECT_EQ(OC_STACK_OK, OCConvertPayload((OCPayload*)cstart, &cborData, &cborSize));
         EXPECT_EQ(OC_STACK_OK, OCParsePayload(&cparsed, PAYLOAD_TYPE_REPRESENTATION,
                     cborData, cborSize));
@@ -364,11 +364,18 @@ namespace OCRepresentationEncodingTest
         std::vector<std::string> strarr {"item1", "item2", "item3", "item4"};
         std::vector<OC::OCRepresentation> objarr {subRep1, subRep2, subRep3};
 
+        uint8_t binval1[] = {0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8};
+        uint8_t binval2[] = {0x9, 0x0, 0xA, 0xB, 0xC, 0xD, 0xE, 0xF};
+        OCByteString byteString1 = { binval1, sizeof(binval1) };
+        OCByteString byteString2 = { binval2, sizeof(binval2) };
+        std::vector<OCByteString> bytestrarr { byteString1, byteString2 };
+
         startRep["iarr"] = iarr;
         startRep["darr"] = darr;
         startRep["barr"] = barr;
         startRep["strarr"] = strarr;
         startRep["objarr"] = objarr;
+        startRep["bytestrarr"] = bytestrarr;
 
         // Encode/decode
         OC::MessageContainer mc1;
@@ -377,9 +384,9 @@ namespace OCRepresentationEncodingTest
         OCRepPayload* cstart = mc1.getPayload();
         EXPECT_EQ(PAYLOAD_TYPE_REPRESENTATION, cstart->base.type);
 
-        uint8_t* cborData;
-        size_t cborSize;
-        OCPayload* cparsed;
+        uint8_t *cborData = nullptr;
+        size_t cborSize = 0;
+        OCPayload *cparsed = nullptr;
         EXPECT_EQ(OC_STACK_OK, OCConvertPayload((OCPayload*)cstart, &cborData, &cborSize));
         EXPECT_EQ(OC_STACK_OK, OCParsePayload(&cparsed, PAYLOAD_TYPE_REPRESENTATION,
                     cborData, cborSize));
@@ -397,12 +404,14 @@ namespace OCRepresentationEncodingTest
         std::vector<bool> barr2 = r["barr"];
         std::vector<std::string> strarr2 = r["strarr"];
         std::vector<OC::OCRepresentation> objarr2 = r["objarr"];
+        std::vector<OCByteString> bytestrarr2 = r["bytestrarr"];
 
         EXPECT_EQ(iarr, iarr2);
         EXPECT_EQ(darr, darr2);
         EXPECT_EQ(barr, barr2);
         EXPECT_EQ(strarr, strarr2);
         EXPECT_EQ(objarr, objarr2);
+        EXPECT_EQ(bytestrarr, bytestrarr2);
         OCPayloadDestroy(cparsed);
     }
 
@@ -427,11 +436,25 @@ namespace OCRepresentationEncodingTest
         std::vector<std::vector<OC::OCRepresentation>> objarr
         {{subRep1, subRep2, subRep3}, {subRep3, subRep2, subRep1}};
 
+        uint8_t binval1[] = {0x1, 0x2, 0x3, 0x4};
+        uint8_t binval2[] = {0x5, 0x6, 0x7, 0x8};
+        uint8_t binval3[] = {0x9, 0x0, 0xA, 0xB};
+        uint8_t binval4[] = {0xC, 0xD, 0xE, 0xF};
+        OCByteString byteString1 = { binval1, sizeof(binval1) };
+        OCByteString byteString2 = { binval2, sizeof(binval2) };
+        OCByteString byteString3 = { binval3, sizeof(binval3) };
+        OCByteString byteString4 = { binval4, sizeof(binval4) };
+        std::vector<std::vector<OCByteString>> bytestrarr
+          {
+            {byteString1, byteString2},{byteString3, byteString4}
+          };
+
         startRep["iarr"] = iarr;
         startRep["darr"] = darr;
         startRep["barr"] = barr;
         startRep["strarr"] = strarr;
         startRep["objarr"] = objarr;
+        startRep["bytestrarr"] = bytestrarr;
 
         // Encode/decode
         OC::MessageContainer mc1;
@@ -440,9 +463,9 @@ namespace OCRepresentationEncodingTest
         OCRepPayload* cstart = mc1.getPayload();
         EXPECT_EQ(PAYLOAD_TYPE_REPRESENTATION, cstart->base.type);
 
-        uint8_t* cborData;
-        size_t cborSize;
-        OCPayload* cparsed;
+        uint8_t *cborData = nullptr;
+        size_t cborSize = 0;
+        OCPayload *cparsed = nullptr;
         EXPECT_EQ(OC_STACK_OK, OCConvertPayload((OCPayload*)cstart, &cborData, &cborSize));
         EXPECT_EQ(OC_STACK_OK, OCParsePayload(&cparsed, PAYLOAD_TYPE_REPRESENTATION,
                     cborData, cborSize));
@@ -460,12 +483,14 @@ namespace OCRepresentationEncodingTest
         std::vector<std::vector<bool>> barr2 = r["barr"];
         std::vector<std::vector<std::string>> strarr2 = r["strarr"];
         std::vector<std::vector<OC::OCRepresentation>> objarr2 = r["objarr"];
+        std::vector<std::vector<OCByteString>> bytestrarr2 = r["bytestrarr"];
 
         EXPECT_EQ(iarr, iarr2);
         EXPECT_EQ(darr, darr2);
         EXPECT_EQ(barr, barr2);
         EXPECT_EQ(strarr, strarr2);
         EXPECT_EQ(objarr, objarr2);
+        EXPECT_EQ(bytestrarr, bytestrarr2);
         OCPayloadDestroy(cparsed);
     }
 
@@ -490,12 +515,27 @@ namespace OCRepresentationEncodingTest
         std::vector<std::vector<OC::OCRepresentation>> objarr
         {{subRep1, subRep3}, {subRep3, subRep2, subRep1}};
 
+        uint8_t binval1[] = {0x1};
+        uint8_t binval3[] = {0x2, 0x3, 0x4};
+        uint8_t binval4[] = {0x5, 0x6, 0x7, 0x8};
+        OCByteString byteString1 = { binval1, sizeof(binval1) };
+        OCByteString byteString3 = { binval3, sizeof(binval3) };
+        OCByteString byteString4 = { binval4, sizeof(binval4) };
+
+        std::vector<std::vector<OCByteString>> bytestrarr
+          {
+            {byteString1}, {byteString3, byteString4}
+          };
+
         startRep["iarr"] = iarr;
         startRep["darr"] = darr;
         startRep["barr"] = barr;
         startRep["strarr"] = strarr;
         startRep["objarr"] = objarr;
 
+        startRep["bytestrarr"] = bytestrarr;
+
+        EXPECT_STREQ("[[\\x1 ] [\\x2\\x3\\x4 \\x5\\x6\\x7\\x8 ] ]", startRep.getValueToString("bytestrarr").c_str());
         // Encode/decode
         OC::MessageContainer mc1;
         mc1.addRepresentation(startRep);
@@ -503,12 +543,16 @@ namespace OCRepresentationEncodingTest
         OCRepPayload* cstart = mc1.getPayload();
         EXPECT_EQ(PAYLOAD_TYPE_REPRESENTATION, cstart->base.type);
 
-        uint8_t* cborData;
-        size_t cborSize;
-        OCPayload* cparsed;
-        EXPECT_EQ(OC_STACK_OK, OCConvertPayload((OCPayload*)cstart, &cborData, &cborSize));
-        EXPECT_EQ(OC_STACK_OK, OCParsePayload(&cparsed, PAYLOAD_TYPE_REPRESENTATION,
-                    cborData, cborSize));
+        uint8_t *cborData = nullptr;
+        size_t cborSize = 0;
+        OCPayload *cparsed = nullptr;
+        OCStackResult result = OCConvertPayload((OCPayload*)cstart, &cborData, &cborSize);
+        result = OCParsePayload(&cparsed, PAYLOAD_TYPE_REPRESENTATION,
+                                cborData, cborSize);
+
+        EXPECT_EQ(OC_STACK_OK, result);
+        EXPECT_EQ(OC_STACK_OK, result);
+
         OCPayloadDestroy((OCPayload*)cstart);
         OICFree(cborData);
 
@@ -524,6 +568,8 @@ namespace OCRepresentationEncodingTest
         std::vector<std::vector<std::string>> strarr2 = r["strarr"];
         std::vector<std::vector<OC::OCRepresentation>> objarr2 = r["objarr"];
 
+        std::vector<std::vector<OCByteString>> bytestrarr2 = r["bytestrarr"];
+
         // Note: due to the way that the CSDK works, all 2d arrays need to be rectangular.
         // Since std::vector doesn't require this, items received on the other side end up
         // being backfilled.  This section removes the backfilling
@@ -532,12 +578,16 @@ namespace OCRepresentationEncodingTest
         barr2[1].pop_back();
         strarr2[0].pop_back();
         objarr2[0].pop_back();
+        bytestrarr2[0].pop_back();
 
         EXPECT_EQ(iarr, iarr2);
         EXPECT_EQ(darr, darr2);
         EXPECT_EQ(barr, barr2);
         EXPECT_EQ(strarr, strarr2);
         EXPECT_EQ(objarr, objarr2);
+        EXPECT_EQ(bytestrarr.size(), bytestrarr2.size());
+        EXPECT_EQ(bytestrarr, bytestrarr2);
+
         OCPayloadDestroy(cparsed);
     }
 
@@ -576,11 +626,45 @@ namespace OCRepresentationEncodingTest
                 {{subRep3, subRep2},{subRep1, subRep2}}
             };
 
+        uint8_t binval1[] = {0x1, 0x2, 0x3, 0x4};
+        uint8_t binval2[] = {0x5, 0x6, 0x7, 0x8};
+        uint8_t binval3[] = {0x9, 0x0, 0xA, 0xB};
+        uint8_t binval4[] = {0xC, 0xD, 0xE, 0xF};
+        uint8_t binval5[] = {0x11, 0x12, 0x13, 0x14};
+        uint8_t binval6[] = {0x15, 0x16, 0x17, 0x18};
+        uint8_t binval7[] = {0x19, 0x10, 0x1A, 0x1B};
+        uint8_t binval8[] = {0x1C, 0x1D, 0x1E, 0x1F};
+        uint8_t binval9[] = {0x21, 0x22, 0x23, 0x24};
+        uint8_t binval10[] = {0x25, 0x26, 0x27, 0x28};
+        uint8_t binval11[] = {0x29, 0x20, 0x2A, 0x2B};
+        uint8_t binval12[] = {};
+
+        OCByteString byteString1 = { binval1, sizeof(binval1) };
+        OCByteString byteString2 = { binval2, sizeof(binval2) };
+        OCByteString byteString3 = { binval3, sizeof(binval3) };
+        OCByteString byteString4 = { binval4, sizeof(binval4) };
+        OCByteString byteString5 = { binval5, sizeof(binval5) };
+        OCByteString byteString6 = { binval6, sizeof(binval6) };
+        OCByteString byteString7 = { binval7, sizeof(binval7) };
+        OCByteString byteString8 = { binval8, sizeof(binval8) };
+        OCByteString byteString9 = { binval9, sizeof(binval9) };
+        OCByteString byteString10 = { binval10, sizeof(binval10) };
+        OCByteString byteString11 = { binval11, sizeof(binval11) };
+        OCByteString byteString12 = { binval12, sizeof(binval12) };
+
+        std::vector<std::vector<std::vector<OCByteString>>> bytestrarr
+      {
+       {{byteString1, byteString2}, {byteString3, byteString4}},
+       {{byteString5, byteString6}, {byteString7, byteString8}},
+       {{byteString9, byteString10}, {byteString11, byteString12}}
+      };
+
         startRep["iarr"] = iarr;
         startRep["darr"] = darr;
         startRep["barr"] = barr;
         startRep["strarr"] = strarr;
         startRep["objarr"] = objarr;
+        startRep["bytestrarr"] = bytestrarr;
 
         // Encode/decode
         OC::MessageContainer mc1;
@@ -589,9 +673,9 @@ namespace OCRepresentationEncodingTest
         OCRepPayload* cstart = mc1.getPayload();
         EXPECT_EQ(PAYLOAD_TYPE_REPRESENTATION, cstart->base.type);
 
-        uint8_t* cborData;
-        size_t cborSize;
-        OCPayload* cparsed;
+        uint8_t *cborData = nullptr;
+        size_t cborSize = 0;
+        OCPayload *cparsed = nullptr;
         EXPECT_EQ(OC_STACK_OK, OCConvertPayload((OCPayload*)cstart, &cborData, &cborSize));
         EXPECT_EQ(OC_STACK_OK, OCParsePayload(&cparsed, PAYLOAD_TYPE_REPRESENTATION,
                     cborData, cborSize));
@@ -609,12 +693,14 @@ namespace OCRepresentationEncodingTest
         std::vector<std::vector<std::vector<bool>>> barr2 = r["barr"];
         std::vector<std::vector<std::vector<std::string>>> strarr2 = r["strarr"];
         std::vector<std::vector<std::vector<OC::OCRepresentation>>> objarr2 = r["objarr"];
+        std::vector<std::vector<std::vector<OCByteString>>> bytestrarr2 = r["bytestrarr"];
 
         EXPECT_EQ(iarr, iarr2);
         EXPECT_EQ(darr, darr2);
         EXPECT_EQ(barr, barr2);
         EXPECT_EQ(strarr, strarr2);
         EXPECT_EQ(objarr, objarr2);
+        EXPECT_EQ(bytestrarr, bytestrarr2);
         OCPayloadDestroy(cparsed);
     }
 
@@ -661,12 +747,44 @@ namespace OCRepresentationEncodingTest
                 {{subRep2, subRep3},{subRep2}},
                 {{subRep3, subRep2}}
             };
+        uint8_t binval1[] = {0x1, 0x2, 0x3, 0x4};
+        uint8_t binval2[] = {0x5, 0x6, 0x7, 0x8};
+        uint8_t binval3[] = {0x9, 0x0, 0xA, 0xB};
+        uint8_t binval4[] = {0xC, 0xD, 0xE, 0xF};
+        uint8_t binval5[] = {0x11, 0x12, 0x13, 0x14};
+        uint8_t binval6[] = {0x15, 0x16, 0x17, 0x18};
+        uint8_t binval8[] = {0x1C, 0x1D, 0x1E, 0x1F};
+        uint8_t binval9[] = {0x21, 0x22, 0x23, 0x24};
+        uint8_t binval10[] = {0x25, 0x26, 0x27, 0x28};
+        uint8_t binval11[] = {0x29, 0x20, 0x2A, 0x2B};
+        uint8_t binval12[] = {};
+
+        OCByteString byteString1 = { binval1, sizeof(binval1) };
+        OCByteString byteString2 = { binval2, sizeof(binval2) };
+        OCByteString byteString3 = { binval3, sizeof(binval3) };
+        OCByteString byteString4 = { binval5, sizeof(binval4) };
+        OCByteString byteString5 = { binval5, sizeof(binval5) };
+        OCByteString byteString6 = { binval6, sizeof(binval6) };
+
+        OCByteString byteString8 = { binval8, sizeof(binval8) };
+        OCByteString byteString9 = { binval9, sizeof(binval6) };
+        OCByteString byteString10 = { binval10, sizeof(binval10) };
+        OCByteString byteString11 = { binval11, sizeof(binval11) };
+        OCByteString byteString12 = { binval12, sizeof(binval12) };
+
+        std::vector<std::vector<std::vector<OCByteString>>> bytestrarr
+            {
+               { {byteString1, byteString2}, {byteString3, byteString4} },
+               { {byteString5, byteString6}, {byteString8} },
+               { {byteString9, byteString10},{byteString11, byteString12} }
+            };
 
         startRep["iarr"] = iarr;
         startRep["darr"] = darr;
         startRep["barr"] = barr;
         startRep["strarr"] = strarr;
         startRep["objarr"] = objarr;
+        startRep["bytestrarr"] = bytestrarr;
 
         // Encode/decode
         OC::MessageContainer mc1;
@@ -675,9 +793,9 @@ namespace OCRepresentationEncodingTest
         OCRepPayload* cstart = mc1.getPayload();
         EXPECT_EQ(PAYLOAD_TYPE_REPRESENTATION, cstart->base.type);
 
-        uint8_t* cborData;
-        size_t cborSize;
-        OCPayload* cparsed;
+        uint8_t *cborData = nullptr;
+        size_t cborSize = 0;
+        OCPayload *cparsed = nullptr;
         EXPECT_EQ(OC_STACK_OK, OCConvertPayload((OCPayload*)cstart, &cborData, &cborSize));
         EXPECT_EQ(OC_STACK_OK, OCParsePayload(&cparsed, PAYLOAD_TYPE_REPRESENTATION,
                     cborData, cborSize));
@@ -695,6 +813,7 @@ namespace OCRepresentationEncodingTest
         std::vector<std::vector<std::vector<bool>>> barr2 = r["barr"];
         std::vector<std::vector<std::vector<std::string>>> strarr2 = r["strarr"];
         std::vector<std::vector<std::vector<OC::OCRepresentation>>> objarr2 = r["objarr"];
+        std::vector<std::vector<std::vector<OCByteString>>> bytestrarr2 = r["bytestrarr"];
 
         // Note: due to the way that the CSDK works, all 3d arrays need to be cuboidal.
         // Since std::vector doesn't require this, items received on the other side end up
@@ -705,12 +824,14 @@ namespace OCRepresentationEncodingTest
         strarr2[1][1].pop_back();
         objarr2[1][1].pop_back();
         objarr2[2].pop_back();
+        bytestrarr2[1][1].pop_back();
 
         EXPECT_EQ(iarr, iarr2);
         EXPECT_EQ(darr, darr2);
         EXPECT_EQ(barr, barr2);
         EXPECT_EQ(strarr, strarr2);
         EXPECT_EQ(objarr, objarr2);
+        EXPECT_EQ(bytestrarr, bytestrarr2);
         OCPayloadDestroy(cparsed);
     }
 

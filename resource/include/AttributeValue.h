@@ -81,6 +81,8 @@ namespace OC
         // used for binary data type
         std::vector<uint8_t>,
         OCByteString,
+
+        std::vector<OCByteString>,
         std::vector<std::vector<OCByteString>>,
         std::vector<std::vector<std::vector<OCByteString>>>
     > AttributeValue;
