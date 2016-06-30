@@ -446,13 +446,13 @@ namespace OC
       template <typename K, typename T>
         void operator() (std::pair<const K, T>& pair) const
         {
-             std::cout<<"!!!p"<<__PRETTY_FUNCTION__<<std::endl;
+             std::cout<<"###p"<<__PRETTY_FUNCTION__<<std::endl;
              operator()(pair.second);
         }
         template <typename K, typename T>
         void operator() (std::map<const K, T>& container) const
         {
-              std::cout<<"!!!m "<<__PRETTY_FUNCTION__<<std::endl;
+              std::cout<<"###m "<<__PRETTY_FUNCTION__<<std::endl;
               //for_each (container.begin(), container.end(),
               //             OCDeleteVisitor());
               // for_each (container.begin(), container.end(), *getInstance();
@@ -476,12 +476,14 @@ namespace OC
         template <typename K, typename T>
         void operator() (std::pair<const K, T>& pair) const
         {
+          std::cout<<"###p "<<__PRETTY_FUNCTION__<<std::endl;
             operator()(pair.second);
         }
 
         template <typename K, typename T>
         void operator() (std::map<const K, T>& container) const
         {
+          std::cout<<"###m "<<__PRETTY_FUNCTION__<<std::endl;
           for_each (container.begin(), container.end(), OCDeleteVisitor());
         }
 
