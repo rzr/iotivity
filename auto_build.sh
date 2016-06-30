@@ -183,8 +183,8 @@ function unit_tests()
 {
 	echo "*********** Unit test Start *************"
 	scons resource RELEASE=false -c
-	scons resource LOGGING=false RELEASE=false
-	scons resource TEST=1 RELEASE=false
+	scons resource LOGGING=false RELEASE=false V=1
+	scons resource TEST=1 RELEASE=false V=1
 	echo "*********** Unit test Stop *************"
 }
 
