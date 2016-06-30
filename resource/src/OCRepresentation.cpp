@@ -412,7 +412,7 @@ namespace OC
        : public boost::static_visitor<>
     {
     public:
-      static attrib_visitor const * const getInstance();
+      static attrib_visitor  *  getInstance();
 
         // Do nothing by default but rely on default destructor
         template <typename T>
@@ -437,28 +437,30 @@ namespace OC
             for_each (vector.begin(), vector.end(), *getInstance());
         }
 
-      void operator() (OC::AttributeValue& item) const
+        void operator() (OC::AttributeValue& item) const
         {
-          std::cout<<"###p"<<__PRETTY_FUNCTION__<<std::endl;
-          //  boost::apply_visitor( *getInstance(), item);
+             std::cout<<"###p"<<__PRETTY_FUNCTION__<<std::endl;
+             //boost::apply_visitor( *getInstance(), item);
         }
 
       template <typename K, typename T>
         void operator() (std::pair<const K, T>& pair) const
         {
-          std::cout<<"###p"<<__PRETTY_FUNCTION__<<std::endl;
-          //            operator()(pair.second);
+             std::cout<<"!!!p"<<__PRETTY_FUNCTION__<<std::endl;
+             operator()(pair.second);
         }
         template <typename K, typename T>
         void operator() (std::map<const K, T>& container) const
         {
-            std::cout<<"###m "<<__PRETTY_FUNCTION__<<std::endl;
-            //for_each (container.begin(), container.end(), OCDeleteVisitor());
+              std::cout<<"!!!m "<<__PRETTY_FUNCTION__<<std::endl;
+              //for_each (container.begin(), container.end(),
+              //             OCDeleteVisitor());
+              // for_each (container.begin(), container.end(), *getInstance();
         }
 
     };
   
-    attrib_visitor const * const attrib_visitor::getInstance()
+    attrib_visitor  *  attrib_visitor::getInstance()
     {
         static attrib_visitor instance;
         return &instance;
@@ -474,14 +476,12 @@ namespace OC
         template <typename K, typename T>
         void operator() (std::pair<const K, T>& pair) const
         {
-          std::cout<<"###p"<<__PRETTY_FUNCTION__<<std::endl;
             operator()(pair.second);
         }
 
         template <typename K, typename T>
         void operator() (std::map<const K, T>& container) const
         {
-            std::cout<<"###m "<<__PRETTY_FUNCTION__<<std::endl;
           for_each (container.begin(), container.end(), OCDeleteVisitor());
         }
 
