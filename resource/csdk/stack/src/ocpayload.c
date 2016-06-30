@@ -526,7 +526,7 @@ static bool OCRepPayloadSetProp(OCRepPayload* payload, const char* name,
                val->str = (char*)value;
                return val->str != NULL;
         case OCREP_PROP_BYTE_STRING:
-               val->ocByteStr = *((OCByteString*) value);
+               val->ocByteStr = *(OCByteString*)value;
                return val->ocByteStr.bytes != NULL;
                break;
         case OCREP_PROP_NULL:
