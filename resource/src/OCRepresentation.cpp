@@ -405,6 +405,66 @@ namespace OC
         }
     }
 
+    /* hack to cleanup C structures correctly including boost variants**/
+    struct OCDeleteVisitor;
+    class attrib_visitor
+       : public boost::static_visitor<>
+    {
+    public:
+        // Do nothing by default and rely on default destructor
+        template <typename T>
+        void operator()(T&) const
+        {
+        }
+
+        void operator()(OCByteString & operand) const
+        {
+           std::cout<<"###x"<<__PRETTY_FUNCTION__<<std::endl;
+           OICFree(operand.bytes);
+           operand.bytes = NULL;
+        }
+    };
+
+    struct OCDeleteVisitor : boost::static_visitor<>
+    {
+        template <typename T>
+        void operator() (T&) const
+        {
+        }
+
+        template <typename K, typename T>
+        void operator() (std::pair<const K, T>& pair) const
+        {
+            operator()(pair.second);
+        }
+
+        template <typename K, typename T>
+        void operator() (std::map<const K, T>& container) const
+        {
+            for_each (container.begin(), container.end(), OCDeleteVisitor());
+        }
+
+        void operator() (OC::AttributeValue& item) const
+        {
+            boost::apply_visitor( attrib_visitor(), item);
+        }
+
+        template <typename T>
+        void operator()(std::vector<T>& vector) const
+        {
+            std::cout<<"###v"<<__PRETTY_FUNCTION__<<std::endl;
+            for_each (vector.begin(), vector.end(), OCDeleteVisitor());
+        }
+
+    };
+
+    OCRepresentation::~OCRepresentation()
+    {
+        OCDeleteVisitor v;
+        //v(m_values);
+        for_each (m_values.begin(), m_values.end(), OCDeleteVisitor());
+    }
+
     OCRepPayload* OCRepresentation::getPayload() const
     {
         OCRepPayload* root = OCRepPayloadCreate();
