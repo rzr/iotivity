@@ -394,7 +394,7 @@ namespace OCRepresentationTest
         static const std::string AttrName = "VectorTest";
         OCRepresentation rep;
 
-                uint8_t binval1[] = {0x1, 0x2, 0x3, 0x4};
+        uint8_t binval1[] = {0x1, 0x2, 0x3, 0x4};
         uint8_t binval2[] = {0x5, 0x6, 0x7, 0x8};
         uint8_t binval3[] = {0x9, 0x0, 0xA, 0xB};
         uint8_t binval4[] = {0xC, 0xD, 0xE, 0xF};

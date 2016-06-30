@@ -424,7 +424,7 @@ namespace OC
                     <<std::endl
                     <<std::hex<<&operand.bytes
                     <<std::endl;
-           //OICFree(operand.bytes);
+           OICFree(operand.bytes);
            operand.bytes = NULL;
         }
 
@@ -475,7 +475,7 @@ namespace OC
         }
     };
 
-    OCDeleteVisitor*OCDeleteVisitor::getInstance()
+    OCDeleteVisitor* OCDeleteVisitor::getInstance()
     {
         static OCDeleteVisitor instance;
         return &instance;
@@ -486,6 +486,13 @@ namespace OC
     {
       //std::cout<<"###o "<<__PRETTY_FUNCTION__<<std::endl;
       OCDeleteVisitor::getInstance()->operator()(m_values);
+    }
+
+    void OCRepresentation::setValue(const std::string& str, OCByteString&& item)
+    {
+         OCByteString copy;
+         OCByteStringCopy( &copy, &item);
+         m_values[str] = copy;
     }
 
     OCRepPayload* OCRepresentation::getPayload() const
