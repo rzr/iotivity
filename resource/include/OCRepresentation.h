@@ -107,7 +107,7 @@ namespace OC
 
             OCRepresentation& operator=(OCRepresentation&&) = default;
 
-            virtual ~OCRepresentation(){}
+            virtual ~OCRepresentation();
 
             void setDevAddr(const OCDevAddr addr);
 
