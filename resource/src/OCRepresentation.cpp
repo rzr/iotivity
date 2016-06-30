@@ -433,15 +433,11 @@ namespace OC
         void operator()(std::vector<T>& vector) const
         {
             std::cout<<"###v"<<__PRETTY_FUNCTION__<<std::endl;
-            for_each (vector.begin(), vector.end(), *getInstance());
+            //for_each (vector.begin(), vector.end(), *getInstance());
         }
 
-        void operator() (OC::AttributeValue& item) const
-        {
-             std::cout<<"###p"<<__PRETTY_FUNCTION__<<std::endl;
-             //boost::apply_visitor( *getInstance(), item);
-        }
 
+#if 0
         template <typename K, typename T>
         void operator() (std::pair<const K, T>& pair) const
         {
@@ -452,11 +448,9 @@ namespace OC
         void operator() (std::map<const K, T>& container) const
         {
               std::cout<<"###m "<<__PRETTY_FUNCTION__<<std::endl;
-              //for_each (container.begin(), container.end(),
-              //             OCDeleteVisitor());
-              // for_each (container.begin(), container.end(), *getInstance();
+              //for_each (container.begin(), container.end(), *getInstance());
         }
-
+#endif
     };
   
     attrib_visitor  *  attrib_visitor::getInstance()
@@ -487,15 +481,13 @@ namespace OC
           for_each (container.begin(), container.end(), OCDeleteVisitor());
         }
 
+
         void operator() (OC::AttributeValue& item) const
         {
-          boost::apply_visitor( OCDeleteVisitor(), item);
+          boost::apply_visitor( attrib_visitor(), item);
         }
 
     };
-  //      static OCDeleteVisitor getInstance() {
-  //        static OCDeleteVisitor instance; return instance;
-  //  }
 
     OCRepresentation::~OCRepresentation()
     {
