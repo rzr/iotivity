@@ -406,63 +406,96 @@ namespace OC
     }
 
     /* hack to cleanup C structures correctly including boost variants**/
+    class attrib_visitor;
     struct OCDeleteVisitor;
     class attrib_visitor
        : public boost::static_visitor<>
     {
     public:
-        // Do nothing by default and rely on default destructor
+      static attrib_visitor const * const getInstance();
+
+        // Do nothing by default but rely on default destructor
         template <typename T>
         void operator()(T&) const
         {
         }
 
-        void operator()(OCByteString & operand) const
+        void operator()(OCByteString& operand) const
         {
-           std::cout<<"###x"<<__PRETTY_FUNCTION__<<std::endl;
+           std::cout<<"###x"<<__PRETTY_FUNCTION__
+                    <<std::endl
+                    <<std::hex<<operand.bytes
+                    <<std::endl;
            OICFree(operand.bytes);
            operand.bytes = NULL;
-        }
-    };
-
-    struct OCDeleteVisitor : boost::static_visitor<>
-    {
-        template <typename T>
-        void operator() (T&) const
-        {
-        }
-
-        template <typename K, typename T>
-        void operator() (std::pair<const K, T>& pair) const
-        {
-            operator()(pair.second);
-        }
-
-        template <typename K, typename T>
-        void operator() (std::map<const K, T>& container) const
-        {
-            for_each (container.begin(), container.end(), OCDeleteVisitor());
-        }
-
-        void operator() (OC::AttributeValue& item) const
-        {
-            boost::apply_visitor( attrib_visitor(), item);
         }
 
         template <typename T>
         void operator()(std::vector<T>& vector) const
         {
             std::cout<<"###v"<<__PRETTY_FUNCTION__<<std::endl;
-            for_each (vector.begin(), vector.end(), OCDeleteVisitor());
+            for_each (vector.begin(), vector.end(), *getInstance());
+        }
+
+      void operator() (OC::AttributeValue& item) const
+        {
+          std::cout<<"###p"<<__PRETTY_FUNCTION__<<std::endl;
+          //  boost::apply_visitor( *getInstance(), item);
+        }
+
+      template <typename K, typename T>
+        void operator() (std::pair<const K, T>& pair) const
+        {
+          std::cout<<"###p"<<__PRETTY_FUNCTION__<<std::endl;
+          //            operator()(pair.second);
+        }
+        template <typename K, typename T>
+        void operator() (std::map<const K, T>& container) const
+        {
+            std::cout<<"###m "<<__PRETTY_FUNCTION__<<std::endl;
+            //for_each (container.begin(), container.end(), OCDeleteVisitor());
+        }
+
+    };
+  
+    attrib_visitor const * const attrib_visitor::getInstance()
+    {
+        static attrib_visitor instance;
+        return &instance;
+    }
+
+    struct OCDeleteVisitor : boost::static_visitor<>
+    {
+
+        template <typename T>
+        void operator() (T&) const
+        {
+        }
+        template <typename K, typename T>
+        void operator() (std::pair<const K, T>& pair) const
+        {
+          std::cout<<"###p"<<__PRETTY_FUNCTION__<<std::endl;
+            operator()(pair.second);
+        }
+
+        template <typename K, typename T>
+        void operator() (std::map<const K, T>& container) const
+        {
+            std::cout<<"###m "<<__PRETTY_FUNCTION__<<std::endl;
+          for_each (container.begin(), container.end(), OCDeleteVisitor());
+        }
+
+        void operator() (OC::AttributeValue& item) const
+        {
+          boost::apply_visitor( OCDeleteVisitor(), item);
         }
 
     };
 
     OCRepresentation::~OCRepresentation()
     {
-        OCDeleteVisitor v;
-        //v(m_values);
-        for_each (m_values.begin(), m_values.end(), OCDeleteVisitor());
+      OCDeleteVisitor()(m_values);
+      for_each (m_values.begin(), m_values.end(), OCDeleteVisitor());
     }
 
     OCRepPayload* OCRepresentation::getPayload() const
