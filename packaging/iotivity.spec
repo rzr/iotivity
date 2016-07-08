@@ -1,8 +1,8 @@
 Name: iotivity
-Version: 1.1.0
+Version: 1.1.1+RC1
 Release: 0
-Summary: IoTivity Base Stack & IoTivity Services
-Group: System Environment/Libraries
+Summary: IoT Connectivity sponsored by the OIC
+Group: Network & Connectivity/Other
 License: Apache-2.0
 URL: https://www.iotivity.org/
 Source0: %{name}-%{version}.tar.bz2
@@ -22,14 +22,17 @@ BuildRequires:  boost-thread
 BuildRequires:  boost-system
 BuildRequires:  boost-filesystem
 BuildRequires:  boost-program-options
-BuildRequires:  pkgconfig(glib-2.0)
 BuildRequires:  pkgconfig(uuid)
 BuildRequires:  pkgconfig(dlog)
 BuildRequires:  pkgconfig(capi-network-wifi)
 BuildRequires:  pkgconfig(capi-network-bluetooth)
+BuildRequires:  pkgconfig(glib-2.0)
 BuildRequires:  pkgconfig(sqlite3)
 Requires(postun): /sbin/ldconfig
 Requires(post): /sbin/ldconfig
+
+%define RPM_ARCH %{_arch}
+%define TARGET_OS tizen
 
 ## If tizen 2.x, RELEASE follows tizen_build_binary_release_type_eng. ##
 ## and if tizen 3.0, RELEASE follows tizen_build_devel_mode. ##
@@ -40,13 +43,18 @@ Requires(post): /sbin/ldconfig
 %define RELEASE True
 %define BUILDTYPE release
 %endif
-%define release_mode ${RELEASE}
-
 
 %{!?TARGET_TRANSPORT: %define TARGET_TRANSPORT IP}
-%{!?SECURED: %define SECURED 0}
+%{!?SECURED: %define SECURED 1}
 %{!?LOGGING: %define LOGGING True}
 %{!?ROUTING: %define ROUTING GW}
+
+# overide modes
+#%%define TARGET_TRANSPORT BLE
+%define RELEASE False
+%define BUILDTYPE debug
+
+
 
 %description
 IoTivity Base (RICH & LITE) Stack & IoTivity Services
@@ -73,10 +81,6 @@ Contains samples applications that use %{name}.
 %prep
 %setup -q -n %{name}-%{version} -a 10 -a 100 -a 101 -a 102 -a 103
 
-%define secure_mode 0
-%define RPM_ARCH %{_arch}
-%define TARGET_OS tizen
-
 # overide to prevent issues
 %define _smp_mflags -j4
 
@@ -97,28 +101,23 @@ Contains samples applications that use %{name}.
 
 %build
 
-cp -rfv hippomocks-2f40aa11e31499432283b67f9d3449a3cd7b9c4d  extlibs/hippomocks-master
+ln -fs ../../hippomocks-*  extlibs/hippomocks-master
 ln -fs ../../gtest-1.7.0  extlibs/gtest/gtest-1.7.0
-ln -fs ../../sqlite-amalgamation-3081101 extlibs/sqlite3/
+ln -fs ../../sqlite-amalgamation-3081101/*.{c,h} extlibs/sqlite3/
+ls extlibs/sqlite3/
 
 scons %{?_smp_mflags} \
     RELEASE=%{RELEASE} \
     SECURED=%{SECURED} \
     TARGET_ARCH=%{RPM_ARCH} \
     TARGET_OS=%{TARGET_OS} \
-    TARGET_TRANSPORT=IP
+    TARGET_TRANSPORT=%{TARGET_TRANSPORT} \
+    VERBOSE=1
 
 
 %install
-rm -rf %{buildroot}
 
 CFLAGS="${CFLAGS:-%optflags}" ; export CFLAGS ;
-echo scons install --install-sandbox=%{buildroot} --prefix=%{_prefix} \
-    TARGET_OS=%{TARGET_OS} \
-    TARGET_ARCH=%{RPM_ARCH} \
-    TARGET_TRANSPORT=%{TARGET_TRANSPORT} \
-	RELEASE=%{RELEASE} SECURED=%{SECURED} LOGGING=%{LOGGING} ROUTING=%{ROUTING} \
-	LIB_INSTALL_DIR=%{_libdir}
 
 install -d %{buildroot}%{_sbindir}
 
@@ -152,17 +151,16 @@ install ./resource/c_common/*.h %{buildroot}%{_includedir}/%{name}/resource/c_co
 install -d %{buildroot}%{_libdir}/%{name}/examples/
 install out/%{TARGET_OS}/%{RPM_ARCH}/%{BUILDTYPE}/resource/examples/*client %{buildroot}%{_libdir}/%{name}/examples/
 install out/%{TARGET_OS}/%{RPM_ARCH}/%{BUILDTYPE}/resource/examples/*server %{buildroot}%{_libdir}/%{name}/examples/
+install out/%{TARGET_OS}/%{RPM_ARCH}/%{BUILDTYPE}/resource/examples/*.dat  %{buildroot}%{_libdir}/%{name}/examples/
+
+
+%clean
 
 rm -fv %{buildroot}%{_libdir}/libcoap.a
 rm -fv %{buildroot}%{_libdir}/liboc.a
 rm -fv %{buildroot}%{_libdir}/liboc_logger.a
 rm -fv %{buildroot}%{_libdir}/libmosquitto.a
 
-rm -rf   %{buildroot}%{_includedir}/resource
-
-
-%clean
-rm -rf %{buildroot}
 
 %post -p /sbin/ldconfig
 
