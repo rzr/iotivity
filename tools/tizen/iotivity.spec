@@ -252,6 +252,7 @@ mkdir -p %{ex_install_dir}/provision-sample
 
 cp ./resource/csdk/security/include/*.h %{buildroot}%{_includedir}
 cp ./resource/csdk/connectivity/api/*.h %{buildroot}%{_includedir}/
+cp ./resource/csdk/security/include/internal/*.h %{buildroot}%{_includedir}/
 cp ./resource/csdk/security/provisioning/include/oxm/*.h %{buildroot}%{_includedir}
 cp ./resource/csdk/security/provisioning/include/internal/*.h %{buildroot}%{_includedir}
 cp ./resource/csdk/security/provisioning/include/*.h %{buildroot}%{_includedir}
@@ -260,7 +261,6 @@ cp out/%{TARGET_OS}/%{TARGET_ARCH}/%{build_mode}/resource/csdk/security/provisio
 cp ./resource/csdk/security/provisioning/sample/oic_svr_db_server_justworks.dat %{ex_install_dir}/provision-sample/
 cp out/%{TARGET_OS}/%{TARGET_ARCH}/%{build_mode}/resource/csdk/security/provisioning/sample/sampleserver_randompin %{ex_install_dir}/provision-sample/
 cp ./resource/csdk/security/provisioning/sample/oic_svr_db_server_randompin.dat %{ex_install_dir}/provision-sample/
-
 %endif
 
 cp resource/c_common/*.h %{buildroot}%{_includedir}
