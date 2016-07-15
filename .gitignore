@@ -84,6 +84,7 @@ config.log
 os
 out/
 platform
+tmp/
 
 # Ignore downloaded dependencies
 extlibs/gtest/gtest-*
