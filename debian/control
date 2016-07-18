@@ -11,16 +11,7 @@ Build-Depends: debhelper (>= 8.0.0),
  sudo,
  unzip,
  uuid-dev,
- libboost-date-time-dev,
- libboost-iostreams-dev,
- libboost-log-dev,
- libboost-program-options-dev,
- libboost-regex-dev,
- libboost-system-dev,
- libboost-thread-dev,
- libboost-all-dev,
  libcurl4-openssl-dev,
- libgtest-dev,
  valgrind
 Standards-Version: 3.9.4
 Section: libs
