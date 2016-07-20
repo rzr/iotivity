@@ -19,14 +19,12 @@ Build-Depends: debhelper (>= 8.0.0),
  libboost-log1.55-dev | libboost-log-dev,
  libboost-program-options1.55-dev | libboost-program-options-dev,
  libboost-regex1.55-dev | libboost-regex-dev,
- libboost-system1.55-dev | libboost-system-dev,
- libboost-all1.55-dev | libboost-all-dev
-
+ libboost-system1.55-dev | libboost-system-dev
 Standards-Version: 3.9.4
 Section: libs
 Homepage: https://iotivity.org
-#Vcs-Git: git://git.debian.org/collab-maint/iotivity.git
-#Vcs-Browser: http://git.debian.org/?p=collab-maint/iotivity.git;a=summary
+Vcs-Git: https://github.com/rzr/iotivity
+Vcs-Browser: https://github.com/tizen-team/iotivity
 
 Package: iotivity-dev
 Section: libdevel
@@ -41,14 +39,4 @@ Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: <insert up to 60 chars description>
  <insert long description, indented with spaces>
-
-Package: iotivity-snapshot
-Architecture: all
-Section: utils
-Depends: iotivity (= ${source:Version}), ${misc:Depends}
-Suggests: rzr
-Priority: extra
-Description: unreleased snapshot version
- TODO: Remove on issue and upgrade iotivity
- http://rzr.online.fr/q/snapshot#iotivity Feedback welcome
 
