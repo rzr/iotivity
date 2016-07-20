@@ -118,3 +118,15 @@ extlibs/bluez/bluez
 
 # Ignore Valgrind generated files.
 *.memcheck
+
+Makefile
+debian/files
+debian/*.debhelper.log
+debian/*.substvars
+debian/iotivity*/
+debian/tmp/
+extlibs/*/*.tar.*
+iotivity.pc
+oic_svr_db.dat
+oic_svr_db_server.dat
+ut
