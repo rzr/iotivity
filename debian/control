@@ -12,7 +12,16 @@ Build-Depends: debhelper (>= 8.0.0),
  unzip,
  uuid-dev,
  libcurl4-openssl-dev,
- valgrind
+ valgrind,
+ libboost-thread1.55-dev | libboost-thread-dev,
+ libboost-date-time1.55-dev | libboost-date-time-dev,
+ libboost-iostreams1.55-dev | libboost-iostreams-dev,
+ libboost-log1.55-dev | libboost-log-dev,
+ libboost-program-options1.55-dev | libboost-program-options-dev,
+ libboost-regex1.55-dev | libboost-regex-dev,
+ libboost-system1.55-dev | libboost-system-dev,
+ libboost-all1.55-dev | libboost-all-dev
+
 Standards-Version: 3.9.4
 Section: libs
 Homepage: https://iotivity.org
