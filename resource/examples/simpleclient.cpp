@@ -118,7 +118,7 @@ void onPost2(const HeaderOptions& /*headerOptions*/,
 {
     try
     {
-        if(eCode == OC_STACK_OK || eCode == OC_STACK_RESOURCE_CREATED)
+        if(eCode == OC_STACK_RESOURCE_CHANGED || eCode == OC_STACK_RESOURCE_CREATED)
         {
             std::cout << "POST request was successful" << std::endl;
 
@@ -164,7 +164,7 @@ void onPost(const HeaderOptions& /*headerOptions*/,
 {
     try
     {
-        if(eCode == OC_STACK_OK || eCode == OC_STACK_RESOURCE_CREATED)
+        if(eCode == OC_STACK_RESOURCE_CHANGED || eCode == OC_STACK_RESOURCE_CREATED)
         {
             std::cout << "POST request was successful" << std::endl;
 
@@ -233,7 +233,7 @@ void onPut(const HeaderOptions& /*headerOptions*/, const OCRepresentation& rep, 
 {
     try
     {
-        if(eCode == OC_STACK_OK)
+        if(eCode == OC_STACK_RESOURCE_CHANGED)
         {
             std::cout << "PUT request was successful" << std::endl;
 
