@@ -58,6 +58,7 @@ release_mode?=false
 build_mode?=debug
 secure_mode?=0
 target_os?=linux
+logging_mode?=true
 
 
 build: SConstruct deps
@@ -67,6 +68,7 @@ build: SConstruct deps
     TARGET_ARCH=${TARGET_ARCH} \
     TARGET_OS=${TARGET_OS} \
     TARGET_TRANSPORT=IP \
+    LOGGING=${logging_mode} \
     V=1 \
     VERBOSE=1 \
     #eol
