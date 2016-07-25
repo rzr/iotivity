@@ -39,8 +39,8 @@ else
 ifeq (armhf,${host_arch})
 TARGET_ARCH?=arm
 endif
-ifeq (arm64,${host_arch})
-TARGET_ARCH?=aarch64
+ifeq (aarch64,${host_arch})
+TARGET_ARCH?=arm64
 endif
 ifeq (armv7l,${host_arch})
 TARGET_ARCH?=arm
@@ -230,8 +230,8 @@ install:
 	install -d ${buildroot}${_libdir}/${name}/examples/
 	install -d ${buildroot}${_libdir}/pkgconfig
 	install -d ${DESTDIR}/usr/share/pkgconfig
-	install out/${TARGET_OS}/${TARGET_ARCH}/${build_mode}/iotivity.pc ${buildroot}${_libdir}/pkgconfig/
-	install out/${TARGET_OS}/${TARGET_ARCH}/${build_mode}/iotivity.pc ${DESTDIR}/usr/share/pkgconfig
+	install iotivity.pc ${buildroot}${_libdir}/pkgconfig/
+	install iotivity.pc ${DESTDIR}/usr/share/pkgconfig
 #	install out/${TARGET_OS}/${TARGET_ARCH}/${build_mode}/resource/examples/*client ${buildroot}${_libdir}/${name}/examples/
 #	install out/${TARGET_OS}/${TARGET_ARCH}/${build_mode}/resource/examples/*server ${buildroot}${_libdir}/${name}/examples/
 #	install out/${TARGET_OS}/${TARGET_ARCH}/${build_mode}/*/*/*/*client ${buildroot}${_libdir}/${name}/examples/
