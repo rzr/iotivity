@@ -1,8 +1,8 @@
-iotivity (0.0.20160723-0~rzr1) unstable; urgency=medium
+iotivity (0.0.20160725-0~rzr3) unstable; urgency=medium
 
-  * snapshot
+  * https://wiki.iotivity.org/os
 
- -- Philippe Coval <rzr@gna.org>  Mon, 25 Jul 2016 12:22:00 +0200
+ -- Philippe Coval <rzr@gna.org>  Tue, 26 Jul 2016 11:34:59 +0200
 
 
 iotivity (0.0.0-0) UNRELEASED; urgency=medium
