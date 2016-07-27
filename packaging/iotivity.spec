@@ -1,5 +1,5 @@
 Name: iotivity
-Version: 1.1.1+RC2
+Version: 1.1.1+RC3
 Release: 0
 Summary: IoT Connectivity sponsored by the OIC
 Group: Network & Connectivity/Other
@@ -190,7 +190,7 @@ cp LICENSE.APLv2 %{buildroot}/%{_datadir}/license/%{name}-test
 %endif
 cp resource/c_common/*.h %{buildroot}%{_includedir}
 cp resource/csdk/stack/include/*.h %{buildroot}%{_includedir}
-
+cp resource/csdk/logger/include/*.h %{buildroot}%{_includedir}
 cp service/things-manager/sdk/inc/*.h %{buildroot}%{_includedir}
 cp service/easy-setup/inc/*.h %{buildroot}%{_includedir}
 cp service/easy-setup/enrollee/inc/*.h %{buildroot}%{_includedir}
