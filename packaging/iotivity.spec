@@ -1,5 +1,5 @@
 Name: iotivity
-Version: 1.1.1+RC3
+Version: 1.1.1
 Release: 0
 Summary: IoT Connectivity sponsored by the OIC
 Group: Network & Connectivity/Other
@@ -8,10 +8,7 @@ URL: https://www.iotivity.org/
 Source0: %{name}-%{version}.tar.bz2
 Source1001: %{name}.manifest
 Source1002: %{name}-test.manifest
-Source1100: https://github.com/01org/tinycbor/archive/v0.2.1.tar.gz
-Source1103: http://www.sqlite.org/2015/sqlite-amalgamation-3081101.zip
-BuildRequires:  gettext-tools
-BuildRequires:  expat-devel
+BuildRequires:  gettext-tools, expat-devel
 BuildRequires:  python, libcurl-devel
 BuildRequires:  scons
 BuildRequires:  openssl-devel
@@ -22,9 +19,9 @@ BuildRequires:  boost-filesystem
 BuildRequires:  pkgconfig(dlog)
 BuildRequires:  pkgconfig(uuid)
 BuildRequires:  pkgconfig(capi-network-wifi)
+BuildRequires:  pkgconfig(capi-network-bluetooth)
 BuildRequires:  pkgconfig(glib-2.0)
 BuildRequires:  pkgconfig(sqlite3)
-BuildRequires:  unzip
 Requires(postun): /sbin/ldconfig
 Requires(post): /sbin/ldconfig
 
@@ -33,13 +30,9 @@ Requires(post): /sbin/ldconfig
 ## and if tizen 3.0, RELEASE follows tizen_build_devel_mode. ##
 %if 0%{?tizen_build_devel_mode} == 1 || 0%{?tizen_build_binary_release_type_eng} == 1
 %define RELEASE False
-%define BUILDTYPE debug
 %else
 %define RELEASE True
-%define BUILDTYPE release
 %endif
-
-%define RPM_ARCH %{_arch}
 
 %{!?TARGET_TRANSPORT: %define TARGET_TRANSPORT IP}
 %{!?SECURED: %define SECURED 1}
@@ -84,10 +77,8 @@ The %{name}-devel package contains libraries and header files for
 developing applications that use %{name}.
 
 %prep
-%setup -q -n %{name}-%{version} -a 1100 -a 1103
-
-ln -fs ../../%{SOURCE1103} extlibs/sqlite3/
-ln -fs ../../tinycbor-0.2.1 extlibs/tinycbor/tinycbor
+%setup -q
+chmod g-w %_sourcedir/*
 
 cp LICENSE.md LICENSE.APLv2
 cp %{SOURCE1001} .
@@ -98,7 +89,7 @@ cp %{SOURCE1001} ./%{name}-test.manifest
 %endif
 
 %build
-#%define RPM_ARCH %{_arch}
+%define RPM_ARCH %{_arch}
 
 %ifarch armv7l armv7hl armv7nhl armv7tnhl armv7thl
 %define RPM_ARCH "armeabi-v7a"
@@ -190,7 +181,7 @@ cp LICENSE.APLv2 %{buildroot}/%{_datadir}/license/%{name}-test
 %endif
 cp resource/c_common/*.h %{buildroot}%{_includedir}
 cp resource/csdk/stack/include/*.h %{buildroot}%{_includedir}
-cp resource/csdk/logger/include/*.h %{buildroot}%{_includedir}
+
 cp service/things-manager/sdk/inc/*.h %{buildroot}%{_includedir}
 cp service/easy-setup/inc/*.h %{buildroot}%{_includedir}
 cp service/easy-setup/enrollee/inc/*.h %{buildroot}%{_includedir}
