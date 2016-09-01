@@ -50,7 +50,7 @@ EOF
 
     echo "# Checking for tinycbor presence:"
     tinycbor_url='https://github.com/01org/tinycbor.git'
-    tinycbor_rev='v0.2.1'
+    tinycbor_rev='v0.3.1'
     if [ ! -e 'extlibs/tinycbor/tinycbor' ] ; then
         do_ "git clone --depth 1 -b "${tinycbor_rev}" "$tinycbor_url" extlibs/tinycbor/tinycbor"
     fi
