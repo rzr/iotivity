@@ -642,6 +642,21 @@
 #define MBEDTLS_KEY_EXCHANGE_ECDHE_RSA_ENABLED
 
 /**
+ * \def MBEDTLS_KEY_EXCHANGE_ECDH_ANON_ENABLED
+ *
+ * Enable the ECDHE-ANON based ciphersuite modes in SSL / TLS.
+ *
+ * Requires: MBEDTLS_ECDH_C
+ *
+ *
+ * This enables the following ciphersuites (if other requisites are
+ * enabled as well):
+ *      MBEDTLS_TLS_ECDH_ANON_WITH_AES_128_CBC_SHA256
+ */
+#define MBEDTLS_KEY_EXCHANGE_ECDH_ANON_ENABLED
+
+
+/**
  * \def MBEDTLS_KEY_EXCHANGE_ECDHE_ECDSA_ENABLED
  *
  * Enable the ECDHE-ECDSA based ciphersuite modes in SSL / TLS.
@@ -1239,7 +1254,7 @@
  *
  * Comment this macro to disable support for SSL session tickets
  */
-#define MBEDTLS_SSL_SESSION_TICKETS
+//#define MBEDTLS_SSL_SESSION_TICKETS
 
 /**
  * \def MBEDTLS_SSL_EXPORT_KEYS
@@ -1479,6 +1494,7 @@
  *      MBEDTLS_TLS_PSK_WITH_AES_128_GCM_SHA256
  *      MBEDTLS_TLS_PSK_WITH_AES_128_CBC_SHA256
  *      MBEDTLS_TLS_PSK_WITH_AES_128_CBC_SHA
+ *      MBEDTLS_TLS_ECDH_ANON_WITH_AES_128_CBC_SHA256
  *
  * PEM_PARSE uses AES for decrypting encrypted keys.
  */
