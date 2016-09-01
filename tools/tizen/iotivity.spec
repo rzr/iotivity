@@ -38,6 +38,7 @@ Requires(post): /sbin/ldconfig
 %{!?SECURED: %define SECURED 1}
 %{!?LOGGING: %define LOGGING True}
 %{!?ROUTING: %define ROUTING EP}
+%{!?WITH_CLOUD: %define WITH_CLOUD True}
 %{!?WITH_TCP: %define WITH_TCP true}
 %{!?WITH_PROXY: %define WITH_PROXY False}
 %{!?ES_TARGET_ENROLLEE: %define ES_TARGET_ENROLLEE tizen}
