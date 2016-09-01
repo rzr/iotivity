@@ -202,6 +202,16 @@ CBOR_API CborError cbor_encoder_create_map(CborEncoder *encoder, CborEncoder *ma
 CBOR_API CborError cbor_encoder_close_container(CborEncoder *encoder, const CborEncoder *containerEncoder);
 CBOR_API CborError cbor_encoder_close_container_checked(CborEncoder *encoder, const CborEncoder *containerEncoder);
 
+CBOR_INLINE_API size_t cbor_encoder_get_buffer_size(const CborEncoder *encoder, const uint8_t *buffer)
+{
+    return (size_t)(encoder->ptr - buffer);
+}
+
+CBOR_INLINE_API size_t cbor_encoder_get_extra_bytes_needed(const CborEncoder *encoder)
+{
+    return encoder->end ? 0 : (size_t)encoder->bytes_needed;
+}
+
 /* Parser API */
 
 enum CborParserIteratorFlags
@@ -234,6 +244,8 @@ CBOR_API CborError cbor_parser_init(const uint8_t *buffer, size_t size, int flag
 
 CBOR_INLINE_API bool cbor_value_at_end(const CborValue *it)
 { return it->remaining == 0; }
+CBOR_INLINE_API const uint8_t *cbor_value_get_next_byte(const CborValue *it)
+{ return it->ptr; }
 CBOR_API CborError cbor_value_advance_fixed(CborValue *it);
 CBOR_API CborError cbor_value_advance(CborValue *it);
 CBOR_INLINE_API bool cbor_value_is_container(const CborValue *it)
@@ -254,9 +266,9 @@ CBOR_INLINE_API CborType cbor_value_get_type(const CborValue *value)
 { return (CborType)value->type; }
 
 /* Null & undefined type */
-CBOR_INLINE_API bool cbor_type_is_null(const CborValue *value)
+CBOR_INLINE_API bool cbor_value_is_null(const CborValue *value)
 { return value->type == CborNullType; }
-CBOR_INLINE_API bool cbor_type_is_undefined(const CborValue *value)
+CBOR_INLINE_API bool cbor_value_is_undefined(const CborValue *value)
 { return value->type == CborUndefinedType; }
 
 /* Booleans */
@@ -424,19 +436,26 @@ CBOR_INLINE_API CborError cbor_value_get_map_length(const CborValue *value, size
 CBOR_API CborError cbor_value_map_find_value(const CborValue *map, const char *string, CborValue *element);
 
 /* Floating point */
+CBOR_INLINE_API bool cbor_value_is_half_float(const CborValue *value)
+{ return value->type == CborHalfFloatType; }
 CBOR_API CborError cbor_value_get_half_float(const CborValue *value, void *result);
+
+CBOR_INLINE_API bool cbor_value_is_float(const CborValue *value)
+{ return value->type == CborFloatType; }
 CBOR_INLINE_API CborError cbor_value_get_float(const CborValue *value, float *result)
 {
-    assert(value->type == CborFloatType);
+    assert(cbor_value_is_float(value));
     assert(value->flags & CborIteratorFlag_IntegerValueTooLarge);
     uint32_t data = (uint32_t)_cbor_value_decode_int64_internal(value);
     memcpy(result, &data, sizeof(*result));
     return CborNoError;
 }
 
+CBOR_INLINE_API bool cbor_value_is_double(const CborValue *value)
+{ return value->type == CborDoubleType; }
 CBOR_INLINE_API CborError cbor_value_get_double(const CborValue *value, double *result)
 {
-    assert(value->type == CborDoubleType);
+    assert(cbor_value_is_double(value));
     assert(value->flags & CborIteratorFlag_IntegerValueTooLarge);
     uint64_t data = _cbor_value_decode_int64_internal(value);
     memcpy(result, &data, sizeof(*result));
@@ -455,5 +474,5 @@ CBOR_INLINE_API CborError cbor_value_to_pretty(FILE *out, const CborValue *value
 }
 #endif
 
-#endif // CBOR_H
+#endif /* CBOR_H */
 
