@@ -39,6 +39,7 @@ Makefile*
 *.gcno
 *.flc
 .*.swp
+tinycbor.pc
 
 # Visual Studio generated files
 *.ib_pdb_index
@@ -71,7 +72,9 @@ Makefile*
 *.map
 
 bin
+doc
 lib
 src/cjson
+src/doxygen.log
 !Makefile
 .config
