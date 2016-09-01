@@ -54,28 +54,29 @@
 #define _WIN32_WINNT 0x0400
 #endif
 #include <windows.h>
-#include <wincrypt.h>
+#include <bcrypt.h>
 
 int mbedtls_platform_entropy_poll( void *data, unsigned char *output, size_t len,
                            size_t *olen )
 {
-    HCRYPTPROV provider;
     ((void) data);
     *olen = 0;
 
-    if( CryptAcquireContext( &provider, NULL, NULL,
-                              PROV_RSA_FULL, CRYPT_VERIFYCONTEXT ) == FALSE )
+    /*
+     * size_t may be 64 bits, but ULONG is always 32.
+     * If len is larger than the maximum for ULONG, just fail.
+     * It's unlikely anything ever will want to ask for this much randomness.
+     */
+    if ( len > 0xFFFFFFFFULL )
     {
         return( MBEDTLS_ERR_ENTROPY_SOURCE_FAILED );
     }
 
-    if( CryptGenRandom( provider, (DWORD) len, output ) == FALSE )
+    if ( !BCRYPT_SUCCESS(BCryptGenRandom(NULL, output, (ULONG) len, BCRYPT_USE_SYSTEM_PREFERRED_RNG)) )
     {
-        CryptReleaseContext( provider, 0 );
         return( MBEDTLS_ERR_ENTROPY_SOURCE_FAILED );
     }
 
-    CryptReleaseContext( provider, 0 );
     *olen = len;
 
     return( 0 );
