@@ -151,7 +151,10 @@ check/default: auto_build.sh
 check/unknown:
 	@echo "${@D}: TODO support arch"
 
-check: check/${host_arch}
+check/skip:
+	@echo "${@D}: TODO support arch"
+
+check: check/skip
 	@echo "TODO: verify $<"
 
 install/scons:
