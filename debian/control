@@ -1,0 +1,46 @@
+Source: iotivity
+Priority: optional
+Maintainer: Philippe Coval <rzr@users.sf.net>
+Build-Depends: debhelper (>= 8.0.0),
+ autoconf,
+ automake,
+ autotools-dev,
+ libtool,
+ libbz2-dev,
+ libglib2.0-dev,
+ libicu-dev,
+ python-dev,
+ scons,
+ sudo,
+ unzip,
+ uuid-dev,
+ libcurl4-openssl-dev | libcurl4-gnutls-dev | libcurl-ssl-dev,
+ valgrind,
+ libboost-thread1.55-dev | libboost-thread-dev,
+ libboost-date-time1.55-dev | libboost-date-time-dev,
+ libboost-iostreams1.55-dev | libboost-iostreams-dev,
+ libboost-log1.55-dev | libboost-log-dev,
+ libboost-program-options1.55-dev | libboost-program-options-dev,
+ libboost-regex1.55-dev | libboost-regex-dev,
+ libboost-system1.55-dev | libboost-system-dev,
+ libsqlite3-dev
+Standards-Version: 3.9.4
+Section: libs
+Homepage: https://iotivity.org
+Vcs-Git: https://github.com/iotivity/iotivity
+Vcs-Browser: http://gerrit.iotivity.org/iotivity
+
+Package: iotivity-dev
+Section: libdevel
+Architecture: any
+Depends: iotivity0 (= ${binary:Version})
+Description: IoTivity development files
+ <insert long description, indented with spaces>
+
+Package: iotivity0
+Section: libs
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: IoTivity libraries and tools
+ <insert long description, indented with spaces>
+

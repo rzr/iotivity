@@ -1,0 +1,5 @@
+iotivity (0.0.0-0) unstable; urgency=low
+
+  * Initial release (Closes: #824155)
+
+ -- Philippe Coval <rzr@users.sf.net>  Tue, 01 Dec 2015 23:32:27 +0000

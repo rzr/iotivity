@@ -1,0 +1,3 @@
+debian/overlay/extlibs/hippomocks-master.zip
+debian/overlay/extlibs/tinycbor/tinycbor.tar.bz2
+debian/overlay/extlibs/gtest/gtest-1.7.0.zip
