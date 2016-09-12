@@ -64,7 +64,7 @@ if target_os not in ['arduino','darwin','ios','android']:
 	# Build examples
 	SConscript('examples/SConscript')
 
-if target_os in ['linux', 'windows']:
+if target_os in ['linux', 'windows', 'yocto']:
 	# Build C Samples
 	SConscript('csdk/stack/test/linux/SConscript')
 	SConscript('csdk/stack/samples/linux/SimpleClientServer/SConscript')
