@@ -130,3 +130,13 @@ extlibs/bluez/bluez
 
 # Ignore Valgrind generated files.
 *.memcheck
+
+# Ignore  generated files
+*.dat
+
+# Ignore debian generated files
+debian/files
+debian/*.debhelper.log
+debian/*.substvars
+debian/iotivity*/
+debian/tmp/
