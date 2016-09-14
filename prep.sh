@@ -74,6 +74,20 @@ EOF
         do_ "cd ${sqlite_dir} && wget -nc $sqlite_url && unzip ${sqlite_archive} && mv */* ."
         cd "${topdir}"
     fi
+
+    echo "# Checking for mbedtls presence:"
+    mbedtls_url='https://github.com/ARMmbed/mbedtls.git'
+    mbedtls_dir="${topdir}/extlibs/mbedtls/mbedtls"
+    mbedtls_rev="ad249f509fd62a3bbea7ccd1fef605dbd482a7bd" # in "yotta-2.3.2"
+    if [ ! -e "${mbedtls_dir}" ] ; then
+        do_ "git clone ${mbedtls_url} ${mbedtls_dir}"
+    fi
+    cd "${mbedtls_dir}"
+    do_ "git reset --hard ${mbedtls_rev}"
+    echo "# Checking for mbedtls patches:"
+    file="${mbedtls_dir}/../ocf.patch"
+    do_ "git apply ${file}" ||:
+    cd "${topdir}"
 }
 
 
