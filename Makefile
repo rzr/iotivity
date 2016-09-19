@@ -4,12 +4,27 @@ architecture?=i386
 default/%:
 	echo "# $@ ignored"
 
-default: all 
+default: all
 
 
 all: build
 
+UNAME?=$(shell uname -s || echo "unknown")
+OSTYPE?=$(shell echo "$${OSTYPE}" || echo "${UNAME}")
+
+ifeq ("","${OSTYPE}")
+OSTYPE=${UNAME}
+endif
+
+ifeq (Linux,${OSTYPE})
 TARGET_OS?=linux
+else
+ifeq (linux-gnu,${OSTYPE})
+TARGET_OS?=linux
+endif
+endif
+
+TARGET_OS?=${OSTYPE}
 
 host_arch?=$(shell arch)
 
@@ -52,21 +67,24 @@ secure_mode?=0
 target_os?=linux
 logging_mode?=1
 
+config_build?=\
+ LOGGING=${logging_mode} \
+ RELEASE=${release_mode} \
+ SECURED=${secure_mode} \
+ TARGET_ARCH=${TARGET_ARCH} \
+ TARGET_OS=${TARGET_OS} \
+ TARGET_TRANSPORT=IP \
+ V=1 \
+ VERBOSE=1 \
+ #eol
 
 build: SConstruct
-	scons \
-    RELEASE=${release_mode} \
-    SECURED=${secure_mode} \
-    TARGET_ARCH=${TARGET_ARCH} \
-    TARGET_OS=${TARGET_OS} \
-    TARGET_TRANSPORT=IP \
-    LOGGING=${logging_mode} \
-    V=1 \
-    VERBOSE=1 \
-    #eol
+	scons ${config_build}
+
 
 check: auto_build.sh
-	${<D}/${<F} unit_tests
+	@echo "TODO: fail on error"
+	-${<D}/${<F} unit_tests ${config_build}
 
 buildroot?=${DESTDIR}
 _sbindir?=/usr/sbin
@@ -115,3 +133,6 @@ install:
 	rm -fv ${buildroot}${_libdir}/liboc.a
 	rm -fv ${buildroot}${_libdir}/liboc_logger.a
 	rm -fv ${buildroot}${_libdir}/libmosquitto.a
+help:
+	@echo "# UNAME='${UNAME}'"
+	@echo "# OSTYPE='${OSTYPE}'"
