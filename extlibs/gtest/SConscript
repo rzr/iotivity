@@ -20,11 +20,13 @@ gtest_dotlib_dir =  os.path.join(gtest_lib_dir, '.libs')
 gtest_zip_file = os.path.join(src_dir, 'extlibs', 'gtest', 'gtest-1.7.0.zip')
 gtest_url = 'http://pkgs.fedoraproject.org/repo/pkgs/gtest/gtest-1.7.0.zip/2d6ec8ccdf5c46b05ba54a9fd1d130d7/gtest-1.7.0.zip'
 
+connected = False
+
 if target_os in targets_need_gtest:
 	print '*** Checking for installation of google unit test 1.7.0 ***'
 	if not os.path.exists(os.path.join(gtest_dir, 'configure')):
 		# If the gtest zip file is not already present, download it
-		if not os.path.exists(gtest_zip_file):
+		if not os.path.exists(gtest_zip_file) && connected:
 			gtest_zip = gtest_env.Download(gtest_zip_file, gtest_url)
 		else:
 			gtest_zip = gtest_zip_file
