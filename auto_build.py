@@ -1,6 +1,7 @@
 #!/usr/bin/python
 
 import os
+import os.path
 import sys
 import platform
 import subprocess
@@ -276,6 +277,10 @@ def build_arduino(flag, extra_option_str):
 
 def build_tizen(flag, extra_option_str):
     print ("*********** Build for Tizen *************")
+    prep = "prep.sh"
+    if os.path.exists(prep):
+        cmd_line = "/bin/sh " + os.getcwd() + os.sep + prep
+        subprocess.Popen([cmd_line], shell=True).wait()
     cmd_line = "/bin/sh " + os.getcwd() + "/gbsbuild.sh"
     print ("Running : " + cmd_line)
     subprocess.Popen([cmd_line], shell=True).wait()

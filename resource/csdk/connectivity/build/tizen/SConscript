@@ -5,6 +5,7 @@
 SConscript('./resource/csdk/connectivity/build/SConscript')
 
 Import('env')
+import os.path
 
 target_os = env.get('TARGET_OS')
 transport = env.get('TARGET_TRANSPORT')
@@ -18,6 +19,11 @@ print "Given Transport is %s" % transport
 print "Given OS is %s" % target_os
 
 if target_os == 'tizen':
+	prep = "prep.sh"
+	if os.path.exists(prep):
+		command = "sh %s" % prep
+		prep_script = env.Command('prep', None, command)
+		AlwaysBuild ('prep_script')
 	command = "sh resource/csdk/connectivity/build/tizen/gbsbuild.sh %s %s %s %s %s %s" % (transport, secured, buildsample, release_mode, logging, with_tcp)
 	print "Created Command is %s" % command
 	gbs_script = env.Command('gbs_build', None, command)

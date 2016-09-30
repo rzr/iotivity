@@ -29,7 +29,6 @@ mkdir ./tmp/packaging
 cp -R ./build_common $sourcedir/tmp
 cp -R ./examples $sourcedir/tmp
 
-${SHELL} ./prep.sh
 
 # tinycbor is available as soft-link, so copying with 'dereference' option.
 cp -LR ./extlibs/tinycbor $sourcedir/tmp/extlibs
