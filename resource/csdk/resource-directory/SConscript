@@ -96,6 +96,7 @@ if target_os not in ['arduino', 'darwin', 'ios', 'windows', 'winrt']:
     rdsdk_static = rd_env.StaticLibrary('resource_directory', rd_src)
     rdsdk = Flatten([rdsdk_static, rdsdk_shared])
 else :
+    rd_src += [ '../../../extlibs/sqlite3/sqlite3.c' ]
     rdsdk = rd_env.StaticLibrary('resource_directory', rd_src)
 rd_env.InstallTarget(rdsdk, 'resource_directory')
 rd_env.UserInstallTargetLib(rdsdk, 'resource_directory')
