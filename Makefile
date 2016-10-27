@@ -58,7 +58,7 @@ endif
 endif
 
 # Default variables to overide before
-LOGGING?=1
+LOGGING?=0
 RELEASE?=1
 SECURED?=0
 TARGET_ARCH?=${host_arch}
