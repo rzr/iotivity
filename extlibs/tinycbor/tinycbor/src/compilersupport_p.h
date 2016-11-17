@@ -61,13 +61,16 @@
 #  define inline    CBOR_INLINE
 #endif
 
+#ifndef STRINGIFY
 #define STRINGIFY(x)            STRINGIFY2(x)
+#endif
 #define STRINGIFY2(x)           #x
 
-#ifndef UINT32_MAX
-/* C99 requires it in stdint.h, but some systems lack it */
-#  define UINT32_MAX    (0xffffffffU)
+#if !defined(UINT32_MAX) || !defined(INT64_MAX)
+/* C89? We can define UINT32_MAX portably, but not INT64_MAX */
+#  error "Your system has stdint.h but that doesn't define UINT32_MAX or INT64_MAX"
 #endif
+
 #ifndef DBL_DECIMAL_DIG
 /* DBL_DECIMAL_DIG is C11 */
 #  define DBL_DECIMAL_DIG       17
@@ -150,8 +153,12 @@
 #endif
 
 #ifdef __GNUC__
+#ifndef likely
 #  define likely(x)     __builtin_expect(!!(x), 1)
+#endif
+#ifndef unlikely
 #  define unlikely(x)   __builtin_expect(!!(x), 0)
+#endif
 #  define unreachable() __builtin_unreachable()
 #elif defined(_MSC_VER)
 #  define likely(x)     (x)
@@ -209,7 +216,9 @@ static inline unsigned short encode_half(double val)
         /* underflow, make zero */
         return 0;
     }
-    return sign | ((exp + 15) << 10) | mant;
+
+    /* safe cast here as bit operations above guarantee not to overflow */
+    return (unsigned short)(sign | ((exp + 15) << 10) | mant);
 #endif
 }
 
