@@ -24,6 +24,10 @@
 
 #define _BSD_SOURCE 1
 #define _DEFAULT_SOURCE 1
+#ifndef __STDC_LIMIT_MACROS
+#  define __STDC_LIMIT_MACROS 1
+#endif
+
 #include "cbor.h"
 #include "compilersupport_p.h"
 #include "math_support_p.h"
@@ -186,6 +190,7 @@ static int utf8EscapedDump(FILE *out, const char *buffer, size_t n)
 
         if (n < charsNeeded - 1)
             return CborErrorInvalidUtf8TextString;
+        n -= charsNeeded - 1;
 
         /* first continuation character */
         uint8_t b = (uint8_t)*buffer++;

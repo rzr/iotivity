@@ -24,6 +24,10 @@
 
 #define _BSD_SOURCE 1
 #define _DEFAULT_SOURCE 1
+#ifndef __STDC_LIMIT_MACROS
+#  define __STDC_LIMIT_MACROS 1
+#endif
+
 #include "cbor.h"
 #include "cborconstants_p.h"
 #include "compilersupport_p.h"
@@ -197,7 +201,7 @@
  */
 void cbor_encoder_init(CborEncoder *encoder, uint8_t *buffer, size_t size, int flags)
 {
-    encoder->ptr = buffer;
+    encoder->data.ptr = buffer;
     encoder->end = buffer + size;
     encoder->added = 0;
     encoder->flags = flags;
@@ -235,7 +239,7 @@ static inline void put64(void *where, uint64_t v)
 static inline bool would_overflow(CborEncoder *encoder, size_t len)
 {
     ptrdiff_t remaining = (ptrdiff_t)encoder->end;
-    remaining -= remaining ? (ptrdiff_t)encoder->ptr : encoder->bytes_needed;
+    remaining -= remaining ? (ptrdiff_t)encoder->data.ptr : encoder->data.bytes_needed;
     remaining -= (ptrdiff_t)len;
     return unlikely(remaining < 0);
 }
@@ -243,26 +247,26 @@ static inline bool would_overflow(CborEncoder *encoder, size_t len)
 static inline void advance_ptr(CborEncoder *encoder, size_t n)
 {
     if (encoder->end)
-        encoder->ptr += n;
+        encoder->data.ptr += n;
     else
-        encoder->bytes_needed += n;
+        encoder->data.bytes_needed += n;
 }
 
 static inline CborError append_to_buffer(CborEncoder *encoder, const void *data, size_t len)
 {
     if (would_overflow(encoder, len)) {
         if (encoder->end != NULL) {
-            len -= encoder->end - encoder->ptr;
+            len -= encoder->end - encoder->data.ptr;
             encoder->end = NULL;
-            encoder->bytes_needed = 0;
+            encoder->data.bytes_needed = 0;
         }
 
         advance_ptr(encoder, len);
         return CborErrorOutOfMemory;
     }
 
-    memcpy(encoder->ptr, data, len);
-    encoder->ptr += len;
+    memcpy(encoder->data.ptr, data, len);
+    encoder->data.ptr += len;
     return CborNoError;
 }
 
@@ -286,7 +290,7 @@ static inline CborError encode_number_no_update(CborEncoder *encoder, uint64_t u
     if (ui < Value8Bit) {
         *bufstart += shiftedMajorType;
     } else {
-        unsigned more = 0;
+        uint8_t more = 0;
         if (ui > 0xffU)
             ++more;
         if (ui > 0xffffU)
@@ -447,7 +451,7 @@ __attribute__((noinline))
 static CborError create_container(CborEncoder *encoder, CborEncoder *container, size_t length, uint8_t shiftedMajorType)
 {
     CborError err;
-    container->ptr = encoder->ptr;
+    container->data.ptr = encoder->data.ptr;
     container->end = encoder->end;
     ++encoder->added;
     container->added = 0;
@@ -462,10 +466,7 @@ static CborError create_container(CborEncoder *encoder, CborEncoder *container, 
     } else {
         err = encode_number_no_update(container, length, shiftedMajorType);
     }
-    if (err && !isOomError(err))
-        return err;
-
-    return CborNoError;
+    return err;
 }
 
 /**
@@ -527,9 +528,9 @@ CborError cbor_encoder_create_map(CborEncoder *encoder, CborEncoder *mapEncoder,
 CborError cbor_encoder_close_container(CborEncoder *encoder, const CborEncoder *containerEncoder)
 {
     if (encoder->end)
-        encoder->ptr = containerEncoder->ptr;
+        encoder->data.ptr = containerEncoder->data.ptr;
     else
-        encoder->bytes_needed = containerEncoder->bytes_needed;
+        encoder->data.bytes_needed = containerEncoder->data.bytes_needed;
     encoder->end = containerEncoder->end;
     if (containerEncoder->flags & CborIteratorFlag_UnknownLength)
         return append_byte_to_buffer(encoder, BreakByte);

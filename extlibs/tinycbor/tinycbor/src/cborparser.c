@@ -24,6 +24,10 @@
 
 #define _BSD_SOURCE 1
 #define _DEFAULT_SOURCE 1
+#ifndef __STDC_LIMIT_MACROS
+#  define __STDC_LIMIT_MACROS 1
+#endif
+
 #include "cbor.h"
 #include "cborconstants_p.h"
 #include "compilersupport_p.h"
@@ -151,7 +155,7 @@ static CborError extract_length(const CborParser *parser, const uint8_t **ptr, s
         return err;
     }
 
-    *len = v;
+    *len = (size_t)v;
     if (v != *len)
         return CborErrorDataTooLarge;
     return CborNoError;
@@ -795,13 +799,13 @@ CborError cbor_value_get_int_checked(const CborValue *value, int *result)
         if (unlikely(v > (unsigned) -(INT_MIN + 1)))
             return CborErrorDataTooLarge;
 
-        *result = v;
+        *result = (int)v;
         *result = -*result - 1;
     } else {
         if (unlikely(v > (uint64_t)INT_MAX))
             return CborErrorDataTooLarge;
 
-        *result = v;
+        *result = (int)v;
     }
     return CborNoError;
 
