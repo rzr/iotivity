@@ -149,6 +149,7 @@ typedef enum CborError {
     /* errors in converting to JSON */
     CborErrorJsonObjectKeyIsAggregate,
     CborErrorJsonObjectKeyNotString,
+    CborErrorJsonNotImplemented,
 
     CborErrorOutOfMemory = ~0U / 2 + 1,
     CborErrorInternalError = ~0U
@@ -162,7 +163,7 @@ struct CborEncoder
     union {
         uint8_t *ptr;
         ptrdiff_t bytes_needed;
-    };
+    } data;
     const uint8_t *end;
     size_t added;
     int flags;
@@ -204,12 +205,12 @@ CBOR_API CborError cbor_encoder_close_container_checked(CborEncoder *encoder, co
 
 CBOR_INLINE_API size_t cbor_encoder_get_buffer_size(const CborEncoder *encoder, const uint8_t *buffer)
 {
-    return (size_t)(encoder->ptr - buffer);
+    return (size_t)(encoder->data.ptr - buffer);
 }
 
 CBOR_INLINE_API size_t cbor_encoder_get_extra_bytes_needed(const CborEncoder *encoder)
 {
-    return encoder->end ? 0 : (size_t)encoder->bytes_needed;
+    return encoder->end ? 0 : (size_t)encoder->data.bytes_needed;
 }
 
 /* Parser API */
@@ -360,7 +361,7 @@ CBOR_INLINE_API CborError cbor_value_get_string_length(const CborValue *value, s
     if (!cbor_value_is_length_known(value))
         return CborErrorUnknownLength;
     uint64_t v = _cbor_value_extract_int64_helper(value);
-    *length = v;
+    *length = (size_t)v;
     if (*length != v)
         return CborErrorDataTooLarge;
     return CborNoError;
@@ -415,7 +416,7 @@ CBOR_INLINE_API CborError cbor_value_get_array_length(const CborValue *value, si
     if (!cbor_value_is_length_known(value))
         return CborErrorUnknownLength;
     uint64_t v = _cbor_value_extract_int64_helper(value);
-    *length = v;
+    *length = (size_t)v;
     if (*length != v)
         return CborErrorDataTooLarge;
     return CborNoError;
@@ -427,7 +428,7 @@ CBOR_INLINE_API CborError cbor_value_get_map_length(const CborValue *value, size
     if (!cbor_value_is_length_known(value))
         return CborErrorUnknownLength;
     uint64_t v = _cbor_value_extract_int64_helper(value);
-    *length = v;
+    *length = (size_t)v;
     if (*length != v)
         return CborErrorDataTooLarge;
     return CborNoError;

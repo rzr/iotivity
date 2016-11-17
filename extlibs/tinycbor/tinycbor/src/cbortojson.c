@@ -26,6 +26,10 @@
 #define _DEFAULT_SOURCE 1
 #define _GNU_SOURCE 1
 #define _POSIX_C_SOURCE 200809L
+#ifndef __STDC_LIMIT_MACROS
+#  define __STDC_LIMIT_MACROS 1
+#endif
+
 #include "cbor.h"
 #include "cborjson.h"
 #include "compilersupport_p.h"
@@ -398,6 +402,11 @@ static CborError stringify_map_key(char **key, CborValue *it, int flags, CborTyp
 {
     (void)flags;    /* unused */
     (void)type;     /* unused */
+#ifdef WITHOUT_OPEN_MEMSTREAM
+    (void)key;      /* unused */
+    (void)it;       /* unused */
+    return CborErrorJsonNotImplemented;
+#else
     size_t size;
 
     FILE *memstream = open_memstream(key, &size);
@@ -408,6 +417,7 @@ static CborError stringify_map_key(char **key, CborValue *it, int flags, CborTyp
     if (unlikely(fclose(memstream) < 0 || *key == NULL))
         return CborErrorInternalError;
     return err;
+#endif
 }
 
 static CborError array_to_json(FILE *out, CborValue *it, int flags, ConversionStatus *status)
