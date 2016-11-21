@@ -12,6 +12,7 @@ Build-Depends: debhelper (>= 8.0.0),
  unzip,
  uuid-dev,
  libcurl4-openssl-dev,
+ libsqlite3-dev.
  valgrind,
  libboost-thread1.55-dev | libboost-thread-dev,
  libboost-date-time1.55-dev | libboost-date-time-dev,
