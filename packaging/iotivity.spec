@@ -1,6 +1,6 @@
 Name: iotivity
 Version: 1.2.1
-Release: 0
+Release: 20161208.134624philippe0+0
 Summary: IoT Connectivity sponsored by the OCF
 Group: Network & Connectivity / IoT Connectivity
 License: Apache-2.0 and BSD-2-Clause and (MIT or BSL-1.0) and MIT
@@ -8,6 +8,7 @@ URL: https://www.iotivity.org/
 Source0: http://mirrors.kernel.org/%{name}/%{version}/%{name}-%{version}.tar.gz
 Source1001: %{name}.manifest
 Source1002: %{name}-test.manifest
+
 
 %if 0%{?tizen:1}
 %define TARGET_OS tizen
@@ -60,15 +61,18 @@ Source1002: %{name}-test.manifest
 
 %define ex_install_dir %{buildroot}%{_bindir}
 
-%if ! 0%{?license:0}
+
+# Default values to be eventually overiden BEFORE or as gbs params:
+
+%if ! 0%{?license:1}
 %define license %doc
 %endif
 
-%if ! 0%{?manifest:0}
-%define manifest %doc
+%if ! 0%{?manifest:1}
+#define manifest %doc
 %endif
 
-# Default values to be eventually overiden BEFORE or as gbs params:
+
 %{!?ES_TARGET_ENROLLEE: %define ES_TARGET_ENROLLEE tizen}
 %{!?LOGGING: %define LOGGING 1}
 %{!?RD_MODE: %define RD_MODE CLIENT}
