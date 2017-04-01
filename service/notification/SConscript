@@ -29,12 +29,14 @@ lib_env = env.Clone()
 SConscript('#service/third_party_libs.scons', 'lib_env')
 notification_env = lib_env.Clone()
 
+target_os = env.get('TARGET_OS')
+
 if notification_env.get('RELEASE'):
     notification_env.AppendUnique(CCFLAGS=['-Os'])
 else:
     notification_env.AppendUnique(CCFLAGS=['-g'])
-
-target_os = env.get('TARGET_OS')
+    if target_os in ['linux', 'tizen']:
+        notification_env.AppendUnique(LINKFLAGS = ['--coverage'])
 
 ######################################################################
 # Build flags
