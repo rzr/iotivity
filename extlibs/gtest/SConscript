@@ -52,25 +52,7 @@ if not os.path.exists(gtest_unpacked_sentinel):
     print('Unzipping to : ' + gtest_dir)
     gtest_env.UnpackAll(gtest_dir, gtest_zip)
 
-if target_os in ['linux']:
-    if not os.path.exists(gtest_configured_sentinel):
-        # Run configure on gtest
-        print('Configuring google unit test')
-        reconfigure_ran = gtest_env.Configure(gtest_dir, 'autoreconf -i')
-        if env.get('CROSS_COMPILE'):
-            configure_ran = env.Configure(
-                gtest_dir,
-                './configure --disable-shared --host=' + env['CROSS_COMPILE'])
-        else:
-            configure_ran = env.Configure(gtest_dir,
-                                          './configure --disable-shared')
-        gtest_env.Depends(configure_ran, reconfigure_ran)
-
-    # Run make on gtest
-    print('Making google unit test')
-    make_ran = gtest_env.Configure(gtest_dir, 'make')
-
-elif target_os in ['darwin', 'msys_nt'] and os.path.exists(gtest_dir):
+if target_os in ['darwin', 'linux', 'msys_nt'] and os.path.exists(gtest_dir):
     if not os.path.exists(gtest_configured_sentinel):
         # Create lib dir
         os.mkdir(gtest_lib_dir)
@@ -81,9 +63,8 @@ elif target_os in ['darwin', 'msys_nt'] and os.path.exists(gtest_dir):
         gtest_env.Configure(gtest_dir, 'cmake -G "Unix Makefiles" .')
 
     # Run make on gtest
-    print('Making google unit test')
-    gtest_env.Configure(gtest_dir, 'make')
-
+    print 'Making google unit test'
+    gtest_env.Configure(gtest_dir, 'cmake --build .')
     print('Moving libraries to lib folder')
     gtest_env.Configure(gtest_dir, 'cp libgtest.a lib')
     gtest_env.Configure(gtest_dir, 'mv libgtest.a lib/.libs')
