@@ -20,8 +20,8 @@ set -e
 [ ! -z ${EXEC_MODE} ] || EXEC_MODE=false
 
 package="gtest"
-packageRevision='1.7.0'
-packageUrl='https://github.com/google/googletest/archive/release-1.7.0.zip'
+packageRevision='1.8.0'
+packageUrl="https://github.com/google/googletest/archive/release-${packageRevision}.zip"
 packageArchive=$(basename -- "${packageUrl}")
 packageDir="extlibs/${package}/googletest-release-${packageRevision}"
 packageSourceFile="${packageDir}/CMakeLists.txt"

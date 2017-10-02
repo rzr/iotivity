@@ -13,16 +13,16 @@ build_dir = env.get('BUILD_DIR')
 
 targets_need_gtest = ['darwin', 'linux', 'msys_nt', 'windows']
 
-GTEST_VERSION = '1.7.0'
+GTEST_VERSION = '1.8.0'
 gtest_dir = os.path.join(src_dir, 'extlibs', 'gtest',
                          'googletest-release-' + GTEST_VERSION)
-gtest_lib_dir = os.path.join(gtest_dir, 'lib')
+gtest_lib_dir = os.path.join(gtest_dir, 'googlemock', 'gtest')
+gtest_include_dir = os.path.join(gtest_dir, 'googletest', 'include')
 gtest_configured_sentinel = os.path.join(gtest_dir, 'Makefile')
 gtest_unpacked_sentinel = os.path.join(gtest_dir, 'CMakeLists.txt')
-gtest_dotlib_dir = os.path.join(gtest_lib_dir, '.libs')
 gtest_zip_file = 'release-' + GTEST_VERSION + '.zip'
 gtest_url = 'https://github.com/google/googletest/archive/' + gtest_zip_file
-gtest_zip_path = os.path.join(src_dir, 'extlibs', 'gtest', gtest_zip_file)
+gtest_zip_path = os.path.join(src_dir, 'extlibs', 'googletest', gtest_zip_file)
 
 gtest_env = env.Clone()
 # nothing to do if this target doesn't use gtest
@@ -55,8 +55,6 @@ if not os.path.exists(gtest_unpacked_sentinel):
 if target_os in ['darwin', 'linux', 'msys_nt'] and os.path.exists(gtest_dir):
     if not os.path.exists(gtest_configured_sentinel):
         # Create lib dir
-        os.mkdir(gtest_lib_dir)
-        os.mkdir(gtest_dotlib_dir)
 
         # Run configure on gtest
         print('Configuring google unit test for compilation')
@@ -65,18 +63,13 @@ if target_os in ['darwin', 'linux', 'msys_nt'] and os.path.exists(gtest_dir):
     # Run make on gtest
     print 'Making google unit test'
     gtest_env.Configure(gtest_dir, 'cmake --build .')
-    print('Moving libraries to lib folder')
-    gtest_env.Configure(gtest_dir, 'cp libgtest.a lib')
-    gtest_env.Configure(gtest_dir, 'mv libgtest.a lib/.libs')
-    gtest_env.Configure(gtest_dir, 'cp libgtest_main.a lib')
-    gtest_env.Configure(gtest_dir, 'mv libgtest_main.a lib/.libs')
 
 elif target_os in ['windows'] and 'IOTIVITY_GTEST_HAS_BEEN_BUILT' not in env:
     # Avoid building the same StaticLibrary in more than one environment,
     # by using the IOTIVITY_GTEST_HAS_BEEN_BUILT environment variable
     gtest_env.AppendUnique(CPPPATH=[gtest_dir])
     gtest_build_env = gtest_env.Clone()
-    gtest_build_env.AppendUnique(CPPPATH=[os.path.join(gtest_dir, 'include')])
+    gtest_build_env.AppendUnique(CPPPATH=[os.path.join(gtest_dir, 'googletest', 'include')])
     gtest_build_env.AppendUnique(CXXFLAGS=['/EHsc'])
     gtest_build_env.AppendUnique(CCFLAGS=['/W4', '/WX'])
     gtest = gtest_build_env.StaticLibrary(target=build_dir + 'gtest',
@@ -89,9 +82,8 @@ elif target_os in ['windows'] and 'IOTIVITY_GTEST_HAS_BEEN_BUILT' not in env:
     gtest_vars.Update(env)
 
 # Export flags once for all
-gtest_env.AppendUnique(LIBPATH=[gtest_dotlib_dir])
-gtest_env.PrependUnique(CPPPATH=[os.path.join(gtest_dir, 'include')])
-gtest_env.AppendENVPath('LD_LIBRARY_PATH', gtest_dotlib_dir)
+gtest_env.AppendUnique(LIBPATH=[gtest_lib_dir])
+gtest_env.PrependUnique(CPPPATH=[gtest_include_dir])
 if 'g++' in gtest_env.get('CXX'):
     gtest_env.AppendUnique(CXXFLAGS=['-std=c++0x'])
     gtest_env.AppendUnique(CXXFLAGS=['-Wall'])
