@@ -300,6 +300,15 @@ struct FooResource
 
 };
 
+static FILE* override_fopen(const char* path, const char* mode)
+{
+    static const char* CRED_FILE_NAME = "./oic_svr_db_anon-clear.dat";
+    char const * const filename
+        = (0 == strcmp(path, OC_SECURITY_DB_DAT_FILE_NAME)) ? CRED_FILE_NAME : path;
+    FILE* file = fopen(filename, mode);
+    return file;
+}
+
 int main(int argc, char* argv[])
 {
     OCConnectivityType connectivityType = CT_ADAPTER_IP;
@@ -337,11 +346,11 @@ int main(int argc, char* argv[])
     {
         printUsage();
     }
-
+    OCPersistentStorage ps {override_fopen, fread, fwrite, fclose, unlink };
     PlatformConfig cfg {
         OC::ServiceType::InProc,
         OC::ModeType::Both,
-        nullptr
+        &ps
     };
 
     OCPlatform::Configure(cfg);
