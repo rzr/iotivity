@@ -104,3 +104,4 @@ env.UserInstallTargetPCFile('iotivity.pc', 'iotivity.pc')
 # If we need to extract some of what scons knows at the end of
 # the scan phase for debugging, can use debug.scons to print things
 SConscript('debug.scons')
+env.UserInstallLegal()

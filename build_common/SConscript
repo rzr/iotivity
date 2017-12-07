@@ -722,6 +722,44 @@ def UserInstallTargetExtra(ienv, targets, subdir=None):
 
 env.AddMethod(UserInstallTargetExtra)
 
+def __installlegal(ienv, target = 'LEGAL.md', source='.'):
+    '''
+    Scan tree for licences, even if patched with extlibs
+    if multilicensed blacklist incompatible ones, and not built in binaries
+    '''
+    patterns = ('LICEN*E*', "*BSD*", "*COPYING*", "*GPL*", "*MIT*", "*COPYRIGHT*")
+    blacklist = ( str(target), 
+                 './.git/COMMIT_EDITMSG',  # Matches *MIT* pattern
+                 './.git/COMMIT_EDITMSG~', # Emacs backup file
+                 './resource/csdk/connectivity/lib/libcoap-4.1.1/LICENSE.GPL', # Use LICENSE.BSD
+                 './extlibs/libstrophe/libstrophe/GPL-LICENSE.txt', # Use MIT
+                 './extlibs/libstrophe/libstrophe/COPYING', # Use MIT
+                 './extlibs/hippomocks/hippomocks/LICENSE', # Optionally used only for tests
+             )
+    files = []
+    import fnmatch
+    for root, dirnames, filenames in os.walk(str(source)):
+        for pattern in patterns:
+            for filename in fnmatch.filter(filenames, pattern):
+                path = os.path.join(root, filename)
+                if path not in blacklist and path not in files:
+                    files.append(path)
+    with open(str(target), 'w') as output:
+        output.write("# Copyrights #\n\n")
+        for filename in files:
+            output.write("## Files:" + os.path.dirname(filename) + "/*" + " ##\n\n")
+            output.write("License: " + filename + "\n\n")
+            with open(filename, 'r') as content:
+                for line in content.readlines():
+                    output.write("    %s" % line)
+            output.write('\n\n')
+    ienv.Alias('install', File(str(target)))
+
+
+def __append_target(ienv, name, targets=None):
+    if targets:
+        env.Alias(name, targets)
+    env.AppendUnique(TS=[name])
 
 def AddPthreadIfNeeded(ienv):
     """
@@ -760,11 +798,29 @@ All default targets will be built.  You can specify any target(s) to build:
 
     $ scons [options] [target]
 ===============================================================================
+<<<<<<< HEAD
 """)
 
 env.AddMethod(PrintTargets)
 
 
+=======
+''')
+
+
+env.AddMethod(__set_dir, 'SetDir')
+env.AddMethod(__print_targets, 'PrintTargets')
+env.AddMethod(__src_to_obj, 'SrcToObj')
+env.AddMethod(__append_target, 'AppendTarget')
+env.AddMethod(__add_pthread_if_needed, 'AddPthreadIfNeeded')
+env.AddMethod(__install, 'InstallTarget')
+env.AddMethod(__installlib, 'UserInstallTargetLib')
+env.AddMethod(__installbin, 'UserInstallTargetBin')
+env.AddMethod(__installheader, 'UserInstallTargetHeader')
+env.AddMethod(__installpcfile, 'UserInstallTargetPCFile')
+env.AddMethod(__installextra, 'UserInstallTargetExtra')
+env.AddMethod(__installlegal, 'UserInstallLegal')
+>>>>>>> 66bbb6a413... build: Scan licences in tree to create LEGAL.md
 env.SetDir(env.GetLaunchDir())
 env['ROOT_DIR'] = env.GetLaunchDir() + '/..'
 
