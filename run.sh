@@ -27,11 +27,11 @@ env_()
     url_suffix="#{branch}"
 
     #{ TODO: Update this section if forking
-    # user="${USER}"
-    # org="${user}"
+    user="rzr"
+    org="${user}"
     # branch="sandbox/${user}/${branch}"
     # url_suffix="#{branch}"
-    # url_suffix="" # TODO: For older docker
+    url_suffix="" # TODO: For older docker
     #}
 
     url="https://github.com/${org}/${project}.git${url_suffix}"
@@ -39,7 +39,7 @@ env_()
 
     release="0.0.0"
     src=false
-    if [ -d '.git' ] && which git ; then
+    if [ -d '.git' ] && which git > /dev/null 2>&1 ; then
         src=true
         branch=$(git rev-parse --abbrev-ref HEAD) ||:
         release=$(git describe --tags || echo "$release")
