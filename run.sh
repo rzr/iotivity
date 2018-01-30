@@ -26,9 +26,8 @@ env_()
     branch="master"
     url_suffix="#{branch}"
 
-    #{ TODO: Update this section if forking
-    user="rzr"
-    org="${user}"
+    # user="rzr" # Update here if forking
+    org="TizenTeam"
     # branch="sandbox/${user}/${branch}"
     # url_suffix="#{branch}"
     url_suffix="" # TODO: For older docker
@@ -75,8 +74,8 @@ die_()
 
 setup_debian_()
 {
-    which docker || sudo apt-get install docker.io
     which git || sudo apt-get install git
+    which docker || sudo apt-get install docker.io
 
     sudo apt-get install qemu qemu-user-static binfmt-support
     sudo update-binfmts --enable qemu-arm
@@ -129,10 +128,12 @@ build_()
     tag="${project}:${branch_name}"
     tag="${project}:${branch_name}.${release}"
     container="${project}"
+    container=$(echo "${container}" | sed -e 's|/|-|g')
+    outdir="${PWD}/tmp/out"
     if $src && [ "run.sh" = "${self_basename}" ] ; then
-        docker build -t "$tag" .
+        docker build -t "${tag}" .
     else
-        docker build -t "$tag" "${url}"
+        docker build -t "${tag}" "${url}"
     fi
     docker rm "${container}" > /dev/null 2>&1 ||:
     docker create --name "${container}" "${tag}" /bin/true
@@ -141,6 +142,7 @@ build_()
     docker cp "${container}:${dir}" "${outdir}"
     echo "Check Ouput files in:"
     ls "${outdir}/"*
+    find "${outdir}" -iname "*.deb"
 }
 
 
