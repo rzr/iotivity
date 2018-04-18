@@ -82,12 +82,12 @@ ifeq ($(open_memstream-pass),)
   endif
 endif
 
-# json2cbor depends on an external library (cJSON)
+# json2cbor depends on an external library (cjson)
 ifneq ($(cjson-pass)$(system-cjson-pass),)
   JSON2CBOR_SOURCES = tools/json2cbor/json2cbor.c
   INSTALL_TARGETS += $(bindir)/json2cbor
   ifeq ($(system-cjson-pass),1)
-    LDFLAGS_CJSON = -lcJSON
+    LDFLAGS_CJSON = -lcjson
   else
     JSON2CBOR_SOURCES += src/cjson/cJSON.c
     json2cbor_CCFLAGS = -I$(SRCDIR)src/cjson
@@ -105,16 +105,16 @@ configure: .config
 .config: Makefile.configure
 	$(MAKE) -f $(SRCDIR)Makefile.configure OUT='>&9' configure 9> $@
 
-lib bin:
-	$(MKDIR) $@
-
-lib/libtinycbor.a: $(TINYCBOR_SOURCES:.c=.o) | lib
+lib/libtinycbor.a: $(TINYCBOR_SOURCES:.c=.o)
+	@$(MKDIR) -p lib
 	$(AR) cqs $@ $^
 
-bin/cbordump: $(CBORDUMP_SOURCES:.c=.o) lib/libtinycbor.a | bin
+bin/cbordump: $(CBORDUMP_SOURCES:.c=.o) lib/libtinycbor.a
+	@$(MKDIR) -p bin
 	$(CC) -o $@ $(LDFLAGS) $^ $(LDLIBS) -lm
 
-bin/json2cbor: $(JSON2CBOR_SOURCES:.c=.o) lib/libtinycbor.a | bin
+bin/json2cbor: $(JSON2CBOR_SOURCES:.c=.o) lib/libtinycbor.a
+	@$(MKDIR) -p bin
 	$(CC) -o $@ $(LDFLAGS) $(LDFLAGS_CJSON) $^ $(LDLIBS) -lm
 
 tinycbor.pc: tinycbor.pc.in
@@ -177,29 +177,8 @@ distcheck: .git
 	cd $${TMPDIR-/tmp}/tinycbor-distcheck && $(MAKE) silentcheck
 	$(RM) -r $${TMPDIR-/tmp}/tinycbor-distcheck
 
-release: .git
-	$(MAKE) -f $(MAKEFILE) distcheck
-ifeq ($(VERSION),)
-	git -C $(SRCDIR). show HEAD:VERSION | \
-	  perl -l -n -e '@_ = split /\./; print "$$_[0]." . ($$_[1] + 1)' > $(SRCDIR)VERSION
-else
-	echo "$(VERSION)" > VERSION
-endif
-	if test -n "`git diff VERSION`"; then \
-	  git -C $(SRCDIR). commit -s -m "Update version number" VERSION; \
-	fi
-	{ echo "TinyCBOR release `cat $(SRCDIR)VERSION`"; \
-	  echo; \
-	  echo '# Write something nice about this release here'; \
-	  tmpl=`git -C $(SRCDIR). config --get commit.template` && \
-		cat "$$tmpl"; \
-	  echo '# Commit log:'; \
-	  git -C $(SRCDIR). shortlog -e --no-merges HEAD --not `git -C $(SRCDIR). tag` | sed 's,^,#   ,'; \
-	  echo '# Header diff:'; \
-	  git -C $(SRCDIR). diff HEAD --not `git -C $(SRCDIR). tag` -- 'src/*.h' ':!*_p.h' | sed 's,^,# ,'; \
-	} > $(SRCDIR).git/TAG_EDITMSG
-	@`git -C $(SRCDIR). var GIT_EDITOR` $(SRCDIR).git/TAG_EDITMSG
-	git -C $(SRCDIR). tag -a -F $(SRCDIR).git/TAG_EDITMSG $(GITTAGFLAGS) v`cat $(SRCDIR)VERSION`
+tag: distcheck
+	@cd $(SRCDIR). && perl maketag.pl
 
 .PHONY: all check silentcheck configure install uninstall
 .PHONY: mostlyclean clean distclean
@@ -207,7 +186,7 @@ endif
 .SECONDARY:
 
 cflags := $(CPPFLAGS) -I$(SRCDIR)src
-cflags += -DTINYCBOR_VERSION=\"$(VERSION)$(DIRTYSRC)\"
+cflags += -DTINYCBOR_VERSION_SUFFIX=\"$(DIRTYSRC)\"
 cflags += -std=c99 $(CFLAGS)
 %.o: %.c
 	@test -d $(@D) || $(MKDIR) $(@D)

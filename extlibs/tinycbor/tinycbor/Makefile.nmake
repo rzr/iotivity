@@ -34,7 +34,9 @@ clean: mostlyclean
 	if exist tests\Makefile (cd tests & $(MAKE) clean)
 distclean: clean
 	if exist tests\Makefile (cd tests & $(MAKE) distclean)
+tag:
+	@perl maketag.pl
 
 {src\}.c{src\}.obj:
-	$(CC) -nologo $(CFLAGS) -Isrc -DTINYCBOR_VERSION="" -c -Fo$@ $<
+	$(CC) -nologo $(CFLAGS) -Isrc -DTINYCBOR_VERSION_SUFFIX="" -c -Fo$@ $<
 
