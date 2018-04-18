@@ -1,6 +1,6 @@
 /****************************************************************************
 **
-** Copyright (C) 2015 Intel Corporation
+** Copyright (C) 2017 Intel Corporation
 **
 ** Permission is hereby granted, free of charge, to any person obtaining a copy
 ** of this software and associated documentation files (the "Software"), to deal
@@ -25,12 +25,18 @@
 #ifndef CBOR_H
 #define CBOR_H
 
+#ifndef assert
 #include <assert.h>
+#endif
 #include <limits.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
 #include <stdio.h>
+
+#include "tinycbor-version.h"
+
+#define TINYCBOR_VERSION            ((TINYCBOR_VERSION_MAJOR << 16) | (TINYCBOR_VERSION_MINOR << 8) | TINYCBOR_VERSION_PATCH)
 
 #ifdef __cplusplus
 extern "C" {
@@ -93,22 +99,53 @@ typedef enum CborType {
 
 typedef uint64_t CborTag;
 typedef enum CborKnownTags {
-    CborDateTimeStringTag          = 0,        /* RFC 3339 format: YYYY-MM-DD hh:mm:ss+zzzz */
+    CborDateTimeStringTag          = 0,
     CborUnixTime_tTag              = 1,
     CborPositiveBignumTag          = 2,
     CborNegativeBignumTag          = 3,
     CborDecimalTag                 = 4,
     CborBigfloatTag                = 5,
+    CborCOSE_Encrypt0Tag           = 16,
+    CborCOSE_Mac0Tag               = 17,
+    CborCOSE_Sign1Tag              = 18,
     CborExpectedBase64urlTag       = 21,
     CborExpectedBase64Tag          = 22,
     CborExpectedBase16Tag          = 23,
-    CborUriTag                     = 32,
+    CborEncodedCborTag             = 24,
+    CborUrlTag                     = 32,
     CborBase64urlTag               = 33,
     CborBase64Tag                  = 34,
     CborRegularExpressionTag       = 35,
-    CborMimeMessageTag             = 36,       /* RFC 2045-2047 */
+    CborMimeMessageTag             = 36,
+    CborCOSE_EncryptTag            = 96,
+    CborCOSE_MacTag                = 97,
+    CborCOSE_SignTag               = 98,
     CborSignatureTag               = 55799
 } CborKnownTags;
+
+/* #define the constants so we can check with #ifdef */
+#define CborDateTimeStringTag CborDateTimeStringTag
+#define CborUnixTime_tTag CborUnixTime_tTag
+#define CborPositiveBignumTag CborPositiveBignumTag
+#define CborNegativeBignumTag CborNegativeBignumTag
+#define CborDecimalTag CborDecimalTag
+#define CborBigfloatTag CborBigfloatTag
+#define CborCOSE_Encrypt0Tag CborCOSE_Encrypt0Tag
+#define CborCOSE_Mac0Tag CborCOSE_Mac0Tag
+#define CborCOSE_Sign1Tag CborCOSE_Sign1Tag
+#define CborExpectedBase64urlTag CborExpectedBase64urlTag
+#define CborExpectedBase64Tag CborExpectedBase64Tag
+#define CborExpectedBase16Tag CborExpectedBase16Tag
+#define CborEncodedCborTag CborEncodedCborTag
+#define CborUrlTag CborUrlTag
+#define CborBase64urlTag CborBase64urlTag
+#define CborBase64Tag CborBase64Tag
+#define CborRegularExpressionTag CborRegularExpressionTag
+#define CborMimeMessageTag CborMimeMessageTag
+#define CborCOSE_EncryptTag CborCOSE_EncryptTag
+#define CborCOSE_MacTag CborCOSE_MacTag
+#define CborCOSE_SignTag CborCOSE_SignTag
+#define CborSignatureTag CborSignatureTag
 
 /* Error API */
 
@@ -136,6 +173,13 @@ typedef enum CborError {
     CborErrorInappropriateTagForType,
     CborErrorDuplicateObjectKeys,
     CborErrorInvalidUtf8TextString,
+    CborErrorExcludedType,
+    CborErrorExcludedValue,
+    CborErrorImproperValue,
+    CborErrorOverlongEncoding,
+    CborErrorMapKeyNotString,
+    CborErrorMapNotSorted,
+    CborErrorMapKeysNotUnique,
 
     /* encoder errors */
     CborErrorTooManyItems = 768,
@@ -147,12 +191,12 @@ typedef enum CborError {
     CborErrorUnsupportedType,
 
     /* errors in converting to JSON */
-    CborErrorJsonObjectKeyIsAggregate,
+    CborErrorJsonObjectKeyIsAggregate = 1280,
     CborErrorJsonObjectKeyNotString,
     CborErrorJsonNotImplemented,
 
     CborErrorOutOfMemory = (int) (~0U / 2 + 1),
-    CborErrorInternalError = (int) ~0U
+    CborErrorInternalError = (int) (~0U / 2)    /* INT_MAX on two's complement machines */
 } CborError;
 
 CBOR_API const char *cbor_error_string(CborError error);
@@ -165,7 +209,7 @@ struct CborEncoder
         ptrdiff_t bytes_needed;
     } data;
     const uint8_t *end;
-    size_t added;
+    size_t remaining;
     int flags;
 };
 typedef struct CborEncoder CborEncoder;
@@ -203,6 +247,11 @@ CBOR_API CborError cbor_encoder_create_map(CborEncoder *encoder, CborEncoder *ma
 CBOR_API CborError cbor_encoder_close_container(CborEncoder *encoder, const CborEncoder *containerEncoder);
 CBOR_API CborError cbor_encoder_close_container_checked(CborEncoder *encoder, const CborEncoder *containerEncoder);
 
+CBOR_INLINE_API uint8_t *_cbor_encoder_get_buffer_pointer(const CborEncoder *encoder)
+{
+    return encoder->data.ptr;
+}
+
 CBOR_INLINE_API size_t cbor_encoder_get_buffer_size(const CborEncoder *encoder, const uint8_t *buffer)
 {
     return (size_t)(encoder->data.ptr - buffer);
@@ -219,6 +268,7 @@ enum CborParserIteratorFlags
 {
     CborIteratorFlag_IntegerValueTooLarge   = 0x01,
     CborIteratorFlag_NegativeInteger        = 0x02,
+    CborIteratorFlag_IteratingStringChunks  = 0x02,
     CborIteratorFlag_UnknownLength          = 0x04,
     CborIteratorFlag_ContainerIsMap         = 0x20
 };
@@ -242,6 +292,8 @@ struct CborValue
 typedef struct CborValue CborValue;
 
 CBOR_API CborError cbor_parser_init(const uint8_t *buffer, size_t size, int flags, CborParser *parser, CborValue *it);
+
+CBOR_API CborError cbor_value_validate_basic(const CborValue *it);
 
 CBOR_INLINE_API bool cbor_value_at_end(const CborValue *it)
 { return it->remaining == 0; }
@@ -400,8 +452,6 @@ CBOR_INLINE_API CborError cbor_value_dup_byte_string(const CborValue *value, uin
     return _cbor_value_dup_string(value, (void **)buffer, buflen, next);
 }
 
-/* ### TBD: partial reading API */
-
 CBOR_API CborError cbor_value_text_string_equals(const CborValue *value, const char *string, bool *result);
 
 /* Maps and arrays */
@@ -463,17 +513,83 @@ CBOR_INLINE_API CborError cbor_value_get_double(const CborValue *value, double *
     return CborNoError;
 }
 
-/* The following API requires a hosted C implementation (uses FILE*) */
-#if !defined(__STDC_HOSTED__) || __STDC_HOSTED__-0 == 1
+/* Validation API */
+
+enum CborValidationFlags {
+    /* Bit mapping:
+     *  bits 0-7 (8 bits):      canonical format
+     *  bits 8-11 (4 bits):     canonical format & strict mode
+     *  bits 12-20 (8 bits):    strict mode
+     *  bits 21-31 (10 bits):   other
+     */
+
+    CborValidateShortestIntegrals           = 0x0001,
+    CborValidateShortestFloatingPoint       = 0x0002,
+    CborValidateShortestNumbers             = CborValidateShortestIntegrals | CborValidateShortestFloatingPoint,
+    CborValidateNoIndeterminateLength       = 0x0100,
+    CborValidateMapIsSorted                 = 0x0200 | CborValidateNoIndeterminateLength,
+
+    CborValidateCanonicalFormat             = 0x0fff,
+
+    CborValidateMapKeysAreUnique            = 0x1000 | CborValidateMapIsSorted,
+    CborValidateTagUse                      = 0x2000,
+    CborValidateUtf8                        = 0x4000,
+
+    CborValidateStrictMode                  = 0xfff00,
+
+    CborValidateMapKeysAreString            = 0x100000,
+    CborValidateNoUndefined                 = 0x200000,
+    CborValidateNoTags                      = 0x400000,
+    CborValidateFiniteFloatingPoint         = 0x800000,
+    /* unused                               = 0x1000000, */
+    /* unused                               = 0x2000000, */
+
+    CborValidateNoUnknownSimpleTypesSA      = 0x4000000,
+    CborValidateNoUnknownSimpleTypes        = 0x8000000 | CborValidateNoUnknownSimpleTypesSA,
+    CborValidateNoUnknownTagsSA             = 0x10000000,
+    CborValidateNoUnknownTagsSR             = 0x20000000 | CborValidateNoUnknownTagsSA,
+    CborValidateNoUnknownTags               = 0x40000000 | CborValidateNoUnknownTagsSR,
+
+    CborValidateCompleteData                = (int)0x80000000,
+
+    CborValidateStrictest                   = (int)~0U,
+    CborValidateBasic                       = 0
+};
+
+CBOR_API CborError cbor_value_validate(const CborValue *it, int flags);
 
 /* Human-readable (dump) API */
+
+enum CborPrettyFlags {
+    CborPrettyNumericEncodingIndicators     = 0x01,
+    CborPrettyTextualEncodingIndicators     = 0,
+
+    CborPrettyIndicateIndetermineLength     = 0x02,
+    CborPrettyIndicateOverlongNumbers       = 0x04,
+
+    CborPrettyShowStringFragments           = 0x100,
+    CborPrettyMergeStringFragments          = 0,
+
+    CborPrettyDefaultFlags          = CborPrettyIndicateIndetermineLength
+};
+
+typedef CborError (*CborStreamFunction)(void *token, const char *fmt, ...)
+#ifdef __GNUC__
+    __attribute__((__format__(printf, 2, 3)))
+#endif
+;
+
+CBOR_API CborError cbor_value_to_pretty_stream(CborStreamFunction streamFunction, void *token, CborValue *value, int flags);
+
+/* The following API requires a hosted C implementation (uses FILE*) */
+#if !defined(__STDC_HOSTED__) || __STDC_HOSTED__-0 == 1
+CBOR_API CborError cbor_value_to_pretty_advance_flags(FILE *out, CborValue *value, int flags);
 CBOR_API CborError cbor_value_to_pretty_advance(FILE *out, CborValue *value);
 CBOR_INLINE_API CborError cbor_value_to_pretty(FILE *out, const CborValue *value)
 {
     CborValue copy = *value;
-    return cbor_value_to_pretty_advance(out, &copy);
+    return cbor_value_to_pretty_advance_flags(out, &copy, CborPrettyDefaultFlags);
 }
-
 #endif /* __STDC_HOSTED__ check */
 
 #ifdef __cplusplus

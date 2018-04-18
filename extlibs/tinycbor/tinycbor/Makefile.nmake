@@ -7,14 +7,18 @@ TINYCBOR_SOURCES = \
 	src\cborencoder_close_container_checked.c \
 	src\cborparser.c \
 	src\cborparser_dup_string.c \
-	src\cborpretty.c
+	src\cborpretty.c \
+	src\cborpretty_stdio.c \
+	src\cborvalidation.c
 TINYCBOR_OBJS = \
 	src\cborerrorstrings.obj \
 	src\cborencoder.obj \
 	src\cborencoder_close_container_checked.obj \
 	src\cborparser.obj \
 	src\cborparser_dup_string.obj \
-	src\cborpretty.obj
+	src\cborpretty.obj \
+	src\cborpretty_stdio.obj \
+	src\cborvalidation.obj
 
 all: lib\tinycbor.lib
 check: tests\Makefile lib\tinycbor.lib
@@ -39,5 +43,5 @@ tag:
 	@perl maketag.pl
 
 {src\}.c{src\}.obj:
-	$(CC) -nologo $(CFLAGS) -Isrc -DTINYCBOR_VERSION_SUFFIX="" -c -Fo$@ $<
+	$(CC) -nologo $(CFLAGS) -Isrc -c -Fo$@ $<
 

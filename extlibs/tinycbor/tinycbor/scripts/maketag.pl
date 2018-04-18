@@ -57,7 +57,7 @@ exit ($? >> 8) if $?;
 system("git", "tag", "-a", "-F", $tagfile, split(' ', $ENV{GITTAGFLAGS}), "v$v");
 exit ($? >> 8) if $?;
 
-# Update the version file for the next patch release
+# Update the version files for the next patch release
 @v = split(/\./, $v);
 if (scalar @v < 3) {
     push @v, '1';
@@ -67,3 +67,25 @@ if (scalar @v < 3) {
 $v = join('.', @v);
 open VERSION, ">", "VERSION" or die("Cannot open VERSION file: $!");
 print VERSION "$v\n";
+close VERSION;
+
+open VERSION, ">", "src/tinycbor-version.h" or die("Cannot open src/tinycbor-version.h: $!");
+print VERSION "#define TINYCBOR_VERSION_MAJOR      ", $v[0], "\n";
+print VERSION "#define TINYCBOR_VERSION_MINOR      ", $v[1], "\n";
+print VERSION "#define TINYCBOR_VERSION_PATCH      ", $v[2], "\n";
+close VERSION;
+
+if (open APPVEYORYML, "<", ".appveyor.yml") {
+    my @contents = map {
+        s/^version:.*/version: $v[0].$v[1].$v[2]-build-{build}/;
+        $_;
+    } <APPVEYORYML>;
+    close APPVEYORYML;
+    open APPVEYORYML, ">", ".appveyor.yml";
+    print APPVEYORYML join('', @contents);
+    close APPVEYORYML;
+}
+
+# Print summary
+print "Tag created and next versions updated.\n";
+print "Don't forget to create the docs.\n" if $v[2] == 1;
