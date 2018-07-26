@@ -59,6 +59,7 @@ int main( void )
 #include "mbedtls/error.h"
 #include "mbedtls/debug.h"
 #include "mbedtls/timing.h"
+#include "mbedtls/oid.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -141,6 +142,8 @@ int main( void )
 #define DFL_BADMAC_LIMIT        -1
 #define DFL_EXTENDED_MS         -1
 #define DFL_ETM                 -1
+#define DFL_EKU_CLIENT          ""
+#define DFL_EKU_SERVER          ""
 
 #define LONG_RESPONSE "<p>01-blah-blah-blah-blah-blah-blah-blah-blah-blah\r\n" \
     "02-blah-blah-blah-blah-blah-blah-blah-blah-blah-blah-blah-blah-blah\r\n"  \
@@ -309,6 +312,14 @@ int main( void )
 #define USAGE_ECJPAKE ""
 #endif
 
+#if defined(MBEDTLS_X509_CHECK_EXTENDED_KEY_USAGE)
+#define USAGE_EKU \
+    "    eku=%%s-%%s           default: client-server\n"          \
+    "                        options for each: server, client, codesign\n"
+#else
+#define USAGE_EKU ""
+#endif
+
 #define USAGE \
     "\n usage: ssl_server2 param=<>...\n"                   \
     "\n acceptable parameters:\n"                           \
@@ -343,6 +354,7 @@ int main( void )
     USAGE_ALPN                                              \
     USAGE_EMS                                               \
     USAGE_ETM                                               \
+    USAGE_EKU                                               \
     "\n"                                                    \
     "    arc4=%%d             default: (library default: 0)\n" \
     "    min_version=%%s      default: (library default: tls1)\n"       \
@@ -418,6 +430,10 @@ struct options
     uint32_t hs_to_min;         /* Initial value of DTLS handshake timer    */
     uint32_t hs_to_max;         /* Max value of DTLS handshake timer        */
     int badmac_limit;           /* Limit of records with bad MAC            */
+    const char *eku_cli;        /* EKU to check for in client cert          */
+    size_t eku_cli_len;         /* length of eku_cli                        */
+    const char *eku_srv;        /* EKU to check for in server cert          */
+    size_t eku_srv_len;         /* length of eku_srv                        */
 } opt;
 
 static void my_debug( void *ctx, int level,
@@ -961,6 +977,10 @@ int main( int argc, char *argv[] )
     opt.badmac_limit        = DFL_BADMAC_LIMIT;
     opt.extended_ms         = DFL_EXTENDED_MS;
     opt.etm                 = DFL_ETM;
+    opt.eku_cli             = DFL_EKU_CLIENT;
+    opt.eku_cli_len         = MBEDTLS_OID_SIZE( DFL_EKU_CLIENT );
+    opt.eku_srv             = DFL_EKU_SERVER;
+    opt.eku_srv_len         = MBEDTLS_OID_SIZE( DFL_EKU_SERVER );
 
     for( i = 1; i < argc; i++ )
     {
@@ -1254,6 +1274,47 @@ int main( int argc, char *argv[] )
         else if( strcmp( p, "sni" ) == 0 )
         {
             opt.sni = q;
+        }
+        else if( strcmp( p, "eku" ) == 0 )
+        {
+            if( ( p = strchr( q, '-' ) ) == NULL )
+                goto usage;
+            *p++ = '\0';
+            if( strcmp( q, "server" ) == 0 )
+            {
+                opt.eku_cli = MBEDTLS_OID_SERVER_AUTH;
+                opt.eku_cli_len = MBEDTLS_OID_SIZE( MBEDTLS_OID_SERVER_AUTH );
+            }
+            else if( strcmp( q, "client" ) == 0 )
+            {
+                opt.eku_cli = MBEDTLS_OID_CLIENT_AUTH;
+                opt.eku_cli_len = MBEDTLS_OID_SIZE( MBEDTLS_OID_CLIENT_AUTH );
+            }
+            else if( strcmp( q, "codesign" ) == 0 )
+            {
+                opt.eku_cli = MBEDTLS_OID_CODE_SIGNING;
+                opt.eku_cli_len = MBEDTLS_OID_SIZE( MBEDTLS_OID_CODE_SIGNING );
+            }
+            else
+                goto usage;
+
+            if( strcmp( p, "server" ) == 0 )
+            {
+                opt.eku_srv = MBEDTLS_OID_SERVER_AUTH;
+                opt.eku_srv_len = MBEDTLS_OID_SIZE( MBEDTLS_OID_SERVER_AUTH );
+            }
+            else if( strcmp( p, "client" ) == 0 )
+            {
+                opt.eku_srv = MBEDTLS_OID_CLIENT_AUTH;
+                opt.eku_srv_len = MBEDTLS_OID_SIZE( MBEDTLS_OID_CLIENT_AUTH );
+            }
+            else if( strcmp( p, "codesign" ) == 0 )
+            {
+                opt.eku_srv = MBEDTLS_OID_CODE_SIGNING;
+                opt.eku_srv_len = MBEDTLS_OID_SIZE( MBEDTLS_OID_CODE_SIGNING );
+            }
+            else
+                goto usage;
         }
         else
             goto usage;
@@ -1630,6 +1691,20 @@ int main( int argc, char *argv[] )
         mbedtls_printf( " failed\n  ! mbedtls_ssl_config_defaults returned -0x%x\n\n", -ret );
         goto exit;
     }
+
+#if defined(MBEDTLS_X509_CHECK_EXTENDED_KEY_USAGE)
+    if ( opt.eku_cli_len > 0 && opt.eku_srv_len > 0 )
+    {
+        if( ( ret = mbedtls_ssl_conf_ekus( &conf,
+                        opt.eku_cli, opt.eku_cli_len,
+                        opt.eku_srv, opt.eku_srv_len ) ) != 0 )
+        {
+            mbedtls_printf( " failed\n  ! mbedtls_ssl_config_ekus returned -0x%x\n\n", -ret );
+            goto exit;
+        }
+    }
+#endif
+
 
     if( opt.auth_mode != DFL_AUTH_MODE )
         mbedtls_ssl_conf_authmode( &conf, opt.auth_mode );

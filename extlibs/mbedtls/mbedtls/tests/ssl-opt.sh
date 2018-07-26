@@ -2539,6 +2539,16 @@ run_test    "extKeyUsage cli: codeSign -> fail" \
             -c "Processing of the Certificate handshake message failed" \
             -C "Ciphersuite is TLS-"
 
+run_test    "extKeyUsage cli: codeSign(requested) -> OK " \
+            "$O_SRV -key data_files/server5.key \
+             -cert data_files/server5.eku-cs.crt" \
+            "$P_CLI debug_level=1 eku=client-codesign" \
+            0 \
+            -C "bad certificate (usage extensions)" \
+            -C "Processing of the Certificate handshake message failed" \
+            -c "Ciphersuite is TLS-"
+
+
 # Tests for extendedKeyUsage, part 3: server-side checking of client cert
 
 run_test    "extKeyUsage cli-auth: clientAuth -> OK" \
@@ -2580,6 +2590,14 @@ run_test    "extKeyUsage cli-auth: codeSign -> fail (hard)" \
             1 \
             -s "bad certificate (usage extensions)" \
             -s "Processing of the Certificate handshake message failed"
+
+run_test    "extKeyUsage cli-auth: codeSign(requested) -> OK" \
+            "$P_SRV debug_level=1 auth_mode=required eku=codesign-server" \
+            "$O_CLI -key data_files/server5.key \
+             -cert data_files/server5.eku-cs.crt" \
+            0 \
+            -S "bad certificate (usage extensions)" \
+            -S "Processing of the Certificate handshake message failed"
 
 # Tests for DHM parameters loading
 

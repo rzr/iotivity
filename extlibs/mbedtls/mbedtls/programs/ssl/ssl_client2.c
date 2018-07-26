@@ -58,6 +58,7 @@ int main( void )
 #include "mbedtls/error.h"
 #include "mbedtls/debug.h"
 #include "mbedtls/timing.h"
+#include "mbedtls/oid.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -103,6 +104,8 @@ int main( void )
 #define DFL_FALLBACK            -1
 #define DFL_EXTENDED_MS         -1
 #define DFL_ETM                 -1
+#define DFL_EKU_CLIENT          ""
+#define DFL_EKU_SERVER          ""
 
 #define GET_REQUEST "GET %s HTTP/1.0\r\nExtra-header: "
 #define GET_REQUEST_END "\r\n\r\n"
@@ -222,6 +225,14 @@ int main( void )
 #define USAGE_ECJPAKE ""
 #endif
 
+#if defined(MBEDTLS_X509_CHECK_EXTENDED_KEY_USAGE)
+#define USAGE_EKU \
+    "    eku=%%s-%%s           default: client-server\n"          \
+    "                        options for each: server, client, codesign\n"
+#else
+#define USAGE_EKU ""
+#endif
+
 #define USAGE \
     "\n usage: ssl_client2 param=<>...\n"                   \
     "\n acceptable parameters:\n"                           \
@@ -261,6 +272,7 @@ int main( void )
     USAGE_ETM                                               \
     USAGE_RECSPLIT                                          \
     USAGE_DHMLEN                                            \
+    USAGE_EKU                                               \
     "\n"                                                    \
     "    arc4=%%d             default: (library default: 0)\n" \
     "    min_version=%%s      default: (library default: tls1)\n"       \
@@ -317,6 +329,10 @@ struct options
     int fallback;               /* is this a fallback connection?           */
     int extended_ms;            /* negotiate extended master secret?        */
     int etm;                    /* negotiate encrypt then mac?              */
+    const char *eku_cli;        /* EKU to check for in client cert          */
+    size_t eku_cli_len;         /* length of eku_cli                        */
+    const char *eku_srv;        /* EKU to check for in server cert          */
+    size_t eku_srv_len;         /* length of eku_srv                        */
 } opt;
 
 static void my_debug( void *ctx, int level,
@@ -507,6 +523,10 @@ int main( int argc, char *argv[] )
     opt.fallback            = DFL_FALLBACK;
     opt.extended_ms         = DFL_EXTENDED_MS;
     opt.etm                 = DFL_ETM;
+    opt.eku_cli             = DFL_EKU_CLIENT;
+    opt.eku_cli_len         = MBEDTLS_OID_SIZE( DFL_EKU_CLIENT );
+    opt.eku_srv             = DFL_EKU_SERVER;
+    opt.eku_srv_len         = MBEDTLS_OID_SIZE( DFL_EKU_SERVER );
 
     for( i = 1; i < argc; i++ )
     {
@@ -795,6 +815,47 @@ int main( int argc, char *argv[] )
         {
             opt.dhmlen = atoi( q );
             if( opt.dhmlen < 0 )
+                goto usage;
+        }
+        else if ( strcmp(p, "eku") == 0 )
+        {
+            if ( ( p = strchr( q, '-' ) ) == NULL )
+                goto usage;
+            *p++ = '\0';
+            if ( strcmp( q, "server" ) == 0 )
+            {
+                opt.eku_cli = MBEDTLS_OID_SERVER_AUTH;
+                opt.eku_cli_len = MBEDTLS_OID_SIZE(MBEDTLS_OID_SERVER_AUTH);
+            }
+            else if ( strcmp( q, "client" ) == 0 )
+            {
+                opt.eku_cli = MBEDTLS_OID_CLIENT_AUTH;
+                opt.eku_cli_len = MBEDTLS_OID_SIZE(MBEDTLS_OID_CLIENT_AUTH);
+            }
+            else if ( strcmp( q, "codesign" ) == 0 )
+            {
+                opt.eku_cli = MBEDTLS_OID_CODE_SIGNING;
+                opt.eku_cli_len = MBEDTLS_OID_SIZE(MBEDTLS_OID_CODE_SIGNING);
+            }
+            else
+                goto usage;
+
+            if ( strcmp( p, "server" ) == 0 )
+            {
+                opt.eku_srv = MBEDTLS_OID_SERVER_AUTH;
+                opt.eku_srv_len = MBEDTLS_OID_SIZE(MBEDTLS_OID_SERVER_AUTH);
+            }
+            else if ( strcmp( p, "client" ) == 0 )
+            {
+                opt.eku_srv = MBEDTLS_OID_CLIENT_AUTH;
+                opt.eku_srv_len = MBEDTLS_OID_SIZE(MBEDTLS_OID_CLIENT_AUTH);
+            }
+            else if ( strcmp( p, "codesign" ) == 0 )
+            {
+                opt.eku_srv = MBEDTLS_OID_CODE_SIGNING;
+                opt.eku_srv_len = MBEDTLS_OID_SIZE(MBEDTLS_OID_CODE_SIGNING);
+            }
+            else
                 goto usage;
         }
         else
@@ -1087,6 +1148,19 @@ int main( int argc, char *argv[] )
         mbedtls_printf( " failed\n  ! mbedtls_ssl_config_defaults returned -0x%x\n\n", -ret );
         goto exit;
     }
+
+#if defined(MBEDTLS_X509_CHECK_EXTENDED_KEY_USAGE)
+    if ( opt.eku_cli_len > 0 && opt.eku_srv_len > 0 )
+    {
+        if( ( ret = mbedtls_ssl_conf_ekus( &conf,
+                        opt.eku_cli, opt.eku_cli_len,
+                        opt.eku_srv, opt.eku_srv_len ) ) != 0 )
+        {
+            mbedtls_printf( " failed\n  ! mbedtls_ssl_config_ekus returned -0x%x\n\n", -ret );
+            goto exit;
+        }
+    }
+#endif
 
 #if defined(MBEDTLS_X509_CRT_PARSE_C)
     if( opt.debug_level > 0 )

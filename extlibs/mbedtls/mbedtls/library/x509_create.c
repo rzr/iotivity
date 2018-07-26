@@ -174,7 +174,7 @@ int mbedtls_x509_set_extension( mbedtls_asn1_named_data **head, const char *oid,
         return( MBEDTLS_ERR_X509_ALLOC_FAILED );
     }
 
-    cur->val.p[0] = critical;
+    cur->val.p[0] = critical == 0 ? 0 : 1;
     memcpy( cur->val.p + 1, val, val_len );
 
     return( 0 );
@@ -231,15 +231,15 @@ static int x509_write_name( unsigned char **p, unsigned char *start,
 }
 
 int mbedtls_x509_write_names( unsigned char **p, unsigned char *start,
-                      mbedtls_asn1_named_data *first )
+                      const mbedtls_asn1_named_data *first )
 {
     int ret;
     size_t len = 0;
-    mbedtls_asn1_named_data *cur = first;
+    const mbedtls_asn1_named_data *cur = first;
 
     while( cur != NULL )
     {
-        MBEDTLS_ASN1_CHK_ADD( len, x509_write_name( p, start, (char *) cur->oid.p,
+        MBEDTLS_ASN1_CHK_ADD( len, x509_write_name( p, start, (const char *) cur->oid.p,
                                             cur->oid.len,
                                             cur->val.p, cur->val.len ) );
         cur = cur->next;

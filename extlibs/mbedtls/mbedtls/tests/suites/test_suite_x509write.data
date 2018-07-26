@@ -58,6 +58,18 @@ Certificate write check Server1 SHA1, version 1
 depends_on:MBEDTLS_SHA1_C:MBEDTLS_RSA_C:MBEDTLS_PKCS1_V15:MBEDTLS_DES_C:MBEDTLS_CIPHER_MODE_CBC:MBEDTLS_MD5_C
 x509_crt_check:"data_files/server1.key":"":"C=NL,O=PolarSSL,CN=PolarSSL Server 1":"data_files/test-ca.key":"PolarSSLTest":"C=NL,O=PolarSSL,CN=PolarSSL Test CA":"1":"20110212144406":"20210212144406":MBEDTLS_MD_SHA1:0:0:MBEDTLS_X509_CRT_VERSION_1:"data_files/server1.v1.crt"
 
+Certificate write check Server1 SHA256 with dNSName
+depends_on:MBEDTLS_SHA1_C:MBEDTLS_RSA_C:MBEDTLS_PKCS1_V15:MBEDTLS_DES_C:MBEDTLS_CIPHER_MODE_CBC:MBEDTLS_MD5_C:MBEDTLS_SHA256_C:MBEDTLS_X509_EXPANDED_SUBJECT_ALT_NAME_SUPPORT
+x509_crt_subj_alt_name_check:"data_files/server1.key":"":"C=NL,O=PolarSSL,CN=PolarSSL Server 1":"data_files/test-ca.key":"PolarSSLTest":"C=NL,O=PolarSSL,CN=PolarSSL Test CA":"1":"20110212144406":"20210212144406":MBEDTLS_MD_SHA256:0:0:-1:1:"data_files/server1-dnsname.crt"
+
+Certificate write check Server1 SHA256 with directoryName
+depends_on:MBEDTLS_SHA1_C:MBEDTLS_RSA_C:MBEDTLS_PKCS1_V15:MBEDTLS_DES_C:MBEDTLS_CIPHER_MODE_CBC:MBEDTLS_MD5_C:MBEDTLS_SHA256_C:MBEDTLS_X509_EXPANDED_SUBJECT_ALT_NAME_SUPPORT
+x509_crt_subj_alt_name_check:"data_files/server1.key":"":"C=NL,O=PolarSSL,CN=PolarSSL Server 1":"data_files/test-ca.key":"PolarSSLTest":"C=NL,O=PolarSSL,CN=PolarSSL Test CA":"1":"20110212144406":"20210212144406":MBEDTLS_MD_SHA256:0:0:-1:2:"data_files/server1-directoryname.crt"
+
+Certificate write check Server1 SHA256 with dNSName and directoryName
+depends_on:MBEDTLS_SHA1_C:MBEDTLS_RSA_C:MBEDTLS_PKCS1_V15:MBEDTLS_DES_C:MBEDTLS_CIPHER_MODE_CBC:MBEDTLS_MD5_C:MBEDTLS_SHA256_C:MBEDTLS_X509_EXPANDED_SUBJECT_ALT_NAME_SUPPORT
+x509_crt_subj_alt_name_check:"data_files/server1.key":"":"C=NL,O=PolarSSL,CN=PolarSSL Server 1":"data_files/test-ca.key":"PolarSSLTest":"C=NL,O=PolarSSL,CN=PolarSSL Test CA":"1":"20110212144406":"20210212144406":MBEDTLS_MD_SHA256:0:0:-1:3:"data_files/server1-bothnames.crt"
+
 X509 String to Names #1
 mbedtls_x509_string_to_names:"C=NL,O=Offspark\, Inc., OU=PolarSSL":"C=NL, O=Offspark, Inc., OU=PolarSSL":0
 

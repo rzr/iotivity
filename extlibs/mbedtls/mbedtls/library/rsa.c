@@ -1083,6 +1083,9 @@ int mbedtls_rsa_rsassa_pkcs1_v15_sign( mbedtls_rsa_context *ctx,
          *
          * Digest ::= OCTET STRING
          */
+        if ( hashlen > 127 )
+            return( MBEDTLS_ERR_RSA_BAD_INPUT_DATA );
+
         *p++ = MBEDTLS_ASN1_SEQUENCE | MBEDTLS_ASN1_CONSTRUCTED;
         *p++ = (unsigned char) ( 0x08 + oid_size + hashlen );
         *p++ = MBEDTLS_ASN1_SEQUENCE | MBEDTLS_ASN1_CONSTRUCTED;
@@ -1094,7 +1097,7 @@ int mbedtls_rsa_rsassa_pkcs1_v15_sign( mbedtls_rsa_context *ctx,
         *p++ = MBEDTLS_ASN1_NULL;
         *p++ = 0x00;
         *p++ = MBEDTLS_ASN1_OCTET_STRING;
-        *p++ = hashlen;
+        *p++ = (unsigned char)hashlen;
         memcpy( p, hash, hashlen );
     }
 

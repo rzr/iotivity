@@ -66,6 +66,16 @@ int main( void )
 #define USAGE_CSR ""
 #endif /* MBEDTLS_X509_CSR_PARSE_C */
 
+#if defined(MBEDTLS_X509_EXPANDED_SUBJECT_ALT_NAME_SUPPORT)
+#define USAGE_SUBJ_ALT_NAME \
+    "    subj_alt_name=%%s    default: (empty)\n"       \
+    "                        Comma-separated-list of values:\n"      \
+    "                          dns_name=%%s\n"          \
+    "                          directory_name=(OU=%%s;CN=%%s;...)\n"
+#else
+#define USAGE_SUBJ_ALT_NAME ""
+#endif /* MBEDTLS_X509_EXPANDED_SUBJECT_ALT_NAME_SUPPORT */
+
 #define DFL_ISSUER_CRT          ""
 #define DFL_REQUEST_FILE        ""
 #define DFL_SUBJECT_KEY         "subject.key"
@@ -127,6 +137,7 @@ int main( void )
     "                          ssl_ca\n"                \
     "                          email_ca\n"              \
     "                          object_signing_ca\n"     \
+    USAGE_SUBJ_ALT_NAME                                 \
     "\n"
 
 /*
@@ -151,6 +162,9 @@ struct options
     int max_pathlen;            /* maximum CA path length               */
     unsigned char key_usage;    /* key usage flags                      */
     unsigned char ns_cert_type; /* NS cert type                         */
+#if defined(MBEDTLS_X509_EXPANDED_SUBJECT_ALT_NAME_SUPPORT)
+    mbedtls_x509_general_names subj_alt_names; /* Subject alternative names  */
+#endif
 } opt;
 
 int write_certificate( mbedtls_x509write_cert *crt, const char *output_file,
@@ -182,6 +196,58 @@ int write_certificate( mbedtls_x509write_cert *crt, const char *output_file,
     return( 0 );
 }
 
+#if defined(MBEDTLS_X509_EXPANDED_SUBJECT_ALT_NAME_SUPPORT)
+static int add_subj_alt_name( mbedtls_x509_general_names **cur, const mbedtls_x509_general_name *add )
+{
+    mbedtls_x509_general_names *new_cur = *cur;
+
+    if ( new_cur->general_name.name_type != 0 )
+    {
+        if (new_cur->next != NULL)
+            return( -1 );
+
+        new_cur->next = mbedtls_calloc( 1, sizeof( mbedtls_x509_general_names ) );
+
+        if (new_cur->next == NULL)
+            return( -1 );
+
+        new_cur = new_cur->next;
+    }
+
+    memcpy( &new_cur->general_name, add, sizeof( mbedtls_x509_general_name ) );
+
+    *cur = new_cur;
+
+    return( 0 );
+}
+
+static void subj_alt_names_free( mbedtls_x509_general_names *names )
+{
+    mbedtls_x509_general_names *cur = names;
+    mbedtls_x509_general_names *prv;
+
+    while ( cur != NULL )
+    {
+        prv = cur;
+        cur = cur->next;
+
+        if ( prv->general_name.name_type == MBEDTLS_X509_GENERALNAME_DIRECTORYNAME )
+        {
+            mbedtls_asn1_free_named_data_list( &prv->general_name.directory_name );
+        }
+
+        /*
+         * The first node is part of the opt struct and not heap allocated, so don't free it.
+         * Every other loop, free the node.
+         */
+        if ( prv != names )
+        {
+            mbedtls_free( prv );
+        }
+    }
+}
+#endif
+
 int main( int argc, char *argv[] )
 {
     int ret = 0;
@@ -202,6 +268,10 @@ int main( int argc, char *argv[] )
     mbedtls_entropy_context entropy;
     mbedtls_ctr_drbg_context ctr_drbg;
     const char *pers = "crt example app";
+#if defined(MBEDTLS_X509_EXPANDED_SUBJECT_ALT_NAME_SUPPORT)
+    mbedtls_x509_general_names *name_cur = &opt.subj_alt_names;
+    mbedtls_x509_general_name name_tmp;
+#endif
 
     /*
      * Set to sane values
@@ -243,6 +313,9 @@ int main( int argc, char *argv[] )
     opt.max_pathlen         = DFL_MAX_PATHLEN;
     opt.key_usage           = DFL_KEY_USAGE;
     opt.ns_cert_type        = DFL_NS_CERT_TYPE;
+#if defined(MBEDTLS_X509_EXPANDED_SUBJECT_ALT_NAME_SUPPORT)
+    memset( &opt.subj_alt_names, 0, sizeof( opt.subj_alt_names ) );
+#endif
 
     for( i = 1; i < argc; i++ )
     {
@@ -358,6 +431,86 @@ int main( int argc, char *argv[] )
                 q = r;
             }
         }
+#if defined(MBEDTLS_X509_EXPANDED_SUBJECT_ALT_NAME_SUPPORT)
+        else if( strcmp( p, "subj_alt_name" ) == 0 )
+        {
+            while( q != NULL )
+            {
+                char *s;
+
+                if( ( r = strchr( q, ',' ) ) != NULL )
+                    *r++ = '\0';
+
+                if( ( s = strchr( q, '=' ) ) == NULL )
+                    goto usage;
+
+                *s++ = '\0';
+
+                if( strcmp( q, "dns_name" ) == 0 )
+                {
+                    name_tmp.name_type = MBEDTLS_X509_GENERALNAME_DNSNAME;
+                    name_tmp.dns_name.len = strlen( s );
+                    name_tmp.dns_name.p = (unsigned char *)s;
+                    /* tag field doesn't need to be set for writing. */
+                }
+                else if( strcmp( q, "directory_name" ) == 0 )
+                {
+                    char *rp, *tmp;
+
+                    if ( *s != '(' )
+                        goto usage;
+
+                    if ( ( rp = strchr( s + 1, ')' ) ) == NULL )
+                        goto usage;
+
+                    /*
+                     * Replace semicolons in the parenthesized list with commas and temporarily
+                     * terminate with null so we can use mbedtls_x509_string_to_names, call it,
+                     * and then change them back so the commas don't interfere with later parsing.
+                     */
+
+                    for ( tmp = s + 1; tmp < rp; tmp++ )
+                    {
+                        if ( *tmp == ';' )
+                        {
+                            *tmp = ',';
+                        }
+                    }
+
+                    *rp = '\0';
+
+                    name_tmp.name_type = MBEDTLS_X509_GENERALNAME_DIRECTORYNAME;
+                    name_tmp.directory_name = NULL;
+                    ret = mbedtls_x509_string_to_names( &name_tmp.directory_name, s + 1 );
+
+                    if ( ret < 0 )
+                    {
+                        mbedtls_strerror( ret, buf, 1024 );
+                        mbedtls_printf( " failed\n  ! mbedtls_x509_string_to_names returned %d - %s\n", ret, buf );
+                        goto exit;
+                    }
+
+                    for ( tmp = s + 1; tmp < rp; tmp++ )
+                    {
+                        if ( *tmp == ',' )
+                        {
+                            *tmp = ';';
+                        }
+                    }
+
+                    *rp = ')';
+
+                }
+                else
+                    goto usage;
+
+                if ( add_subj_alt_name( &name_cur, &name_tmp ) != 0 )
+                    goto exit;
+
+                q = r;
+            }
+        }
+#endif /* MBEDTLS_X509_EXPANDED_SUBJECT_ALT_NAME_SUPPORT */
         else
             goto usage;
     }
@@ -632,6 +785,24 @@ int main( int argc, char *argv[] )
         mbedtls_printf( " ok\n" );
     }
 
+#if defined(MBEDTLS_X509_EXPANDED_SUBJECT_ALT_NAME_SUPPORT)
+    if ( opt.subj_alt_names.general_name.name_type )
+    {
+        mbedtls_printf( "  . Adding the Subject Alternative Name extension ..." );
+        fflush( stdout );
+
+        ret = mbedtls_x509write_crt_set_subject_alt_names( &crt, &opt.subj_alt_names );
+        if ( ret != 0 )
+        {
+            mbedtls_strerror( ret, buf, 1024 );
+            mbedtls_printf( " failed\n  !  mbedtls_x509write_crt_set_subject_alt_names returned -0x%02x - %s\n\n", -ret, buf );
+            goto exit;
+        }
+
+        mbedtls_printf( " ok\n" );
+    }
+#endif
+
     /*
      * 1.2. Writing the request
      */
@@ -649,6 +820,9 @@ int main( int argc, char *argv[] )
     mbedtls_printf( " ok\n" );
 
 exit:
+#if defined(MBEDTLS_X509_EXPANDED_SUBJECT_ALT_NAME_SUPPORT)
+    subj_alt_names_free( &opt.subj_alt_names );
+#endif
     mbedtls_x509write_crt_free( &crt );
     mbedtls_pk_free( &loaded_subject_key );
     mbedtls_pk_free( &loaded_issuer_key );
